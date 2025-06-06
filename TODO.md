@@ -7,9 +7,9 @@ This checklist outlines features to implement for the native Android and iOS app
 - [x] Connect to backend `/admin/authenticate` using Retrofit.
 - [x] Store JWT token securely and attach to requests.
 - [x] Display a list of sessions retrieved from the backend.
-- [ ] Implement navigation components with fragments.
+- [x] Implement navigation components with fragments.
 - [x] Integrate Hilt for dependency injection.
-- [ ] Apply consistent theming and styles.
+- [x] Apply consistent theming and styles.
 - [x] Add unit tests for view models and networking layer.
 
 ## iOS (SwiftUI)

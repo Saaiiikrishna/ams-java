@@ -34,7 +34,7 @@ Native mobile clients are provided in the `entity-admin-android` and `entity-adm
 The Android app is written in Kotlin and can be opened directly in Android Studio.
 The iOS application uses SwiftUI and should be opened with Xcode.
 
-The Android client now connects to the backend using Retrofit and stores the JWT token using Hilt provided dependencies. After logging in, it shows a list of sessions returned from the server.
+The Android client uses Retrofit for networking and Hilt for dependency injection. It stores the JWT token securely using encrypted shared preferences, applies a consistent Material theme, and presents screens via the Jetpack Navigation component. After authentication it navigates to a session list retrieved from the backend.
 The iOS client also features a login flow implemented in SwiftUI which persists the JWT token in the keychain and lists sessions using `URLSession`.
 
 ## Python NFC Client
