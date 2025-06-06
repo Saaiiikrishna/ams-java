@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">Entity Admin</string>
     <string name="hello_world">Hello, Admin!</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="login">Login</string>
+    <string name="error_email_required">Email is required</string>
+    <string name="error_password_required">Password is required</string>
+    <string name="login_success">Login successful (stub)</string>
 </resources>

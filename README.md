@@ -34,6 +34,8 @@ Native mobile clients are provided in the `entity-admin-android` and `entity-adm
 The Android app is written in Kotlin and can be opened directly in Android Studio.
 The iOS application uses SwiftUI and should be opened with Xcode.
 
+The Android client now includes a basic login screen with simple form validation.
+
 ## Python NFC Client
 
 `nfc_app.py` is a simple Tkinter application that can interact with the backend. Run it with Python after installing the `requests` package.
