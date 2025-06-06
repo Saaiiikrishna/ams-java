@@ -35,9 +35,7 @@ const SessionPage: React.FC = () => {
     setSuccessMessage(null);
   };
 
-  // TODO: The backend /entity/sessions GET endpoint is not defined in the current plan.
-  // The EntityController has POST /entity/sessions and PUT /entity/sessions/{id}/end.
-  // A GET /entity/sessions endpoint would be needed to list sessions.
+  // Fetch all sessions for the current organization
   const fetchSessions = async () => {
     setIsLoading(true);
     setError(null);
@@ -127,7 +125,6 @@ const SessionPage: React.FC = () => {
       )}
 
       <h3>Sessions List</h3>
-      {/* <p><em>Note: Listing existing sessions requires a GET /entity/sessions endpoint, which is currently not implemented on the backend. Only newly created sessions via this UI might appear below if not refreshed.</em></p> */}
       {isLoading && <p>Loading sessions...</p>}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>

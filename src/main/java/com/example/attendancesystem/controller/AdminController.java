@@ -42,6 +42,10 @@ public class AdminController {
         Organization organization = new Organization();
         organization.setName(organizationDto.getName());
         organization.setAddress(organizationDto.getAddress());
+        organization.setLatitude(organizationDto.getLatitude());
+        organization.setLongitude(organizationDto.getLongitude());
+        organization.setContactPerson(organizationDto.getContactPerson());
+        organization.setEmail(organizationDto.getEmail());
         Organization savedOrganization = organizationRepository.save(organization);
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDto(savedOrganization)); // Use DTO
     }
@@ -84,7 +88,10 @@ public class AdminController {
         dto.setId(organization.getId());
         dto.setName(organization.getName());
         dto.setAddress(organization.getAddress());
-        // Add other fields if necessary from your full Organization entity to DTO
+        dto.setLatitude(organization.getLatitude());
+        dto.setLongitude(organization.getLongitude());
+        dto.setContactPerson(organization.getContactPerson());
+        dto.setEmail(organization.getEmail());
         return dto;
     }
 }
