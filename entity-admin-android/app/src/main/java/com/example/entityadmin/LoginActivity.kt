@@ -21,16 +21,16 @@ class LoginActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
-        val emailInput = findViewById<EditText>(R.id.editEmail)
+        val usernameInput = findViewById<EditText>(R.id.editUsername)
         val passwordInput = findViewById<EditText>(R.id.editPassword)
         val loginButton = findViewById<Button>(R.id.buttonLogin)
 
         loginButton.setOnClickListener {
-            val email = emailInput.text.toString().trim()
+            val username = usernameInput.text.toString().trim()
             val password = passwordInput.text.toString()
 
-            if (email.isEmpty()) {
-                emailInput.error = getString(R.string.error_email_required)
+            if (username.isEmpty()) {
+                usernameInput.error = getString(R.string.error_username_required)
                 return@setOnClickListener
             }
 
@@ -41,7 +41,7 @@ class LoginActivity : AppCompatActivity() {
 
             lifecycleScope.launch {
                 try {
-                    authRepository.login(email, password)
+                    authRepository.login(username, password)
                     Toast.makeText(this@LoginActivity, R.string.login_success, Toast.LENGTH_SHORT).show()
                     startActivity(Intent(this@LoginActivity, SessionListActivity::class.java))
                     finish()

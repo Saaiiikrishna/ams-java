@@ -1,7 +1,7 @@
 import Foundation
 
 struct AuthRequest: Codable {
-    let email: String
+    let username: String
     let password: String
 }
 
@@ -18,12 +18,12 @@ class APIClient {
     static let shared = APIClient()
     var token: String?
 
-    func login(email: String, password: String, completion: @escaping (Bool) -> Void) {
+    func login(username: String, password: String, completion: @escaping (Bool) -> Void) {
         guard let url = URL(string: "http://localhost:8080/admin/authenticate") else { completion(false); return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body = try? JSONEncoder().encode(AuthRequest(email: email, password: password))
+        let body = try? JSONEncoder().encode(AuthRequest(username: username, password: password))
         request.httpBody = body
 
         URLSession.shared.dataTask(with: request) { data, response, error in
