@@ -5,15 +5,19 @@ interface Organization {
   id: number;
   name: string;
   address: string;
-  // Add other fields if they are returned by GET /admin/entities and needed for display
-  // For example: coordinates (lat/lng), contactPerson (Name, Mobile), email.
-  // These were mentioned in the requirement for the creation form.
+  latitude?: number;
+  longitude?: number;
+  contactPerson?: string;
+  email?: string;
 }
 
 interface NewOrganization {
   name: string;
   address: string;
-  // coordinates, contactPerson, email - for now keep it simple, matching OrganizationDto on backend
+  latitude?: number;
+  longitude?: number;
+  contactPerson?: string;
+  email?: string;
 }
 
 const EntityPage: React.FC = () => {
@@ -24,6 +28,10 @@ const EntityPage: React.FC = () => {
   // Form state for creating new entity
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
+  const [newLatitude, setNewLatitude] = useState('');
+  const [newLongitude, setNewLongitude] = useState('');
+  const [newContact, setNewContact] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
 
 
@@ -55,13 +63,24 @@ const EntityPage: React.FC = () => {
   const handleCreateSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
-    const newEntityData: NewOrganization = { name: newName, address: newAddress };
+    const newEntityData: NewOrganization = {
+      name: newName,
+      address: newAddress,
+      latitude: newLatitude ? parseFloat(newLatitude) : undefined,
+      longitude: newLongitude ? parseFloat(newLongitude) : undefined,
+      contactPerson: newContact || undefined,
+      email: newEmail || undefined,
+    };
     try {
       const response = await ApiService.post('/admin/entities', newEntityData);
       // Assuming the backend returns the created entity
       setEntities(prevEntities => [...prevEntities, response.data]);
       setNewName('');
       setNewAddress('');
+      setNewLatitude('');
+      setNewLongitude('');
+      setNewContact('');
+      setNewEmail('');
       setShowCreateForm(false);
       fetchEntities(); // Re-fetch the list after successful creation
     } catch (err: any) {
@@ -112,7 +131,38 @@ const EntityPage: React.FC = () => {
               required
             />
           </div>
-          {/* TODO: Add fields for Coordinates, Contact Person, Email as per requirements if backend supports them */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <input
+              type="number"
+              step="any"
+              placeholder="Latitude"
+              value={newLatitude}
+              onChange={(e) => setNewLatitude(e.target.value)}
+            />
+            <input
+              type="number"
+              step="any"
+              placeholder="Longitude"
+              value={newLongitude}
+              onChange={(e) => setNewLongitude(e.target.value)}
+            />
+          </div>
+          <div style={{ marginBottom: '10px' }}>
+            <input
+              type="text"
+              placeholder="Contact Person"
+              value={newContact}
+              onChange={(e) => setNewContact(e.target.value)}
+            />
+          </div>
+          <div style={{ marginBottom: '10px' }}>
+            <input
+              type="email"
+              placeholder="Contact Email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </div>
           <button type="submit">Save Entity</button>
         </form>
       )}
@@ -124,7 +174,12 @@ const EntityPage: React.FC = () => {
         {entities.map(entity => (
           <li key={entity.id} style={{ marginBottom: '10px', padding: '10px', border: '1px solid #ddd' }}>
             <strong>ID: {entity.id} - {entity.name}</strong><br />
-            <span>{entity.address}</span>
+            <span>{entity.address}</span><br />
+            {entity.latitude && entity.longitude && (
+              <span>Coords: {entity.latitude}, {entity.longitude}</span>
+            )}<br />
+            {entity.contactPerson && <span>Contact: {entity.contactPerson}</span>}<br />
+            {entity.email && <span>Email: {entity.email}</span>}
             {/* Add view/update/delete buttons here if implementing */}
           </li>
         ))}

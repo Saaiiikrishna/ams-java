@@ -2,16 +2,45 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog
 import requests
 import json
+import os
+from pathlib import Path
 from typing import Optional, Dict, Any
 
 # --- Configuration ---
-API_BASE_URL = "http://localhost:8080" # Default, can be changed via UI or config file later
+# Configuration file allows persisting settings between runs
+CONFIG_PATH = Path("nfc_config.json")
+
+API_BASE_URL = "http://localhost:8080"  # Default, can be overridden by config
 # For prototype: JWT can be hardcoded, or an input field can be added at startup
 # This JWT should belong to an Entity Admin to manage sessions.
 # The /nfc/scan endpoint itself just needs isAuthenticated(), so any valid JWT works there.
 DEVICE_JWT_TOKEN: Optional[str] = None # Needs to be set for session management
 CURRENT_SESSION_ID: Optional[int] = None
 CURRENT_SESSION_PURPOSE: Optional[str] = None
+
+load_config()
+
+def load_config():
+    global API_BASE_URL, DEVICE_JWT_TOKEN
+    if CONFIG_PATH.exists():
+        try:
+            with open(CONFIG_PATH) as f:
+                data = json.load(f)
+                API_BASE_URL = data.get("api_base_url", API_BASE_URL)
+                DEVICE_JWT_TOKEN = data.get("jwt_token", DEVICE_JWT_TOKEN)
+        except Exception as e:
+            print(f"Failed to load config: {e}")
+
+def save_config():
+    data = {
+        "api_base_url": API_BASE_URL,
+        "jwt_token": DEVICE_JWT_TOKEN,
+    }
+    try:
+        with open(CONFIG_PATH, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Failed to save config: {e}")
 
 # --- Global UI Elements (for easy update) ---
 status_label: Optional[tk.Label] = None
@@ -172,7 +201,7 @@ def set_jwt_token():
     if token:
         DEVICE_JWT_TOKEN = token
         update_status("JWT Token set successfully.")
-        # Potentially save to a config file or memory for current app run
+        save_config()
     else:
         messagebox.showwarning("JWT Error", "JWT Token field is empty.")
 

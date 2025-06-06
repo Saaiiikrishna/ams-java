@@ -29,10 +29,23 @@ const LoginPage: React.FC = () => {
       });
 
       if (response.data && response.data.jwt) {
-        AuthService.login(response.data.jwt);
-        // TODO: Could check token for ROLE_ENTITY_ADMIN before navigating
-        // For now, assuming successful auth means they are an entity admin
-        navigate('/dashboard/subscribers'); // Default page after login
+        const token = response.data.jwt;
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const authorities: string[] = Array.isArray(payload.authorities)
+            ? payload.authorities.map((a: any) => a.authority)
+            : [];
+          if (!authorities.includes('ROLE_ENTITY_ADMIN')) {
+            setError('Access denied: not an entity admin.');
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to decode token', e);
+          setError('Login failed: invalid token.');
+          return;
+        }
+        AuthService.login(token);
+        navigate('/dashboard/subscribers');
       } else {
         setError('Login failed: No token received.');
       }
