@@ -5,6 +5,10 @@ import json
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any
+try:
+    import nfc
+except ImportError:
+    nfc = None  # nfcpy is optional; hardware integration requires it
 
 # --- Configuration ---
 # Configuration file allows persisting settings between runs
@@ -72,6 +76,20 @@ def get_auth_headers() -> Dict[str, str]:
     if DEVICE_JWT_TOKEN:
         return {"Authorization": f"Bearer {DEVICE_JWT_TOKEN}", "Content-Type": "application/json"}
     return {"Content-Type": "application/json"}
+
+def read_nfc_uid() -> Optional[str]:
+    """Read an NFC tag UID using nfcpy if available."""
+    if not nfc:
+        update_status("nfcpy not installed", True)
+        return None
+    try:
+        with nfc.ContactlessFrontend('usb') as clf:
+            tag = clf.connect(rdwr={'on-connect': lambda tag: False})
+            if tag:
+                return tag.identifier.hex()
+    except Exception as e:
+        update_status(f"NFC read error: {e}", True)
+    return None
 
 # --- API Interaction Logic ---
 def handle_start_session():
@@ -152,8 +170,10 @@ def handle_nfc_scan():
 
     card_uid = nfc_uid_entry.get() if nfc_uid_entry else None
     if not card_uid:
-        messagebox.showwarning("Scan Error", "NFC Card UID cannot be empty.")
-        return
+        card_uid = read_nfc_uid()
+        if not card_uid:
+            messagebox.showwarning("Scan Error", "NFC Card UID cannot be read.")
+            return
 
     try:
         payload = {"cardUid": card_uid} # Session ID is not sent in body for /nfc/scan as per backend
@@ -205,6 +225,28 @@ def set_jwt_token():
     else:
         messagebox.showwarning("JWT Error", "JWT Token field is empty.")
 
+def device_login():
+    """Prompt for credentials and obtain a JWT from the backend."""
+    username = simpledialog.askstring("Login", "Username:")
+    password = simpledialog.askstring("Login", "Password:", show='*')
+    if not username or not password:
+        messagebox.showwarning("Login", "Username and password required")
+        return
+    try:
+        response = requests.post(f"{API_BASE_URL}/admin/authenticate", json={"username": username, "password": password})
+        response.raise_for_status()
+        data = response.json()
+        token = data.get("jwt")
+        if token:
+            global DEVICE_JWT_TOKEN
+            DEVICE_JWT_TOKEN = token
+            update_status("Device authenticated")
+            save_config()
+        else:
+            update_status("Login failed: no token", True)
+    except requests.RequestException as e:
+        update_status(f"Login failed: {e}", True)
+
 # --- GUI Setup ---
 def setup_gui(root: tk.Tk):
     global status_label, session_purpose_label, nfc_uid_entry, session_purpose_entry
@@ -222,6 +264,8 @@ def setup_gui(root: tk.Tk):
     jwt_entry_field.grid(row=0, column=1, padx=5, pady=5)
     jwt_set_button = tk.Button(jwt_frame, text="Set JWT", command=set_jwt_token)
     jwt_set_button.grid(row=0, column=2, padx=5)
+    login_button = tk.Button(jwt_frame, text="Login", command=device_login)
+    login_button.grid(row=0, column=3, padx=5)
 
 
     # Session Management Frame

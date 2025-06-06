@@ -46,6 +46,17 @@ pip install requests
 python nfc_app.py
 ```
 
+## Docker Development
+
+To start a local PostgreSQL instance required by the backend:
+
+```bash
+docker compose up -d db
+```
+
+The backend reads connection settings from environment variables defined in
+`application.properties`.
+
 Configuration such as API URL and JWT token is loaded from `nfc_config.json` if present (see the file for example values).
 
 ## Running Tests

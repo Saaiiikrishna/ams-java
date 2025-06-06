@@ -7,6 +7,7 @@ struct EntityAdminIOSApp: App {
             NavigationView {
                 LoginView()
             }
+            .preferredColorScheme(.dark)
         }
     }
 }

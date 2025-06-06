@@ -33,16 +33,16 @@ class LoginFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val emailInput = view.findViewById<EditText>(R.id.editEmail)
+        val usernameInput = view.findViewById<EditText>(R.id.editUsername)
         val passwordInput = view.findViewById<EditText>(R.id.editPassword)
         val loginButton = view.findViewById<Button>(R.id.buttonLogin)
 
         loginButton.setOnClickListener {
-            val email = emailInput.text.toString().trim()
+            val username = usernameInput.text.toString().trim()
             val password = passwordInput.text.toString()
 
-            if (email.isEmpty()) {
-                emailInput.error = getString(R.string.error_email_required)
+            if (username.isEmpty()) {
+                usernameInput.error = getString(R.string.error_username_required)
                 return@setOnClickListener
             }
 
@@ -53,7 +53,7 @@ class LoginFragment : Fragment() {
 
             lifecycleScope.launch {
                 try {
-                    authRepository.login(email, password)
+                    authRepository.login(username, password)
                     Toast.makeText(requireContext(), R.string.login_success, Toast.LENGTH_SHORT).show()
                     findNavController().navigate(R.id.action_loginFragment_to_sessionListFragment)
                 } catch (e: Exception) {

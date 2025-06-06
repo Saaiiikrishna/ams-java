@@ -20,6 +20,10 @@ public class EntityAdmin {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
+    @ManyToOne
+    @JoinColumn(name = "role_id")
+    private Role role;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -51,5 +55,13 @@ public class EntityAdmin {
 
     public void setOrganization(Organization organization) {
         this.organization = organization;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
     }
 }

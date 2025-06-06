@@ -44,3 +44,17 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+## Production Deployment
+
+After setting `REACT_APP_API_BASE_URL` in your `.env` file, build the optimized bundle:
+
+```bash
+npm run build
+```
+
+Serve the contents of the `build` directory with any static web server, for example using `serve`:
+
+```bash
+npx serve -s build
+```

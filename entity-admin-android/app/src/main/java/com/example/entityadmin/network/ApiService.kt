@@ -5,7 +5,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 
-data class AuthRequest(val email: String, val password: String)
+data class AuthRequest(val username: String, val password: String)
 
 data class AuthResponse(val token: String)
 

@@ -1,18 +1,18 @@
 import SwiftUI
 
 struct LoginView: View {
-    @State private var email = ""
+    @State private var username = ""
     @State private var password = ""
     @State private var showingSessions = false
 
     var body: some View {
         VStack(spacing: 16) {
-            TextField("Email", text: $email)
+            TextField("Username", text: $username)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
             SecureField("Password", text: $password)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
             Button("Login") {
-                APIClient.shared.login(email: email, password: password) { success in
+                APIClient.shared.login(username: username, password: password) { success in
                     if success { showingSessions = true }
                 }
             }

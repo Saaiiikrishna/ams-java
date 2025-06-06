@@ -18,9 +18,8 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // For now, let's assign a default role. This should be dynamic in a real app.
-        // Example: could be based on entityAdmin.getRole() or similar
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_ENTITY_ADMIN"));
+        String roleName = entityAdmin.getRole() != null ? entityAdmin.getRole().getName() : "ENTITY_ADMIN";
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
     }
 
     @Override
