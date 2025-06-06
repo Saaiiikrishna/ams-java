@@ -7,4 +7,6 @@
     <string name="error_email_required">Email is required</string>
     <string name="error_password_required">Password is required</string>
     <string name="login_success">Login successful (stub)</string>
+    <string name="login_failed">Login failed</string>
+    <string name="sessions_title">Sessions</string>
 </resources>

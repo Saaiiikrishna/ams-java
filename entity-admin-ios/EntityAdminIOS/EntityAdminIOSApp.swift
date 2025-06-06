@@ -4,7 +4,9 @@ import SwiftUI
 struct EntityAdminIOSApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NavigationView {
+                LoginView()
+            }
         }
     }
 }

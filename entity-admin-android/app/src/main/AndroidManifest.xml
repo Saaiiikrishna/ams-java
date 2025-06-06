@@ -2,6 +2,7 @@
     package="com.example.entityadmin">
 
     <application
+        android:name=".EntityAdminApp"
         android:label="@string/app_name"
         android:theme="@style/Theme.EntityAdmin">
         <activity android:name=".LoginActivity">
@@ -10,6 +11,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".SessionListActivity" />
         <activity android:name=".MainActivity" />
     </application>
 </manifest>
