@@ -3,7 +3,7 @@
 This checklist outlines features to implement for the native Android and iOS apps.
 
 ## Android (Kotlin)
-- [ ] Add login screen with form validation.
+- [x] Add login screen with form validation.
 - [ ] Connect to backend `/admin/authenticate` using Retrofit.
 - [ ] Store JWT token securely and attach to requests.
 - [ ] Display a list of sessions retrieved from the backend.
