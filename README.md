@@ -28,6 +28,12 @@ cd ../entity-dashboard && npm install && npm run build
 
 During development you can run `npm start` in either directory to start the development server.
 
+## Mobile Apps
+
+Native mobile clients are provided in the `entity-admin-android` and `entity-admin-ios` directories.
+The Android app is written in Kotlin and can be opened directly in Android Studio.
+The iOS application uses SwiftUI and should be opened with Xcode.
+
 ## Python NFC Client
 
 `nfc_app.py` is a simple Tkinter application that can interact with the backend. Run it with Python after installing the `requests` package.

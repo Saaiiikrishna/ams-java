@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Entity Admin</string>
+    <string name="hello_world">Hello, Admin!</string>
+</resources>
