@@ -18,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,18 +41,27 @@ public class AuthenticationController {
     private RefreshTokenService refreshTokenService; // Added
 
     @PostMapping("/authenticate")
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody LoginRequest loginRequest) throws Exception {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
-        );
+    public ResponseEntity<?> createAuthenticationToken(@RequestBody LoginRequest loginRequest) {
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getUsername(),
+                            loginRequest.getPassword())
+            );
+        } catch (BadCredentialsException | UsernameNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Incorrect username or password");
+        }
 
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
+        final UserDetails userDetails =
+                userDetailsService.loadUserByUsername(loginRequest.getUsername());
 
         final String accessToken = jwtUtil.generateToken(userDetails);
         final String refreshTokenString = jwtUtil.generateRefreshToken(userDetails);
 
         // Save the refresh token to the database
-        refreshTokenService.createAndSaveRefreshToken(userDetails.getUsername(), refreshTokenString);
+        refreshTokenService.createAndSaveRefreshToken(
+                userDetails.getUsername(), refreshTokenString);
 
         return ResponseEntity.ok(new LoginResponse(accessToken, refreshTokenString));
     }
