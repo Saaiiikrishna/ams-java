@@ -70,3 +70,12 @@ mvn test
 ## Environment
 
 The application uses an in-memory H2 database when running tests. For production you can configure another datasource in `application.properties`.
+
+## API Documentation
+
+Swagger UI is available after running the Spring Boot application. It provides an interactive interface to explore and test every endpoint.
+
+- Start the backend with `mvn spring-boot:run` or by running the packaged JAR.
+- Open <http://localhost:8080/swagger-ui.html> in your browser.
+
+From this page you can execute requests, inspect request/response models and see example values for each operation.
