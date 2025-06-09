@@ -14,5 +14,49 @@
     <fragment
         android:id="@+id/sessionListFragment"
         android:name="com.example.entityadmin.ui.SessionListFragment"
-        android:label="@string/sessions_title" />
+        android:label="@string/sessions_title">
+        <action
+            android:id="@+id/action_sessionListFragment_to_createSessionFragment"
+            app:destination="@id/createSessionFragment" />
+        <action
+            android:id="@+id/action_sessionListFragment_to_subscriberListFragment"
+            app:destination="@id/subscriberListFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/createSessionFragment"
+        android:name="com.example.entityadmin.ui.CreateSessionFragment"
+        android:label="Create Session" >
+        <action
+            android:id="@+id/action_createSessionFragment_to_sessionListFragment"
+            app:destination="@id/sessionListFragment"
+            app:popUpTo="@id/sessionListFragment"
+            app:popUpToInclusive="true"/>
+    </fragment>
+    <fragment
+        android:id="@+id/subscriberListFragment"
+        android:name="com.example.entityadmin.ui.SubscriberListFragment"
+        android:label="Manage Subscribers">
+        <action
+            android:id="@+id/action_subscriberListFragment_to_addEditSubscriberFragment"
+            app:destination="@id/addEditSubscriberFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/addEditSubscriberFragment"
+        android:name="com.example.entityadmin.ui.AddEditSubscriberFragment"
+        android:label="{title}"> <!-- Dynamic title -->
+        <argument
+            android:name="subscriberId"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="title"
+            app:argType="string"
+            android:defaultValue="Add Subscriber" />
+        <action
+            android:id="@+id/action_addEditSubscriberFragment_to_subscriberListFragment"
+            app:destination="@id/subscriberListFragment"
+            app:popUpTo="@id/subscriberListFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
 </navigation>
