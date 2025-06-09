@@ -33,7 +33,7 @@ public class DataInitializer {
                         return roleRepo.save(r);
                     });
 
-            Organization defaultOrg = orgRepo.findById(1L).orElseGet(() -> {
+            Organization defaultOrg = orgRepo.findByName("Default Org").orElseGet(() -> {
                 Organization o = new Organization();
                 o.setName("Default Org");
                 return orgRepo.save(o);
