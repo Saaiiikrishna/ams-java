@@ -16,6 +16,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration; // Added
+import org.springframework.web.cors.CorsConfigurationSource; // Added
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource; // Added
+
+import java.util.Arrays; // Added
+import java.util.List; // Added
 
 @Configuration
 @EnableWebSecurity
@@ -45,6 +51,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS using the custom source
             .csrf(AbstractHttpConfigurer::disable) // Disable CSRF
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/admin/authenticate", "/admin/refresh-token", "/api/public/**").permitAll() // Added /admin/refresh-token
@@ -60,5 +67,18 @@ public class SecurityConfig {
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean // Added CORS configuration source bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("*")); // Allow all origins for development
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")); // Allow common methods
+        configuration.setAllowedHeaders(List.of("*")); // Allow all headers
+        // configuration.setAllowCredentials(true); // Only set if you need credentials and origins are specific
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration); // Apply this configuration to all paths
+        return source;
     }
 }
