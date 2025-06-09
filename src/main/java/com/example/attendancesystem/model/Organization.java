@@ -14,7 +14,7 @@ public class Organization {
     @Column(nullable = false, unique = true)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = true) // Changed to true
     private String address;
 
     // Optional metadata

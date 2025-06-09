@@ -68,6 +68,7 @@
                 <dependency>
                         <groupId>org.flywaydb</groupId>
                         <artifactId>flyway-core</artifactId>
+                        <version>10.8.1</version> <!-- Updated Flyway version -->
                 </dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
