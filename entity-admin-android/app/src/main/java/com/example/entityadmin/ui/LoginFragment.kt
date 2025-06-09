@@ -12,7 +12,8 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.entityadmin.R
-import com.example.entityadmin.viewmodel.SessionViewModel
+import com.example.entityadmin.util.toUserFriendlyMessage // Added
+import com.example.entityadmin.viewmodel.SessionViewModel // This ViewModel is not used for login logic here
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -22,7 +23,7 @@ import com.example.entityadmin.network.AuthRepository
 class LoginFragment : Fragment() {
 
     @Inject lateinit var authRepository: AuthRepository
-    private val viewModel: SessionViewModel by viewModels()
+    // private val viewModel: SessionViewModel by viewModels() // Not used for login action
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,13 +53,20 @@ class LoginFragment : Fragment() {
             }
 
             lifecycleScope.launch {
-                try {
-                    authRepository.login(username, password)
-                    Toast.makeText(requireContext(), R.string.login_success, Toast.LENGTH_SHORT).show()
-                    findNavController().navigate(R.id.action_loginFragment_to_sessionListFragment)
-                } catch (e: Exception) {
-                    Toast.makeText(requireContext(), R.string.login_failed, Toast.LENGTH_SHORT).show()
-                }
+                // Disable button, show progress bar here if they were added to layout
+                val loginResult = authRepository.login(username, password)
+                // Re-enable button, hide progress bar here
+
+                loginResult.fold(
+                    onSuccess = {
+                        Toast.makeText(requireContext(), R.string.login_success, Toast.LENGTH_SHORT).show()
+                        findNavController().navigate(R.id.action_loginFragment_to_sessionListFragment)
+                    },
+                    onFailure = { exception ->
+                        val errorMessage = exception.toUserFriendlyMessage()
+                        Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show()
+                    }
+                )
             }
         }
     }
