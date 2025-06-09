@@ -47,7 +47,7 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable) // Disable CSRF
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/admin/authenticate", "/api/public/**").permitAll() // Example public endpoints
+                .requestMatchers("/admin/authenticate", "/admin/refresh-token", "/api/public/**").permitAll() // Added /admin/refresh-token
                 .requestMatchers("/admin/**").hasRole("SUPER_ADMIN") // Placeholder for now
                 .requestMatchers("/entity/**").hasRole("ENTITY_ADMIN") // Placeholder for now
                 .anyRequest().authenticated() // All other requests need authentication

@@ -18,11 +18,19 @@ const LoginPage: React.FC = () => {
         username,
         password,
       });
-      if (response.data && response.data.jwt) {
-        AuthService.login(response.data.jwt);
+      // Assuming backend response is { jwt: "accessTokenValue", refreshToken: "refreshTokenValue" }
+      // The LoginResponse.java DTO uses "jwt" for accessToken and "refreshToken" for refreshToken.
+      if (response.data && response.data.jwt && response.data.refreshToken) {
+        AuthService.storeTokens(response.data.jwt, response.data.refreshToken);
+        // Navigate to the appropriate dashboard based on the panel
+        // For admin-panel, it's '/admin/entities'
+        // For entity-dashboard, it might be '/dashboard' or similar
+        // This logic might need to be conditional if this exact file is shared,
+        // but for now, assuming it's specific to admin-panel.
+        // The entity-dashboard LoginPage.tsx would navigate to its own main page.
         navigate('/admin/entities');
       } else {
-        setError('Login failed: No token received.');
+        setError('Login failed: Invalid response from server.');
       }
     } catch (err: any) {
       if (err.response && err.response.data && err.response.data.message) {
