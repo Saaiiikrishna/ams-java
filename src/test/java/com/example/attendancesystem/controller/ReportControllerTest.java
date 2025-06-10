@@ -63,7 +63,7 @@ public class ReportControllerTest {
         org2 = organizationRepository.findByName("Test Org Two (EntityController)").orElseThrow();
 
         // Subscribers for Org1
-        sub1Org1 = subscriberRepository.save(new Subscriber(" présentsub1", "lastname", "present1@org1.com", org1, null));
+        sub1Org1 = subscriberRepository.save(new Subscriber("presentsub1", "lastname", "present1@org1.com", org1, null));
         sub2Org1 = subscriberRepository.save(new Subscriber("absentsub2", "lastname", "absent2@org1.com", org1, null));
         sub3Org1 = subscriberRepository.save(new Subscriber("presentsub3", "lastname", "present3@org1.com", org1, null));
 
