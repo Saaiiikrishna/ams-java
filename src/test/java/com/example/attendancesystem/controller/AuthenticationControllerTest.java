@@ -5,6 +5,9 @@ import com.example.attendancesystem.model.EntityAdmin;
 import com.example.attendancesystem.model.Organization;
 import com.example.attendancesystem.repository.EntityAdminRepository;
 import com.example.attendancesystem.repository.OrganizationRepository;
+import com.example.attendancesystem.repository.RefreshTokenRepository;
+import com.example.attendancesystem.dto.RefreshTokenRequest;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,9 @@ public class AuthenticationControllerTest {
     private OrganizationRepository organizationRepository;
 
     @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private Organization testOrganization;
@@ -48,6 +54,7 @@ public class AuthenticationControllerTest {
     @BeforeEach
     void setUp() {
         // Clear repositories if needed, or rely on @Transactional
+        refreshTokenRepository.deleteAll();
         entityAdminRepository.deleteAll();
         organizationRepository.deleteAll();
 
@@ -112,5 +119,41 @@ public class AuthenticationControllerTest {
                 .content(objectMapper.writeValueAsString(loginRequest)))
                  .andExpect(status().isUnauthorized()); // Similar to above, depends on how UsernameNotFoundException is handled.
                                                        // Spring Security's DaoAuthenticationProvider throws BadCredentialsException for this too.
+    }
+
+    @Test
+    void testRefreshToken_RotatesAndDeletesOld() throws Exception {
+        // Step 1: authenticate to obtain initial tokens
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("testuser");
+        loginRequest.setPassword("password");
+
+        MvcResult authResult = mockMvc.perform(post("/admin/authenticate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode authJson = objectMapper.readTree(authResult.getResponse().getContentAsString());
+        String oldRefreshToken = authJson.get("refreshToken").asText();
+
+        // Step 2: call refresh-token endpoint with the old token
+        RefreshTokenRequest refreshRequest = new RefreshTokenRequest(oldRefreshToken);
+        MvcResult refreshResult = mockMvc.perform(post("/admin/refresh-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(refreshRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                .andReturn();
+
+        JsonNode refreshJson = objectMapper.readTree(refreshResult.getResponse().getContentAsString());
+        String newRefreshToken = refreshJson.get("refreshToken").asText();
+
+        assertThat(newRefreshToken).isNotEqualTo(oldRefreshToken);
+
+        // Step 4: ensure old refresh token no longer exists
+        assertThat(refreshTokenRepository.findByToken(oldRefreshToken)).isEmpty();
+        assertThat(refreshTokenRepository.findByToken(newRefreshToken)).isPresent();
     }
 }
