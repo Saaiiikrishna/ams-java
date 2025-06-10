@@ -1,6 +1,7 @@
 package com.example.attendancesystem.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "entity_admins")
@@ -19,6 +20,14 @@ public class EntityAdmin {
     @ManyToOne
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     @ManyToOne
     @JoinColumn(name = "role_id")
@@ -63,5 +72,13 @@ public class EntityAdmin {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

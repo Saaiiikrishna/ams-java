@@ -11,14 +11,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.GetMapping; // Added for GET
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List; // Added for List
-import java.util.stream.Collectors; // Added for Collectors
+import jakarta.persistence.EntityNotFoundException;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
@@ -80,6 +81,104 @@ public class AdminController {
         // Avoid sending password back in response
         EntityAdminDto responseDto = new EntityAdminDto(savedEntityAdmin.getUsername(), null, savedEntityAdmin.getOrganization().getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
+    }
+
+    @GetMapping("/entities/without-admin")
+    public ResponseEntity<List<OrganizationDto>> getEntitiesWithoutAdmin() {
+        List<Organization> allOrganizations = organizationRepository.findAll();
+        List<Organization> entitiesWithoutAdmin = allOrganizations.stream()
+                .filter(org -> entityAdminRepository.findByOrganization(org).isEmpty())
+                .collect(Collectors.toList());
+
+        List<OrganizationDto> organizationDtos = entitiesWithoutAdmin.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(organizationDtos);
+    }
+
+    @PostMapping("/entities/{id}/assign-admin")
+    public ResponseEntity<?> assignAdmin(@PathVariable Long id, @RequestBody EntityAdminDto entityAdminDto) {
+        Organization organization = organizationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Organization not found with id: " + id));
+
+        // Check if admin already exists for this organization
+        if (entityAdminRepository.findByOrganization(organization).isPresent()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Admin already exists for this organization"));
+        }
+
+        // Check if username already exists
+        if (entityAdminRepository.findByUsername(entityAdminDto.getUsername()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Username already exists"));
+        }
+
+        EntityAdmin entityAdmin = new EntityAdmin();
+        entityAdmin.setUsername(entityAdminDto.getUsername());
+        entityAdmin.setPassword(passwordEncoder.encode(entityAdminDto.getPassword()));
+        entityAdmin.setOrganization(organization);
+
+        EntityAdmin savedAdmin = entityAdminRepository.save(entityAdmin);
+        return ResponseEntity.ok(Map.of("message", "Admin assigned successfully", "admin", savedAdmin));
+    }
+
+    @DeleteMapping("/entities/{id}/remove-admin")
+    public ResponseEntity<?> removeAdmin(@PathVariable Long id) {
+        Organization organization = organizationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Organization not found with id: " + id));
+
+        // Find and delete the entity admin for this organization
+        Optional<EntityAdmin> entityAdminOpt = entityAdminRepository.findByOrganization(organization);
+        if (entityAdminOpt.isPresent()) {
+            EntityAdmin entityAdmin = entityAdminOpt.get();
+            entityAdminRepository.delete(entityAdmin);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Admin removed successfully",
+                    "organizationId", id,
+                    "organizationName", organization.getName()
+            ));
+        } else {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "No admin found for this organization"));
+        }
+    }
+
+    @GetMapping("/entity-admins")
+    public ResponseEntity<List<Map<String, Object>>> getAllEntityAdmins() {
+        List<EntityAdmin> entityAdmins = entityAdminRepository.findAll();
+        List<Map<String, Object>> adminDtos = entityAdmins.stream()
+                .map(admin -> {
+                    Map<String, Object> adminMap = new HashMap<>();
+                    adminMap.put("id", admin.getId());
+                    adminMap.put("username", admin.getUsername());
+                    adminMap.put("organizationId", admin.getOrganization().getId());
+                    adminMap.put("organizationName", admin.getOrganization().getName());
+                    adminMap.put("createdAt", admin.getCreatedAt() != null ? admin.getCreatedAt().toString() : "");
+                    adminMap.put("role", "ENTITY_ADMIN");
+                    return adminMap;
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(adminDtos);
+    }
+
+    @DeleteMapping("/entities/{id}")
+    public ResponseEntity<?> deleteEntity(@PathVariable Long id) {
+        Organization organization = organizationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Organization not found with id: " + id));
+
+        // First remove any associated entity admin
+        Optional<EntityAdmin> entityAdminOpt = entityAdminRepository.findByOrganization(organization);
+        if (entityAdminOpt.isPresent()) {
+            entityAdminRepository.delete(entityAdminOpt.get());
+        }
+
+        // Then delete the organization
+        organizationRepository.delete(organization);
+        return ResponseEntity.ok(Map.of(
+                "message", "Entity deleted successfully",
+                "entityId", id,
+                "entityName", organization.getName()
+        ));
     }
 
     // Helper method to convert Organization to OrganizationDto

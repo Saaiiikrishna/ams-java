@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.*; // Keep this for existing anno
 import java.util.Collections; // For empty list if needed, though repository methods handle it
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -38,6 +40,9 @@ public class EntityController {
 
     @Autowired
     private AttendanceSessionRepository attendanceSessionRepository;
+
+    @Autowired
+    private EntityAdminRepository entityAdminRepository;
 
     // Helper to get current EntityAdmin's organization
     private Organization getCurrentOrganization() {
@@ -188,6 +193,51 @@ public class EntityController {
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(sessionDtos);
+    }
+
+    @GetMapping("/entity/info")
+    public ResponseEntity<Map<String, Object>> getEntityInfo(Authentication authentication) {
+        try {
+            // Get the current entity admin's organization
+            String username = authentication.getName();
+            Optional<EntityAdmin> entityAdminOpt = entityAdminRepository.findByUsername(username);
+
+            if (entityAdminOpt.isPresent()) {
+                EntityAdmin entityAdmin = entityAdminOpt.get();
+                Organization organization = entityAdmin.getOrganization();
+
+                Map<String, Object> entityInfo = new HashMap<>();
+                entityInfo.put("name", organization.getName());
+                entityInfo.put("address", organization.getAddress());
+                entityInfo.put("adminName", entityAdmin.getUsername());
+                entityInfo.put("contactPerson", organization.getContactPerson());
+                entityInfo.put("email", organization.getEmail());
+
+                return ResponseEntity.ok(entityInfo);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Entity admin not found"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch entity info"));
+        }
+    }
+
+    @DeleteMapping("/sessions/{id}")
+    public ResponseEntity<?> deleteSession(@PathVariable Long id) {
+        Organization organization = getCurrentOrganization();
+        AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
+                .orElseThrow(() -> new EntityNotFoundException("Attendance session not found with id: " + id + " in your organization."));
+
+        // Delete the session (this will also delete associated attendance logs if cascade is configured)
+        attendanceSessionRepository.delete(session);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Session deleted successfully",
+                "sessionId", id,
+                "sessionName", session.getName()
+        ));
     }
 
     // DTO Converters
