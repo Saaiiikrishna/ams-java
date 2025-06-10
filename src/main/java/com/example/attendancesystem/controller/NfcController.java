@@ -21,13 +21,8 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/nfc")
-// @PreAuthorize("hasRole('ENTITY_ADMIN') or hasRole('NFC_DEVICE')") // Or some other appropriate role
-// For now, let's assume an EntityAdmin might test this, or a specific device role.
-// If open to devices, they would need their own auth mechanism (e.g. API key, device JWT)
-// For simplicity in this phase, let's keep it to ENTITY_ADMIN or even broader if testing.
-// We will refine this authorization later if needed. For now, let's allow authenticated users.
-@PreAuthorize("isAuthenticated()")
+@RequestMapping("/api/attendance")
+@PreAuthorize("hasRole('ENTITY_ADMIN')")
 public class NfcController {
 
     @Autowired
@@ -39,7 +34,7 @@ public class NfcController {
     @Autowired
     private AttendanceLogRepository attendanceLogRepository;
 
-    @PostMapping("/scan")
+    @PostMapping("/checkin")
     @Transactional
     public ResponseEntity<?> recordNfcScan(@RequestBody NfcScanDto nfcScanDto) {
         if (nfcScanDto.getCardUid() == null || nfcScanDto.getCardUid().isEmpty()) {

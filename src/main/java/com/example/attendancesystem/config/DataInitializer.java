@@ -35,17 +35,31 @@ public class DataInitializer {
 
             Organization defaultOrg = orgRepo.findByName("Default Org").orElseGet(() -> {
                 Organization o = new Organization();
-                o.setName("Default Org");
+                o.setName("My Org");
+                // must supply a non-null address
+                o.setAddress("123 Default Avenue, Metropolis");
                 return orgRepo.save(o);
             });
 
-            if (adminRepo.findByUsername("superadmin").isEmpty()) {
+            // Check if super admin exists with the correct role
+            boolean superAdminExists = adminRepo.findByUsername("superadmin")
+                    .map(admin -> admin.getRole() != null && "SUPER_ADMIN".equals(admin.getRole().getName()))
+                    .orElse(false);
+
+            if (!superAdminExists) {
+                // Remove any existing superadmin with wrong role
+                adminRepo.findByUsername("superadmin").ifPresent(adminRepo::delete);
+
                 EntityAdmin admin = new EntityAdmin();
                 admin.setUsername("superadmin");
-                admin.setPassword(passwordEncoder.encode("password"));
-                admin.setOrganization(defaultOrg);
+                admin.setPassword(passwordEncoder.encode("admin123"));
+                admin.setOrganization(null); // Super admin doesn't need an organization
                 admin.setRole(superRole);
                 adminRepo.save(admin);
+                System.out.println("Created default Super Admin:");
+                System.out.println("Username: superadmin");
+                System.out.println("Password: admin123");
+                System.out.println("*** PLEASE CHANGE THE DEFAULT PASSWORD IN PRODUCTION ***");
             }
         };
     }

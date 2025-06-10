@@ -61,7 +61,7 @@ public class AdminControllerTest {
     void testCreateOrganization_Success() throws Exception {
         OrganizationDto organizationDto = new OrganizationDto("New Test Org", "789 Super St");
 
-        mockMvc.perform(post("/admin/entities")
+        mockMvc.perform(post("/super/entities")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(organizationDto)))
                 .andExpect(status().isCreated())
@@ -81,7 +81,7 @@ public class AdminControllerTest {
 
         OrganizationDto organizationDto = new OrganizationDto("Existing Org", "789 Super St");
 
-        mockMvc.perform(post("/admin/entities")
+        mockMvc.perform(post("/super/entities")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(organizationDto)))
                 .andExpect(status().isConflict())
@@ -93,7 +93,7 @@ public class AdminControllerTest {
     void testCreateOrganization_Forbidden_WrongRole() throws Exception {
         OrganizationDto organizationDto = new OrganizationDto("Forbidden Org", "000 Forbidden Ave");
 
-        mockMvc.perform(post("/admin/entities")
+        mockMvc.perform(post("/super/entities")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(organizationDto)))
                 .andExpect(status().isForbidden());
@@ -103,7 +103,7 @@ public class AdminControllerTest {
     void testCreateOrganization_Forbidden_NoAuth() throws Exception { // No @WithMockUser
         OrganizationDto organizationDto = new OrganizationDto("No Auth Org", "000 No Auth Ave");
 
-        mockMvc.perform(post("/admin/entities")
+        mockMvc.perform(post("/super/entities")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(organizationDto)))
                 .andExpect(status().isUnauthorized()); // Or 401, Spring security default for unauthenticated

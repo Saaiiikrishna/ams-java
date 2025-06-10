@@ -1,32 +1,40 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import { CssBaseline } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import EntityLayout from './components/EntityLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-import './App.css';
+import DashboardPage from './pages/DashboardPage';
 import SubscriberPage from './pages/SubscriberPage';
 import SessionPage from './pages/SessionPage';
 import ReportPage from './pages/ReportPage';
+import theme from './theme/theme';
+import './App.css';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
 
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<EntityLayout />}>
-            <Route path="subscribers" element={<SubscriberPage />} />
-            <Route path="sessions" element={<SessionPage />} />
-            <Route path="reports" element={<ReportPage />} />
-            <Route index element={<Navigate to="subscribers" replace />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<EntityLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="overview" element={<DashboardPage />} />
+              <Route path="subscribers" element={<SubscriberPage />} />
+              <Route path="sessions" element={<SessionPage />} />
+              <Route path="reports" element={<ReportPage />} />
+            </Route>
           </Route>
-        </Route>
 
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} /> {/* Catch-all */}
-      </Routes>
-    </Router>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} /> {/* Catch-all */}
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 

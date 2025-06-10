@@ -16,8 +16,9 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    // Generate a secure key for HS512
-    private final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+    // Fixed secret key for Entity Admin tokens - Fixed key to avoid regeneration
+    private static final String SECRET_STRING = "EntityAdminSecretKeyForJWTTokenGenerationAndValidation2024!@#$%^&*()";
+    private final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
     // private final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours - Replaced
     private final long ACCESS_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 1; // 1 hour
     private final long REFRESH_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -47,12 +48,13 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         // Add authorities to claims
         claims.put("authorities", userDetails.getAuthorities());
+        claims.put("tokenType", "ENTITY_ADMIN_ACCESS");
         return createToken(claims, userDetails.getUsername(), ACCESS_TOKEN_EXPIRATION_TIME);
     }
 
     public String generateRefreshToken(UserDetails userDetails) { // New method for Refresh Token
         Map<String, Object> claims = new HashMap<>();
-        // No extra claims needed for refresh token, just subject and expiration
+        claims.put("tokenType", "ENTITY_ADMIN_REFRESH");
         return createToken(claims, userDetails.getUsername(), REFRESH_TOKEN_EXPIRATION_TIME);
     }
 
@@ -70,5 +72,25 @@ public class JwtUtil {
     public Boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    public Boolean isRefreshToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            String tokenType = (String) claims.get("tokenType");
+            return "ENTITY_ADMIN_REFRESH".equals(tokenType);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Boolean isEntityAdminToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            String tokenType = (String) claims.get("tokenType");
+            return tokenType != null && tokenType.startsWith("ENTITY_ADMIN");
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

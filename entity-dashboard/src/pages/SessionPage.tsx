@@ -1,4 +1,47 @@
 import React, { useState, useEffect, FormEvent } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+
+  IconButton,
+  Chip,
+  Alert,
+  Grid,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  InputAdornment,
+  Avatar,
+  Tooltip,
+
+  Divider,
+} from '@mui/material';
+import {
+  Add,
+  AccessTime,
+  PlayArrow,
+  Stop,
+  Schedule,
+  Event,
+  CheckCircle,
+  Cancel,
+  Refresh,
+  NearMe,
+  Delete,
+  Person,
+} from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 
 interface AttendanceSession {
@@ -24,6 +67,7 @@ const SessionPage: React.FC = () => {
   // Form state for creating new session
   const [sessionName, setSessionName] = useState('');
   const [sessionStartTime, setSessionStartTime] = useState(''); // Store as string for input type datetime-local
+  const [formLoading, setFormLoading] = useState(false);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -31,6 +75,7 @@ const SessionPage: React.FC = () => {
     setSessionName('');
     setSessionStartTime('');
     setShowCreateForm(false);
+    setFormLoading(false);
     setError(null);
     setSuccessMessage(null);
   };
@@ -40,7 +85,7 @@ const SessionPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await ApiService.get<AttendanceSession[]>('/entity/sessions');
+      const response = await ApiService.get<AttendanceSession[]>('/api/sessions');
       setSessions(response.data || []);
     } catch (err: any) {
       console.error("Failed to fetch sessions:", err);
@@ -60,20 +105,29 @@ const SessionPage: React.FC = () => {
     event.preventDefault();
     setError(null);
     setSuccessMessage(null);
+    setFormLoading(true);
 
     const newSessionData: NewAttendanceSession = { name: sessionName };
     if (sessionStartTime) {
-      newSessionData.startTime = new Date(sessionStartTime).toISOString();
+      // Create a proper Date object and convert to ISO string
+      // The sessionStartTime is in local timezone from datetime-local input
+      const localDate = new Date(sessionStartTime);
+      newSessionData.startTime = localDate.toISOString();
+    } else {
+      // If no start time specified, use current time
+      newSessionData.startTime = new Date().toISOString();
     }
 
     try {
-      const response = await ApiService.post<AttendanceSession>('/entity/sessions', newSessionData);
+      const response = await ApiService.post<AttendanceSession>('/api/sessions', newSessionData);
       setSuccessMessage(`Session '${response.data.name}' created successfully!`);
       resetForm();
       fetchSessions(); // Refresh list
     } catch (err: any) {
       console.error("Failed to create session:", err);
       setError(err.response?.data?.message || 'Failed to create session.');
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -82,12 +136,27 @@ const SessionPage: React.FC = () => {
     setSuccessMessage(null);
     if (window.confirm('Are you sure you want to end this session?')) {
       try {
-        const response = await ApiService.put<AttendanceSession>(`/entity/sessions/${sessionId}/end`, {});
+        const response = await ApiService.put<AttendanceSession>(`/api/sessions/${sessionId}/end`, {});
         setSuccessMessage(`Session '${response.data.name}' (ID: ${response.data.id}) ended successfully.`);
         fetchSessions(); // Refresh list
       } catch (err: any) {
         console.error("Failed to end session:", err);
         setError(err.response?.data?.message || 'Failed to end session.');
+      }
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: number, sessionName: string) => {
+    setError(null);
+    setSuccessMessage(null);
+    if (window.confirm(`Are you sure you want to DELETE session "${sessionName}"? This action cannot be undone and will remove all associated attendance data.`)) {
+      try {
+        await ApiService.delete(`/api/sessions/${sessionId}`);
+        setSuccessMessage(`Session '${sessionName}' deleted successfully.`);
+        fetchSessions(); // Refresh list
+      } catch (err: any) {
+        console.error("Failed to delete session:", err);
+        setError(err.response?.data?.message || 'Failed to delete session.');
       }
     }
   };
@@ -98,85 +167,341 @@ const SessionPage: React.FC = () => {
   }
 
   return (
-    <div>
-      <h2>Attendance Session Management</h2>
-      {error && <p style={{ color: 'red', border: '1px solid red', padding: '10px' }}>Error: {error}</p>}
-      {successMessage && <p style={{ color: 'green', border: '1px solid green', padding: '10px' }}>Success: {successMessage}</p>}
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" component="h1" fontWeight="bold" color="primary">
+            Session Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Create and manage attendance sessions
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setShowCreateForm(true)}
+          size="large"
+          sx={{
+            background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+            '&:hover': {
+              background: 'linear-gradient(45deg, #1976D2 30%, #1CB5E0 90%)',
+            },
+          }}
+        >
+          Create New Session
+        </Button>
+      </Box>
 
-      <button onClick={() => { resetForm(); setShowCreateForm(!showCreateForm); }} style={{ marginBottom: '15px' }}>
-        {showCreateForm ? 'Cancel Creation' : 'Create New Session'}
-      </button>
-
-      {showCreateForm && (
-        <form onSubmit={handleCreateSubmit} style={{ marginBottom: '20px', padding: '15px', border: '1px solid #eee' }}>
-          <h3>Create New Session</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <input type="text" placeholder="Session Name/Purpose" value={sessionName} onChange={(e) => setSessionName(e.target.value)} required />
-            <input
-              type="datetime-local"
-              placeholder="Start Time (Optional)"
-              value={sessionStartTime}
-              onChange={(e) => setSessionStartTime(e.target.value)}
-              title="If not set, defaults to current time on backend."
-            />
-            <button type="submit">Save Session</button>
-          </div>
-        </form>
+      {/* Alert Messages */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
       )}
 
-      <h3>Sessions List</h3>
-      {isLoading && <p>Loading sessions...</p>}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={tableHeaderStyle}>ID</th>
-            <th style={tableHeaderStyle}>Name</th>
-            <th style={tableHeaderStyle}>Start Time</th>
-            <th style={tableHeaderStyle}>End Time</th>
-            <th style={tableHeaderStyle}>Status</th>
-            <th style={tableHeaderStyle}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sessions.map(session => (
-            <tr key={session.id}>
-              <td style={tableCellStyle}>{session.id}</td>
-              <td style={tableCellStyle}>{session.name}</td>
-              <td style={tableCellStyle}>{formatDateTime(session.startTime)}</td>
-              <td style={tableCellStyle}>{formatDateTime(session.endTime)}</td>
-              <td style={tableCellStyle}>{session.endTime ? 'Ended' : 'Active'}</td>
-              <td style={tableCellStyle}>
-                {!session.endTime && (
-                  <button onClick={() => handleEndSession(session.id)}>End Session</button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {(!isLoading && sessions.length === 0 && !error) && <p>No sessions found.</p>}
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {successMessage}
+        </Alert>
+      )}
 
-      {/* Placeholder for real-time NFC scans */}
-      <div style={{marginTop: '30px', padding: '15px', border: '1px dashed #ccc'}}>
-        <h4>Real-time NFC Scans (Placeholder)</h4>
-        <p><em>This area would display incoming NFC scan events for the selected active session. Requires WebSocket or polling integration.</em></p>
-      </div>
-    </div>
+      {/* Create Session Dialog */}
+      <Dialog open={showCreateForm} onClose={() => setShowCreateForm(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Avatar sx={{ bgcolor: 'primary.main' }}>
+              <Event />
+            </Avatar>
+            <Box>
+              <Typography variant="h6">Create New Session</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Set up a new attendance tracking session
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <form onSubmit={handleCreateSubmit}>
+          <DialogContent>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  autoFocus
+                  required
+                  fullWidth
+                  label="Session Name/Purpose"
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  disabled={formLoading}
+                  placeholder="e.g., Morning Meeting, Training Session, Daily Standup"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Schedule />
+                      </InputAdornment>
+                    ),
+                  }}
+                  helperText="Enter a descriptive name for this attendance session"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Start Time (Optional)"
+                  value={sessionStartTime}
+                  onChange={(e) => setSessionStartTime(e.target.value)}
+                  disabled={formLoading}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <AccessTime />
+                      </InputAdornment>
+                    ),
+                  }}
+                  helperText="Leave empty to start immediately, or schedule for a specific time"
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setShowCreateForm(false)} disabled={formLoading}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={formLoading || !sessionName}
+              startIcon={formLoading ? <CircularProgress size={20} /> : <PlayArrow />}
+              sx={{
+                background: 'linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #388E3C 30%, #689F38 90%)',
+                },
+              }}
+            >
+              {formLoading ? 'Creating...' : 'Create Session'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Sessions List */}
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight="bold">
+              Sessions ({sessions.length})
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {isLoading && <CircularProgress size={24} />}
+              <Tooltip title="Refresh sessions">
+                <IconButton onClick={fetchSessions} disabled={isLoading}>
+                  <Refresh />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : sessions.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Schedule sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary">
+                No sessions found
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Get started by creating your first attendance session
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => setShowCreateForm(true)}
+              >
+                Create First Session
+              </Button>
+            </Box>
+          ) : (
+            <TableContainer sx={{ maxHeight: 400, overflow: 'auto' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Session</TableCell>
+                    <TableCell>Start Time</TableCell>
+                    <TableCell>End Time</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Duration</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sessions
+                    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()) // Most recent first
+                    .map((session) => {
+                    const isActive = !session.endTime;
+                    const startTime = new Date(session.startTime);
+                    const endTime = session.endTime ? new Date(session.endTime) : null;
+                    const duration = endTime
+                      ? Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+                      : Math.round((new Date().getTime() - startTime.getTime()) / (1000 * 60));
+
+                    return (
+                      <TableRow key={session.id} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar sx={{ bgcolor: isActive ? 'success.main' : 'grey.500' }}>
+                              {isActive ? <PlayArrow /> : <Stop />}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight="bold">
+                                {session.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ID: {session.id}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDateTime(session.startTime)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {session.endTime ? formatDateTime(session.endTime) : '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={isActive ? <CheckCircle /> : <Cancel />}
+                            label={isActive ? 'Active' : 'Ended'}
+                            color={isActive ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {duration} min{isActive ? ' (ongoing)' : ''}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                            {isActive && (
+                              <Tooltip title="End session">
+                                <Button
+                                  variant="outlined"
+                                  color="warning"
+                                  size="small"
+                                  startIcon={<Stop />}
+                                  onClick={() => handleEndSession(session.id)}
+                                >
+                                  End
+                                </Button>
+                              </Tooltip>
+                            )}
+                            <Tooltip title="Delete session (Development only)">
+                              <Button
+                                variant="outlined"
+                                color="error"
+                                size="small"
+                                startIcon={<Delete />}
+                                onClick={() => handleDeleteSession(session.id, session.name)}
+                              >
+                                Delete
+                              </Button>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent NFC Scans Section */}
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <NearMe color="primary" />
+            Recent NFC Scans
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+
+          <Box sx={{ maxHeight: 300, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+            <TableContainer>
+              <Table stickyHeader size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Subscriber</TableCell>
+                    <TableCell>Session</TableCell>
+                    <TableCell>Scan Time</TableCell>
+                    <TableCell>Type</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {/* Mock NFC scan data - replace with real data when available */}
+                  {[
+                    { id: 1, subscriber: 'John Doe', session: 'Morning Meeting', time: new Date().toISOString(), type: 'Check-in' },
+                    { id: 2, subscriber: 'Jane Smith', session: 'Training Session', time: new Date(Date.now() - 300000).toISOString(), type: 'Check-out' },
+                    { id: 3, subscriber: 'Bob Johnson', session: 'Daily Standup', time: new Date(Date.now() - 600000).toISOString(), type: 'Check-in' },
+                  ].map((scan) => (
+                    <TableRow key={scan.id} hover>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main' }}>
+                            <Person sx={{ fontSize: 16 }} />
+                          </Avatar>
+                          {scan.subscriber}
+                        </Box>
+                      </TableCell>
+                      <TableCell>{scan.session}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {new Date(scan.time).toLocaleTimeString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={scan.type}
+                          color={scan.type === 'Check-in' ? 'success' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {/* Empty state when no scans */}
+            {false && (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <NearMe sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  No Recent NFC Scans
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  NFC scan events will appear here when subscribers check in/out
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
-};
-
-// Reusing styles from SubscriberPage for consistency
-const tableHeaderStyle: React.CSSProperties = {
-  borderBottom: '2px solid #dee2e6',
-  padding: '8px',
-  textAlign: 'left',
-  backgroundColor: '#f8f9fa'
-};
-
-const tableCellStyle: React.CSSProperties = {
-  borderBottom: '1px solid #e9ecef',
-  padding: '8px',
-  textAlign: 'left'
 };
 
 export default SessionPage;
