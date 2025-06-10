@@ -14,4 +14,5 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
     Optional<Subscriber> findByIdAndOrganization(Long id, Organization organization);
     List<Subscriber> findAllByOrganization(Organization organization);
     boolean existsByEmailAndOrganization(String email, Organization organization);
+    boolean existsByMobileNumberAndOrganization(String mobileNumber, Organization organization);
 }

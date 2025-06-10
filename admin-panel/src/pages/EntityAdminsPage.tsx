@@ -10,25 +10,29 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Paper,
+  TextField,
+  InputAdornment,
   CircularProgress,
   Alert,
   Chip,
   Avatar,
-  Button,
+  IconButton,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  InputAdornment,
+  Button,
 } from '@mui/material';
 import {
+  Search,
   Person,
   Business,
   Schedule,
-  Search,
+  AdminPanelSettings,
   Delete,
-  PersonRemove,
+  Warning,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 
@@ -45,10 +49,7 @@ const EntityAdminsPage: React.FC = () => {
   const [admins, setAdmins] = useState<EntityAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [adminToRemove, setAdminToRemove] = useState<EntityAdmin | null>(null);
 
   useEffect(() => {
     fetchEntityAdmins();
@@ -59,7 +60,7 @@ const EntityAdminsPage: React.FC = () => {
     setError(null);
     try {
       // Use the actual entity admins endpoint
-      const response = await ApiService.get('/admin/entity-admins');
+      const response = await ApiService.get('/super/entity-admins');
       const adminsList: EntityAdmin[] = (response.data || []).map((admin: any) => ({
         id: admin.id,
         username: admin.username,
@@ -68,7 +69,7 @@ const EntityAdminsPage: React.FC = () => {
         createdAt: admin.createdAt,
         role: admin.role
       }));
-      
+
       setAdmins(adminsList);
     } catch (err: any) {
       console.error("Failed to fetch entity admins:", err);
@@ -88,7 +89,7 @@ const EntityAdminsPage: React.FC = () => {
     const now = new Date();
     const past = new Date(dateString);
     const diffInMs = now.getTime() - past.getTime();
-    
+
     const minutes = Math.floor(diffInMs / (1000 * 60));
     const hours = Math.floor(diffInMs / (1000 * 60 * 60));
     const days = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
@@ -101,46 +102,6 @@ const EntityAdminsPage: React.FC = () => {
     if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
     return 'Just now';
-  };
-
-  const handleRemoveAdmin = async () => {
-    if (!adminToRemove) return;
-
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      await ApiService.delete(`/admin/entities/${adminToRemove.organizationId}/remove-admin`);
-      setSuccessMessage(`Admin "${adminToRemove.username}" removed successfully from ${adminToRemove.organizationName}.`);
-      setRemoveDialogOpen(false);
-      setAdminToRemove(null);
-      fetchEntityAdmins(); // Refresh the list
-    } catch (err: any) {
-      console.error("Failed to remove admin:", err);
-      if (err.response && err.response.data) {
-        if (typeof err.response.data === 'string') {
-          setError(`Failed to remove admin: ${err.response.data}`);
-        } else if (err.response.data.message) {
-          setError(`Failed to remove admin: ${err.response.data.message}`);
-        } else {
-          setError('Failed to remove admin: An unexpected error occurred.');
-        }
-      } else {
-        setError('Failed to remove admin. Please try again.');
-      }
-      setRemoveDialogOpen(false);
-      setAdminToRemove(null);
-    }
-  };
-
-  const openRemoveDialog = (admin: EntityAdmin) => {
-    setAdminToRemove(admin);
-    setRemoveDialogOpen(true);
-  };
-
-  const closeRemoveDialog = () => {
-    setRemoveDialogOpen(false);
-    setAdminToRemove(null);
   };
 
   // Filter admins based on search term
@@ -157,7 +118,7 @@ const EntityAdminsPage: React.FC = () => {
           Entity Admins
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Manage entity administrators and their assignments
+          Manage and view all entity administrators
         </Typography>
       </Box>
 
@@ -167,19 +128,13 @@ const EntityAdminsPage: React.FC = () => {
           {error}
         </Alert>
       )}
-      
-      {successMessage && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          {successMessage}
-        </Alert>
-      )}
 
       {/* Search Bar */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <TextField
             fullWidth
-            placeholder="Search by admin username or organization name..."
+            placeholder="Search admins by username or organization..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -193,12 +148,12 @@ const EntityAdminsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Entity Admins Table */}
+      {/* Admins Table */}
       <Card>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" fontWeight="bold">
-              Entity Administrators ({filteredAdmins.length})
+              Entity Admins ({filteredAdmins.length})
             </Typography>
             {isLoading && <CircularProgress size={24} />}
           </Box>
@@ -209,12 +164,12 @@ const EntityAdminsPage: React.FC = () => {
             </Box>
           ) : filteredAdmins.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Person sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <AdminPanelSettings sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
                 {searchTerm ? 'No admins found matching your search' : 'No entity admins found'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {searchTerm ? 'Try adjusting your search terms' : 'Entity admins will appear here once they are assigned to organizations.'}
+                {searchTerm ? 'Try adjusting your search terms' : 'Entity admins will appear here once they are created'}
               </Typography>
             </Box>
           ) : (
@@ -227,7 +182,6 @@ const EntityAdminsPage: React.FC = () => {
                     <TableCell>Role</TableCell>
                     <TableCell>Created Date</TableCell>
                     <TableCell>Duration</TableCell>
-                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -250,15 +204,21 @@ const EntityAdminsPage: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Business color="action" />
-                          <Typography variant="body2">
-                            {admin.organizationName}
-                          </Typography>
+                          <Business color="primary" />
+                          <Box>
+                            <Typography variant="body2" fontWeight="medium">
+                              {admin.organizationName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Org ID: {admin.organizationId}
+                            </Typography>
+                          </Box>
                         </Box>
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={admin.role}
+                          icon={<AdminPanelSettings />}
+                          label="Entity Admin"
                           color="primary"
                           size="small"
                         />
@@ -279,17 +239,6 @@ const EntityAdminsPage: React.FC = () => {
                           variant="outlined"
                         />
                       </TableCell>
-                      <TableCell align="right">
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          startIcon={<PersonRemove />}
-                          onClick={() => openRemoveDialog(admin)}
-                        >
-                          Remove
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -298,30 +247,6 @@ const EntityAdminsPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Remove Admin Confirmation Dialog */}
-      <Dialog open={removeDialogOpen} onClose={closeRemoveDialog}>
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Delete color="error" />
-            Remove Entity Admin
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to remove admin "{adminToRemove?.username}" from "{adminToRemove?.organizationName}"?
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This action cannot be undone. The organization will become unassigned and will need a new admin.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeRemoveDialog}>Cancel</Button>
-          <Button onClick={handleRemoveAdmin} color="error" variant="contained">
-            Remove Admin
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

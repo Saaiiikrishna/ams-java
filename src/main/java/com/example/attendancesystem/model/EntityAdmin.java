@@ -18,20 +18,15 @@ public class EntityAdmin {
     private String password; // Hashed password
 
     @ManyToOne
-    @JoinColumn(name = "organization_id", nullable = false)
+    @JoinColumn(name = "organization_id", nullable = true) // Allow null for Super Admins
     private Organization organization;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
 
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
     // Getters and Setters
     public Long getId() {
@@ -80,5 +75,10 @@ public class EntityAdmin {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
     }
 }

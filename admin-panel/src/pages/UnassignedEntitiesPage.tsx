@@ -10,6 +10,7 @@ import {
   Alert,
   Grid,
   Button,
+
   Chip,
 } from '@mui/material';
 import {
@@ -49,7 +50,7 @@ const UnassignedEntitiesPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await ApiService.get<UnassignedEntity[]>('/admin/entities/without-admin');
+      const response = await ApiService.get<UnassignedEntity[]>('/super/entities/without-admin');
       setEntities(response.data || []);
     } catch (err: any) {
       console.error("Failed to fetch unassigned entities:", err);
@@ -70,7 +71,7 @@ const UnassignedEntitiesPage: React.FC = () => {
       const defaultUsername = `admin_${entityId}`;
       const defaultPassword = `password_${entityId}`;
 
-      await ApiService.post(`/admin/entities/${entityId}/assign-admin`, {
+      await ApiService.post(`/super/entities/${entityId}/assign-admin`, {
         username: defaultUsername,
         password: defaultPassword,
       });

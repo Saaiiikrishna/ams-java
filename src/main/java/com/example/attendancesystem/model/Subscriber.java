@@ -1,5 +1,6 @@
 package com.example.attendancesystem.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.Set;
 
@@ -17,14 +18,18 @@ public class Subscriber {
     @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true) // Email is now optional
     private String email;
+
+    @Column(nullable = false)
+    private String mobileNumber;
 
     @ManyToOne
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
     @OneToMany(mappedBy = "subscriber")
+    @JsonIgnore // Prevent circular reference during serialization
     private Set<AttendanceLog> attendanceLogs;
 
     @OneToOne(mappedBy = "subscriber", cascade = CascadeType.ALL)
@@ -61,6 +66,14 @@ public class Subscriber {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getMobileNumber() {
+        return mobileNumber;
+    }
+
+    public void setMobileNumber(String mobileNumber) {
+        this.mobileNumber = mobileNumber;
     }
 
     public Organization getOrganization() {

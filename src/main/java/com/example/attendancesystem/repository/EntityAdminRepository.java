@@ -10,5 +10,6 @@ import java.util.Optional;
 @Repository
 public interface EntityAdminRepository extends JpaRepository<EntityAdmin, Long> {
     Optional<EntityAdmin> findByUsername(String username);
+    boolean existsByOrganization(Organization organization);
     Optional<EntityAdmin> findByOrganization(Organization organization);
 }

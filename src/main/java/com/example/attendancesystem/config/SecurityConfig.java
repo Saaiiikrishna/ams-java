@@ -2,16 +2,22 @@ package com.example.attendancesystem.config;
 
 import com.example.attendancesystem.security.CustomUserDetailsService;
 import com.example.attendancesystem.security.JwtRequestFilter;
+import com.example.attendancesystem.security.SuperAdminJwtRequestFilter;
+import com.example.attendancesystem.security.SuperAdminUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -29,10 +35,18 @@ import java.util.List; // Added
 public class SecurityConfig {
 
     @Autowired
-    private CustomUserDetailsService customUserDetailsService;
+    @Qualifier("entityAdminUserDetailsService")
+    private UserDetailsService entityAdminUserDetailsService;
+
+    @Autowired
+    @Qualifier("superAdminUserDetailsService")
+    private UserDetailsService superAdminUserDetailsService;
 
     @Autowired
     private JwtRequestFilter jwtRequestFilter;
+
+    @Autowired
+    private SuperAdminJwtRequestFilter superAdminJwtRequestFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -40,31 +54,60 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-        AuthenticationManagerBuilder authenticationManagerBuilder =
-                http.getSharedObject(AuthenticationManagerBuilder.class);
-        authenticationManagerBuilder.userDetailsService(customUserDetailsService)
-                .passwordEncoder(passwordEncoder());
-        return authenticationManagerBuilder.build();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS using the custom source
-            .csrf(AbstractHttpConfigurer::disable) // Disable CSRF
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/admin/authenticate", "/admin/refresh-token", "/api/public/**").permitAll() // Added /admin/refresh-token
-                .requestMatchers("/admin/**").hasRole("SUPER_ADMIN") // Placeholder for now
-                .requestMatchers("/entity/**").hasRole("ENTITY_ADMIN") // Placeholder for now
-                .anyRequest().authenticated() // All other requests need authentication
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Use stateless sessions
-            );
+    public DaoAuthenticationProvider entityAdminAuthenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(entityAdminUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }
 
-        // Add JWT filter before the standard UsernamePasswordAuthenticationFilter
-        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+    @Bean
+    public DaoAuthenticationProvider superAdminAuthenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(superAdminUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }
+
+    // Super Admin Security Configuration (Order 1 - Higher Priority)
+    @Bean
+    @Order(1)
+    public SecurityFilterChain superAdminSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/super/**") // Only apply to /super/** paths
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/super/auth/login", "/super/auth/refresh-token").permitAll()
+                .requestMatchers("/super/**").hasRole("SUPER_ADMIN")
+                .anyRequest().denyAll() // Deny all other requests for this matcher
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(superAdminJwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    // Entity Admin Security Configuration (Order 2 - Lower Priority)
+    @Bean
+    @Order(2)
+    public SecurityFilterChain entityAdminSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/api/**") // Only apply to /api/** paths
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/login", "/api/auth/refresh-token").permitAll()
+                .requestMatchers("/api/**").hasRole("ENTITY_ADMIN")
+                .anyRequest().denyAll() // Deny all other requests for this matcher
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

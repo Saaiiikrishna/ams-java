@@ -1,5 +1,6 @@
 package com.example.attendancesystem.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.Set;
 
@@ -24,12 +25,15 @@ public class Organization {
     private String email;
 
     @OneToMany(mappedBy = "organization")
+    @JsonIgnore // Prevent circular reference during serialization
     private Set<EntityAdmin> admins;
 
     @OneToMany(mappedBy = "organization")
+    @JsonIgnore // Prevent circular reference during serialization
     private Set<Subscriber> subscribers;
 
     @OneToMany(mappedBy = "organization")
+    @JsonIgnore // Prevent circular reference during serialization
     private Set<AttendanceSession> attendanceSessions;
 
     // Getters and Setters

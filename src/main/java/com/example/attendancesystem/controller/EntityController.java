@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/entity")
+@RequestMapping("/api")
 @PreAuthorize("hasRole('ENTITY_ADMIN')")
 public class EntityController {
 
@@ -56,7 +56,19 @@ public class EntityController {
     @Transactional
     public ResponseEntity<?> addSubscriber(@RequestBody SubscriberDto subscriberDto) {
         Organization organization = getCurrentOrganization();
-        if (subscriberRepository.existsByEmailAndOrganization(subscriberDto.getEmail(), organization)) {
+
+        // Check for mobile number uniqueness (required field)
+        if (subscriberDto.getMobileNumber() == null || subscriberDto.getMobileNumber().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Mobile number is required.");
+        }
+
+        if (subscriberRepository.existsByMobileNumberAndOrganization(subscriberDto.getMobileNumber(), organization)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Subscriber mobile number already exists in this organization.");
+        }
+
+        // Check email uniqueness only if email is provided
+        if (subscriberDto.getEmail() != null && !subscriberDto.getEmail().trim().isEmpty() &&
+            subscriberRepository.existsByEmailAndOrganization(subscriberDto.getEmail(), organization)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Subscriber email already exists in this organization.");
         }
 
@@ -64,6 +76,7 @@ public class EntityController {
         subscriber.setFirstName(subscriberDto.getFirstName());
         subscriber.setLastName(subscriberDto.getLastName());
         subscriber.setEmail(subscriberDto.getEmail());
+        subscriber.setMobileNumber(subscriberDto.getMobileNumber());
         subscriber.setOrganization(organization);
 
         if (subscriberDto.getNfcCardUid() != null && !subscriberDto.getNfcCardUid().isEmpty()) {
@@ -96,8 +109,19 @@ public class EntityController {
         Subscriber subscriber = subscriberRepository.findByIdAndOrganization(id, organization)
                 .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + id + " in your organization."));
 
-        // Check for email conflict if email is being changed
-        if (!subscriber.getEmail().equals(subscriberDto.getEmail()) &&
+        // Check for mobile number uniqueness (required field)
+        if (subscriberDto.getMobileNumber() == null || subscriberDto.getMobileNumber().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Mobile number is required.");
+        }
+
+        if (!subscriber.getMobileNumber().equals(subscriberDto.getMobileNumber()) &&
+            subscriberRepository.existsByMobileNumberAndOrganization(subscriberDto.getMobileNumber(), organization)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Another subscriber with this mobile number already exists.");
+        }
+
+        // Check for email conflict if email is being changed (only if email is provided)
+        if (subscriberDto.getEmail() != null && !subscriberDto.getEmail().trim().isEmpty() &&
+            (subscriber.getEmail() == null || !subscriber.getEmail().equals(subscriberDto.getEmail())) &&
             subscriberRepository.existsByEmailAndOrganization(subscriberDto.getEmail(), organization)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Another subscriber with this email already exists.");
         }
@@ -105,6 +129,7 @@ public class EntityController {
         subscriber.setFirstName(subscriberDto.getFirstName());
         subscriber.setLastName(subscriberDto.getLastName());
         subscriber.setEmail(subscriberDto.getEmail());
+        subscriber.setMobileNumber(subscriberDto.getMobileNumber());
 
         // NFC Card handling (update or assign)
         NfcCard existingNfcCard = subscriber.getNfcCard();
@@ -163,7 +188,14 @@ public class EntityController {
         Organization organization = getCurrentOrganization();
         AttendanceSession session = new AttendanceSession();
         session.setName(sessionDto.getName());
-        session.setStartTime(sessionDto.getStartTime() != null ? sessionDto.getStartTime() : LocalDateTime.now());
+
+        // If startTime is provided, use it; otherwise use current time
+        if (sessionDto.getStartTime() != null) {
+            session.setStartTime(sessionDto.getStartTime());
+        } else {
+            session.setStartTime(LocalDateTime.now());
+        }
+
         session.setOrganization(organization);
         // endTime is null initially
 
@@ -195,6 +227,22 @@ public class EntityController {
         return ResponseEntity.ok(sessionDtos);
     }
 
+    @DeleteMapping("/sessions/{id}")
+    public ResponseEntity<?> deleteSession(@PathVariable Long id) {
+        Organization organization = getCurrentOrganization();
+        AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
+                .orElseThrow(() -> new EntityNotFoundException("Attendance session not found with id: " + id + " in your organization."));
+
+        // Delete the session (this will also delete associated attendance logs if cascade is configured)
+        attendanceSessionRepository.delete(session);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Session deleted successfully",
+                "sessionId", id,
+                "sessionName", session.getName()
+        ));
+    }
+
     @GetMapping("/entity/info")
     public ResponseEntity<Map<String, Object>> getEntityInfo(Authentication authentication) {
         try {
@@ -224,22 +272,6 @@ public class EntityController {
         }
     }
 
-    @DeleteMapping("/sessions/{id}")
-    public ResponseEntity<?> deleteSession(@PathVariable Long id) {
-        Organization organization = getCurrentOrganization();
-        AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
-                .orElseThrow(() -> new EntityNotFoundException("Attendance session not found with id: " + id + " in your organization."));
-
-        // Delete the session (this will also delete associated attendance logs if cascade is configured)
-        attendanceSessionRepository.delete(session);
-
-        return ResponseEntity.ok(Map.of(
-                "message", "Session deleted successfully",
-                "sessionId", id,
-                "sessionName", session.getName()
-        ));
-    }
-
     // DTO Converters
     private SubscriberDto convertToDto(Subscriber subscriber) {
         String nfcUid = subscriber.getNfcCard() != null ? subscriber.getNfcCard().getCardUid() : null;
@@ -248,6 +280,7 @@ public class EntityController {
                 subscriber.getFirstName(),
                 subscriber.getLastName(),
                 subscriber.getEmail(),
+                subscriber.getMobileNumber(),
                 subscriber.getOrganization().getId(),
                 nfcUid
         );

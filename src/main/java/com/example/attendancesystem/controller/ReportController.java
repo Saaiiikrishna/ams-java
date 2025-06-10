@@ -24,7 +24,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/reports")
+@RequestMapping("/api/reports")
 @PreAuthorize("hasRole('ENTITY_ADMIN')") // Reports are generally for entity admins
 public class ReportController {
 
@@ -91,6 +91,7 @@ public class ReportController {
                 subscriber.getFirstName(),
                 subscriber.getLastName(),
                 subscriber.getEmail(),
+                subscriber.getMobileNumber(),
                 subscriber.getOrganization().getId(),
                 nfcUid
         );

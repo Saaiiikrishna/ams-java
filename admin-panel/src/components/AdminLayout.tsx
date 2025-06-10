@@ -1,153 +1,160 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
+  Box,
+  Drawer,
   AppBar,
   Toolbar,
-  Typography,
-  Drawer,
   List,
+  Typography,
+  Divider,
+  IconButton,
   ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
-  Box,
-  IconButton,
-  useTheme,
   Avatar,
+  Menu,
+  MenuItem,
+  useTheme,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Dashboard,
   Business,
-  Assignment,
-  People,
+  PersonAdd,
+  Dashboard,
   Logout,
+  AccountCircle,
   AdminPanelSettings,
-  Warning,
+  People,
 } from '@mui/icons-material';
 import AuthService from '../services/AuthService';
 
-const DRAWER_WIDTH = 280;
+const drawerWidth = 280;
 
 const AdminLayout: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const theme = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const theme = useTheme();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
   const handleLogout = () => {
     AuthService.logout();
     navigate('/login');
+    handleProfileMenuClose();
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-    { text: 'Entities', icon: <Business />, path: '/dashboard/entities' },
-    { text: 'Change Entity Admin', icon: <Assignment />, path: '/dashboard/assign-admin' },
-    { text: 'Entity Admins', icon: <People />, path: '/dashboard/entity-admins' },
-    { text: 'Unassigned Entities', icon: <Warning />, path: '/dashboard/unassigned-entities' },
+    {
+      text: 'Dashboard',
+      icon: <Dashboard />,
+      path: '/dashboard',
+    },
+    {
+      text: 'Entity Management',
+      icon: <Business />,
+      path: '/dashboard/entities',
+    },
+    {
+      text: 'Change Entity Admin',
+      icon: <PersonAdd />,
+      path: '/dashboard/assign-admin',
+    },
+    {
+      text: 'Entity Admins',
+      icon: <People />,
+      path: '/dashboard/entity-admins',
+    },
   ];
 
   const drawer = (
     <Box>
-      {/* Header */}
       <Box
         sx={{
           p: 3,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
           color: 'white',
           textAlign: 'center',
         }}
       >
-        <Avatar
-          sx={{
-            width: 64,
-            height: 64,
-            mx: 'auto',
-            mb: 2,
-            bgcolor: 'rgba(255,255,255,0.2)',
-          }}
-        >
-          <AdminPanelSettings sx={{ fontSize: 32 }} />
-        </Avatar>
+        <AdminPanelSettings sx={{ fontSize: 40, mb: 1 }} />
         <Typography variant="h6" fontWeight="bold">
           Super Admin
         </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-          Abide
+        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+          System Management
         </Typography>
       </Box>
 
-      {/* Navigation */}
+      <Divider />
+
       <List sx={{ px: 2, py: 1 }}>
         {menuItems.map((item) => (
-          <ListItem
-            key={item.text}
-            onClick={() => navigate(item.path)}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              cursor: 'pointer',
-              backgroundColor: location.pathname === item.path ? 'primary.main' : 'transparent',
-              color: location.pathname === item.path ? 'white' : 'inherit',
-              '&:hover': {
-                backgroundColor: location.pathname === item.path ? 'primary.dark' : 'action.hover',
-              },
-            }}
-          >
-            <ListItemIcon
+          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              component={Link}
+              to={item.path}
+              selected={location.pathname === item.path}
               sx={{
-                color: location.pathname === item.path ? 'white' : 'primary.main',
-                minWidth: 40,
+                borderRadius: 2,
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  },
+                  '& .MuiListItemIcon-root': {
+                    color: 'white',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
               }}
             >
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={item.text}
-              primaryTypographyProps={{
-                fontWeight: location.pathname === item.path ? 'bold' : 'normal',
-              }}
-            />
+              <ListItemIcon
+                sx={{
+                  color: location.pathname === item.path ? 'white' : 'text.secondary',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{
+                  fontWeight: location.pathname === item.path ? 'bold' : 'normal',
+                }}
+              />
+            </ListItemButton>
           </ListItem>
         ))}
       </List>
-
-      {/* Logout */}
-      <Box sx={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
-        <ListItem
-          onClick={handleLogout}
-          sx={{
-            borderRadius: 2,
-            cursor: 'pointer',
-            backgroundColor: 'error.main',
-            color: 'white',
-            '&:hover': {
-              backgroundColor: 'error.dark',
-            },
-          }}
-        >
-          <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
-            <Logout />
-          </ListItemIcon>
-          <ListItemText primary="Logout" />
-        </ListItem>
-      </Box>
     </Box>
   );
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* App Bar */}
       <AppBar
         position="fixed"
         sx={{
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { sm: `${DRAWER_WIDTH}px` },
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
+          backgroundColor: 'white',
+          color: 'text.primary',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         }}
       >
         <Toolbar>
@@ -156,20 +163,56 @@ const AdminLayout: React.FC = () => {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            sx={{ mr: 2, display: { md: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            Attendance Management System
+
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+            {menuItems.find(item => item.path === location.pathname)?.text || 'Admin Dashboard'}
           </Typography>
+
+          <IconButton
+            size="large"
+            edge="end"
+            aria-label="account of current user"
+            aria-controls="profile-menu"
+            aria-haspopup="true"
+            onClick={handleProfileMenuOpen}
+            color="inherit"
+          >
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+              <AccountCircle />
+            </Avatar>
+          </IconButton>
+
+          <Menu
+            id="profile-menu"
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleProfileMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem onClick={handleLogout}>
+              <ListItemIcon>
+                <Logout fontSize="small" />
+              </ListItemIcon>
+              Logout
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
 
-      {/* Drawer */}
       <Box
         component="nav"
-        sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
       >
         <Drawer
           variant="temporary"
@@ -179,8 +222,8 @@ const AdminLayout: React.FC = () => {
             keepMounted: true,
           }}
           sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
         >
           {drawer}
@@ -188,8 +231,8 @@ const AdminLayout: React.FC = () => {
         <Drawer
           variant="permanent"
           sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
+            display: { xs: 'none', md: 'block' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
           open
         >
@@ -197,16 +240,15 @@ const AdminLayout: React.FC = () => {
         </Drawer>
       </Box>
 
-      {/* Main Content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          mt: 8,
-          backgroundColor: '#f5f5f5',
-          minHeight: '100vh',
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          mt: '64px',
+          backgroundColor: 'background.default',
+          minHeight: 'calc(100vh - 64px)',
         }}
       >
         <Outlet />
