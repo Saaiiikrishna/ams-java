@@ -22,8 +22,6 @@ DEVICE_JWT_TOKEN: Optional[str] = None # Needs to be set for session management
 CURRENT_SESSION_ID: Optional[int] = None
 CURRENT_SESSION_PURPOSE: Optional[str] = None
 
-load_config()
-
 def load_config():
     global API_BASE_URL, DEVICE_JWT_TOKEN
     if CONFIG_PATH.exists():
@@ -34,6 +32,8 @@ def load_config():
                 DEVICE_JWT_TOKEN = data.get("jwt_token", DEVICE_JWT_TOKEN)
         except Exception as e:
             print(f"Failed to load config: {e}")
+
+load_config()
 
 def save_config():
     data = {
@@ -337,5 +337,3 @@ if __name__ == "__main__":
         # else:
         #     print("No JWT provided for non-GUI mode logic testing.")
         print("GUI elements are not initialized. Cannot run full application flow.")
-
-```
