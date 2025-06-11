@@ -156,9 +156,10 @@ public class AdminController {
         entityAdmin.setUsername(username);
         entityAdmin.setPassword(passwordEncoder.encode(password));
         entityAdmin.setOrganization(organization);
+        entityAdmin.setCreatedAt(java.time.LocalDateTime.now()); // Explicitly set creation time
 
         // Set role
-        Role entityAdminRole = roleRepository.findByName("ROLE_ENTITY_ADMIN")
+        Role entityAdminRole = roleRepository.findByName("ENTITY_ADMIN")
                 .orElseThrow(() -> new RuntimeException("Entity Admin role not found"));
         entityAdmin.setRole(entityAdminRole);
 
@@ -199,20 +200,31 @@ public class AdminController {
 
     @GetMapping("/entity-admins")
     public ResponseEntity<List<Map<String, Object>>> getAllEntityAdmins() {
-        List<EntityAdmin> entityAdmins = entityAdminRepository.findAll();
-        List<Map<String, Object>> adminDtos = entityAdmins.stream()
-                .map(admin -> {
-                    Map<String, Object> dto = new HashMap<>();
-                    dto.put("id", admin.getId());
-                    dto.put("username", admin.getUsername());
-                    dto.put("organizationId", admin.getOrganization().getId());
-                    dto.put("organizationName", admin.getOrganization().getName());
-                    dto.put("createdAt", admin.getCreatedAt());
-                    dto.put("role", admin.getRole().getName());
-                    return dto;
-                })
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(adminDtos);
+        try {
+            System.out.println("DEBUG: Fetching all entity admins...");
+            List<EntityAdmin> entityAdmins = entityAdminRepository.findAll();
+            System.out.println("DEBUG: Found " + entityAdmins.size() + " entity admins");
+
+            List<Map<String, Object>> adminDtos = entityAdmins.stream()
+                    .map(admin -> {
+                        Map<String, Object> dto = new HashMap<>();
+                        dto.put("id", admin.getId());
+                        dto.put("username", admin.getUsername());
+                        dto.put("organizationId", admin.getOrganization() != null ? admin.getOrganization().getId() : null);
+                        dto.put("organizationName", admin.getOrganization() != null ? admin.getOrganization().getName() : "No Organization");
+                        dto.put("createdAt", admin.getCreatedAt());
+                        dto.put("role", admin.getRole() != null ? admin.getRole().getName() : "ENTITY_ADMIN");
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
+            System.out.println("DEBUG: Returning " + adminDtos.size() + " admin DTOs");
+            return ResponseEntity.ok(adminDtos);
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to fetch entity admins: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
 
@@ -238,6 +250,7 @@ public class AdminController {
         entityAdmin.setPassword(passwordEncoder.encode(entityAdminDto.getPassword()));
         entityAdmin.setOrganization(organization);
         entityAdmin.setRole(entityAdminRole); // Set the role
+        entityAdmin.setCreatedAt(java.time.LocalDateTime.now()); // Explicitly set creation time
 
         EntityAdmin savedEntityAdmin = entityAdminRepository.save(entityAdmin);
         // Avoid sending password back in response

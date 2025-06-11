@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage';
 import EntityPage from './pages/EntityPage'; // Actual component
 import AssignAdminPage from './pages/AssignAdminPage'; // Actual component
 import EntityAdminsPage from './pages/EntityAdminsPage';
+import SuperAdminsPage from './pages/SuperAdminsPage';
 import UnassignedEntitiesPage from './pages/UnassignedEntitiesPage';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -33,6 +34,7 @@ function App() {
             <Route path="entities" element={<EntityPage />} />
             <Route path="assign-admin" element={<AssignAdminPage />} />
             <Route path="entity-admins" element={<EntityAdminsPage />} />
+            <Route path="super-admins" element={<SuperAdminsPage />} />
             <Route path="unassigned-entities" element={<UnassignedEntitiesPage />} />
           </Route>
         </Route>

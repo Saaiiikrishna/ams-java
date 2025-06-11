@@ -40,9 +40,9 @@ interface DashboardStats {
 
 interface RecentSession {
   id: number;
-  subscriberName: string;
-  checkInTime: string;
-  checkOutTime?: string;
+  name: string;
+  startTime: string;
+  endTime?: string;
   status: 'active' | 'completed';
 }
 
@@ -70,7 +70,6 @@ const DashboardPage: React.FC = () => {
       // Initialize with default values
       let subscribers: any[] = [];
       let sessions: any[] = [];
-      let logs: any[] = [];
 
       // Fetch subscribers with error handling
       try {
@@ -88,39 +87,34 @@ const DashboardPage: React.FC = () => {
         console.warn('Failed to fetch sessions:', err);
       }
 
-      // Fetch attendance logs with error handling
-      try {
-        const logsResponse = await ApiService.get('/api/attendance-logs');
-        logs = logsResponse.data || [];
-      } catch (err) {
-        console.warn('Failed to fetch attendance logs:', err);
-      }
+      // No need to fetch attendance logs - we'll use sessions data
 
-      // Calculate stats
+      // Calculate stats based on sessions
       const today = new Date().toDateString();
-      const todayLogs = logs.filter((log: any) =>
-        log.checkInTime && new Date(log.checkInTime).toDateString() === today
+      const todaySessions = sessions.filter((session: any) =>
+        session.startTime && new Date(session.startTime).toDateString() === today
       );
-      const activeLogs = logs.filter((log: any) => log.checkInTime && !log.checkOutTime);
+      const activeSessions = sessions.filter((session: any) =>
+        session.startTime && !session.endTime
+      );
 
       setStats({
         totalSubscribers: subscribers.length,
         totalSessions: sessions.length,
-        todaySessions: todayLogs.length,
-        activeSessions: activeLogs.length,
+        todaySessions: todaySessions.length,
+        activeSessions: activeSessions.length,
       });
 
-      // Set recent sessions (last 5 attendance logs)
-      const recent = logs
-        .filter((log: any) => log.checkInTime && log.subscriber)
-        .sort((a: any, b: any) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime())
+      // Set recent sessions (last 5 sessions)
+      const recent = sessions
+        .sort((a: any, b: any) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
         .slice(0, 5)
-        .map((log: any) => ({
-          id: log.id,
-          subscriberName: `${log.subscriber.firstName || 'Unknown'} ${log.subscriber.lastName || 'User'}`,
-          checkInTime: log.checkInTime,
-          checkOutTime: log.checkOutTime,
-          status: (log.checkOutTime ? 'completed' : 'active') as 'active' | 'completed',
+        .map((session: any) => ({
+          id: session.id,
+          name: session.name,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          status: (session.endTime ? 'completed' : 'active') as 'active' | 'completed',
         }));
 
       setRecentSessions(recent);
@@ -268,15 +262,15 @@ const DashboardPage: React.FC = () => {
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText
-                        primary={session.subscriberName}
+                        primary={session.name}
                         secondary={
                           <Box>
                             <Typography variant="body2" color="textSecondary">
-                              Check-in: {formatDate(session.checkInTime)} at {formatTime(session.checkInTime)}
+                              Started: {formatDate(session.startTime)} at {formatTime(session.startTime)}
                             </Typography>
-                            {session.checkOutTime && (
+                            {session.endTime && (
                               <Typography variant="body2" color="textSecondary">
-                                Check-out: {formatTime(session.checkOutTime)}
+                                Ended: {formatTime(session.endTime)}
                               </Typography>
                             )}
                           </Box>

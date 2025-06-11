@@ -29,7 +29,7 @@ const LoginPage: React.FC = () => {
 
   // Redirect to dashboard if already logged in
   if (AuthService.isLoggedIn() && location.pathname === '/login') {
-    navigate('/dashboard/subscribers');
+    navigate('/dashboard');
   }
 
 
@@ -61,7 +61,7 @@ const LoginPage: React.FC = () => {
           return;
         }
         AuthService.login(token);
-        navigate('/dashboard/subscribers');
+        navigate('/dashboard');
       } else {
         setError('Login failed: No authentication token received.');
       }

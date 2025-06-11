@@ -1,7 +1,7 @@
 package com.example.attendancesystem.security;
 
-import com.example.attendancesystem.model.EntityAdmin;
-import com.example.attendancesystem.repository.EntityAdminRepository;
+import com.example.attendancesystem.model.SuperAdmin;
+import com.example.attendancesystem.repository.SuperAdminRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -12,23 +12,23 @@ import org.springframework.stereotype.Service;
 public class SuperAdminUserDetailsService implements UserDetailsService {
 
     @Autowired
-    private EntityAdminRepository entityAdminRepository;
+    private SuperAdminRepository superAdminRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        EntityAdmin entityAdmin = entityAdminRepository.findByUsername(username)
+        SuperAdmin superAdmin = superAdminRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Super Admin not found with username: " + username));
-        
+
         // Verify that this user has SUPER_ADMIN role
-        if (entityAdmin.getRole() == null || !"SUPER_ADMIN".equals(entityAdmin.getRole().getName())) {
+        if (superAdmin.getRole() == null || !"SUPER_ADMIN".equals(superAdmin.getRole().getName())) {
             throw new UsernameNotFoundException("User is not a Super Admin: " + username);
         }
 
-        // Super Admins should not have an organization (or it should be null)
-        if (entityAdmin.getOrganization() != null) {
-            System.out.println("Warning: Super Admin " + username + " has an organization assigned. This will be ignored.");
+        // Verify the account is active
+        if (!superAdmin.getIsActive()) {
+            throw new UsernameNotFoundException("Super Admin account is inactive: " + username);
         }
-        
-        return new CustomUserDetails(entityAdmin);
+
+        return new SuperAdminUserDetails(superAdmin);
     }
 }

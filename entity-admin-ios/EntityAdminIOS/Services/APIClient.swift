@@ -24,7 +24,7 @@ class APIClient {
 
     // Updated login method
     func login(username: String, password: String, completion: @escaping (Result<Void, APIError>) -> Void) {
-        guard let url = URL(string: "http://localhost:8080/admin/authenticate") else {
+        guard let url = URL(string: "http://localhost:8080/api/auth/login") else {
             completion(.failure(APIError.invalidURLOrToken))
             return
         }
@@ -67,7 +67,7 @@ class APIClient {
     // Updated fetchSessions method
     func fetchSessions(completion: @escaping (Result<[Session], APIError>) -> Void) {
         guard let token = token ?? KeychainHelper.standard.read(service: "token", account: "jwt"),
-              let url = URL(string: "http://localhost:8080/admin/sessions") else {
+              let url = URL(string: "http://localhost:8080/api/sessions") else {
             completion(.failure(APIError.invalidURLOrToken))
             return
         }
@@ -100,7 +100,7 @@ class APIClient {
     // Updated createSession method
     func createSession(name: String, completion: @escaping (Result<Session, APIError>) -> Void) {
         guard let token = token ?? KeychainHelper.standard.read(service: "token", account: "jwt"),
-              let url = URL(string: "http://localhost:8080/admin/sessions") else {
+              let url = URL(string: "http://localhost:8080/api/sessions") else {
             completion(.failure(APIError.invalidURLOrToken))
             return
         }
@@ -144,7 +144,7 @@ class APIClient {
 
     func fetchSubscribers(completion: @escaping (Result<[Subscriber], APIError>) -> Void) {
         guard let token = token ?? KeychainHelper.standard.read(service: "token", account: "jwt"),
-              let url = URL(string: "http://localhost:8080/admin/subscribers") else {
+              let url = URL(string: "http://localhost:8080/api/subscribers") else {
             completion(.failure(APIError.invalidURLOrToken))
             return
         }
@@ -178,7 +178,7 @@ class APIClient {
 
     func createSubscriber(requestBody: SubscriberRequest, completion: @escaping (Result<Subscriber, APIError>) -> Void) {
         guard let token = token ?? KeychainHelper.standard.read(service: "token", account: "jwt"),
-              let url = URL(string: "http://localhost:8080/admin/subscribers") else {
+              let url = URL(string: "http://localhost:8080/api/subscribers") else {
             completion(.failure(APIError.invalidURLOrToken))
             return
         }

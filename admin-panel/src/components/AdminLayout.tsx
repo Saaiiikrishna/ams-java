@@ -17,6 +17,7 @@ import {
   Menu,
   MenuItem,
   useTheme,
+  Alert,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -27,14 +28,19 @@ import {
   AccountCircle,
   AdminPanelSettings,
   People,
+  Security,
+  Lock,
 } from '@mui/icons-material';
 import AuthService from '../services/AuthService';
+import ChangePasswordDialog from './ChangePasswordDialog';
 
 const drawerWidth = 280;
 
 const AdminLayout: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -57,6 +63,16 @@ const AdminLayout: React.FC = () => {
     handleProfileMenuClose();
   };
 
+  const handleChangePassword = () => {
+    setChangePasswordOpen(true);
+    handleProfileMenuClose();
+  };
+
+  const handlePasswordChangeSuccess = () => {
+    setSuccessMessage('Password changed successfully!');
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
   const menuItems = [
     {
       text: 'Dashboard',
@@ -77,6 +93,11 @@ const AdminLayout: React.FC = () => {
       text: 'Entity Admins',
       icon: <People />,
       path: '/dashboard/entity-admins',
+    },
+    {
+      text: 'Super Admin Management',
+      icon: <Security />,
+      path: '/dashboard/super-admins',
     },
   ];
 
@@ -200,6 +221,12 @@ const AdminLayout: React.FC = () => {
               horizontal: 'right',
             }}
           >
+            <MenuItem onClick={handleChangePassword}>
+              <ListItemIcon>
+                <Lock fontSize="small" />
+              </ListItemIcon>
+              Change Password
+            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <Logout fontSize="small" />
@@ -253,6 +280,29 @@ const AdminLayout: React.FC = () => {
       >
         <Outlet />
       </Box>
+
+      {/* Success Message Snackbar */}
+      {successMessage && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 80,
+            right: 20,
+            zIndex: 9999,
+          }}
+        >
+          <Alert severity="success" onClose={() => setSuccessMessage(null)}>
+            {successMessage}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        onSuccess={handlePasswordChangeSuccess}
+      />
     </Box>
   );
 };

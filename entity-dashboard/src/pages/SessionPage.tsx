@@ -43,6 +43,7 @@ import {
   Person,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 
 interface AttendanceSession {
   id: number;
@@ -63,6 +64,15 @@ const SessionPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Confirmation dialog state
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [confirmationData, setConfirmationData] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    severity?: 'warning' | 'error' | 'info' | 'success';
+  } | null>(null);
 
   // Form state for creating new session
   const [sessionName, setSessionName] = useState('');
@@ -109,14 +119,14 @@ const SessionPage: React.FC = () => {
 
     const newSessionData: NewAttendanceSession = { name: sessionName };
     if (sessionStartTime) {
-      // Create a proper Date object and convert to ISO string
-      // The sessionStartTime is in local timezone from datetime-local input
-      const localDate = new Date(sessionStartTime);
-      newSessionData.startTime = localDate.toISOString();
-    } else {
-      // If no start time specified, use current time
-      newSessionData.startTime = new Date().toISOString();
+      // Send the datetime as-is without timezone conversion
+      // Format: YYYY-MM-DDTHH:mm:ss (LocalDateTime format)
+      const formattedTime = sessionStartTime.includes(':') && sessionStartTime.split(':').length === 2
+        ? sessionStartTime + ':00'
+        : sessionStartTime;
+      newSessionData.startTime = formattedTime;
     }
+    // If no start time specified, let backend use current server time
 
     try {
       const response = await ApiService.post<AttendanceSession>('/api/sessions', newSessionData);
@@ -131,33 +141,54 @@ const SessionPage: React.FC = () => {
     }
   };
 
-  const handleEndSession = async (sessionId: number) => {
+  const handleEndSession = (sessionId: number) => {
+    const session = sessions.find(s => s.id === sessionId);
+    setConfirmationData({
+      title: 'End Session',
+      message: `Are you sure you want to end session "${session?.name}"? This will stop attendance tracking for this session.`,
+      onConfirm: () => performEndSession(sessionId),
+      severity: 'warning',
+    });
+    setConfirmationOpen(true);
+  };
+
+  const performEndSession = async (sessionId: number) => {
     setError(null);
     setSuccessMessage(null);
-    if (window.confirm('Are you sure you want to end this session?')) {
-      try {
-        const response = await ApiService.put<AttendanceSession>(`/api/sessions/${sessionId}/end`, {});
-        setSuccessMessage(`Session '${response.data.name}' (ID: ${response.data.id}) ended successfully.`);
-        fetchSessions(); // Refresh list
-      } catch (err: any) {
-        console.error("Failed to end session:", err);
-        setError(err.response?.data?.message || 'Failed to end session.');
-      }
+    try {
+      const response = await ApiService.put<AttendanceSession>(`/api/sessions/${sessionId}/end`, {});
+      setSuccessMessage(`Session '${response.data.name}' (ID: ${response.data.id}) ended successfully.`);
+      fetchSessions(); // Refresh list
+      setConfirmationOpen(false);
+    } catch (err: any) {
+      console.error("Failed to end session:", err);
+      setError(err.response?.data?.message || 'Failed to end session.');
+      setConfirmationOpen(false);
     }
   };
 
-  const handleDeleteSession = async (sessionId: number, sessionName: string) => {
+  const handleDeleteSession = (sessionId: number, sessionName: string) => {
+    setConfirmationData({
+      title: 'Delete Session',
+      message: `Are you sure you want to DELETE session "${sessionName}"? This action cannot be undone and will remove all associated attendance data.`,
+      onConfirm: () => performDeleteSession(sessionId, sessionName),
+      severity: 'error',
+    });
+    setConfirmationOpen(true);
+  };
+
+  const performDeleteSession = async (sessionId: number, sessionName: string) => {
     setError(null);
     setSuccessMessage(null);
-    if (window.confirm(`Are you sure you want to DELETE session "${sessionName}"? This action cannot be undone and will remove all associated attendance data.`)) {
-      try {
-        await ApiService.delete(`/api/sessions/${sessionId}`);
-        setSuccessMessage(`Session '${sessionName}' deleted successfully.`);
-        fetchSessions(); // Refresh list
-      } catch (err: any) {
-        console.error("Failed to delete session:", err);
-        setError(err.response?.data?.message || 'Failed to delete session.');
-      }
+    try {
+      await ApiService.delete(`/api/sessions/${sessionId}`);
+      setSuccessMessage(`Session '${sessionName}' deleted successfully.`);
+      fetchSessions(); // Refresh list
+      setConfirmationOpen(false);
+    } catch (err: any) {
+      console.error("Failed to delete session:", err);
+      setError(err.response?.data?.message || 'Failed to delete session.');
+      setConfirmationOpen(false);
     }
   };
 
@@ -500,6 +531,19 @@ const SessionPage: React.FC = () => {
           </Box>
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      {confirmationData && (
+        <ConfirmationDialog
+          open={confirmationOpen}
+          title={confirmationData.title}
+          message={confirmationData.message}
+          onConfirm={confirmationData.onConfirm}
+          onCancel={() => setConfirmationOpen(false)}
+          confirmText={confirmationData.severity === 'error' ? 'Delete' : 'Confirm'}
+          severity={confirmationData.severity}
+        />
+      )}
     </Box>
   );
 };
