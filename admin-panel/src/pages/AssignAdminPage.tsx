@@ -35,7 +35,8 @@ import {
 import ApiService from '../services/ApiService';
 
 interface OrganizationForSelect {
-  id: number;
+  id: number; // Keep for internal use
+  entityId: string; // Primary identifier for API operations
   name: string;
   address?: string;
   contactPerson?: string;
@@ -75,7 +76,7 @@ const AssignAdminPage: React.FC = () => {
 
       // Filter entities that have admins (not in the without-admin list)
       const entitiesWithAdmins = allEntities.filter(entity =>
-        !entitiesWithoutAdmin.some(e => e.id === entity.id)
+        !entitiesWithoutAdmin.some(e => e.entityId === entity.entityId)
       );
 
       setEntitiesWithAdmins(entitiesWithAdmins);
@@ -106,7 +107,7 @@ const AssignAdminPage: React.FC = () => {
     try {
       // For now, we'll use the assign admin endpoint since we don't have a change admin endpoint
       // In a real implementation, you'd want a dedicated endpoint for changing admin credentials
-      await ApiService.post(`/super/entities/${selectedEntity.id}/assign-admin`, {
+      await ApiService.post(`/super/entities/${selectedEntity.entityId}/assign-admin`, {
         username: newUsername,
         password: newPassword,
       });
@@ -121,7 +122,11 @@ const AssignAdminPage: React.FC = () => {
       console.error("Failed to change admin:", err);
       if (err.response && err.response.data) {
         if (typeof err.response.data === 'string') {
-          setError(`Failed to change admin: ${err.response.data}`);
+          if (err.response.data.includes('already has an entity admin assigned')) {
+            setError('Cannot assign new admin: This entity already has an admin. Please remove the existing admin first using the "Remove" button, then try again.');
+          } else {
+            setError(`Failed to change admin: ${err.response.data}`);
+          }
         } else if (err.response.data.message) {
           setError(`Failed to change admin: ${err.response.data.message}`);
         } else {
@@ -149,7 +154,7 @@ const AssignAdminPage: React.FC = () => {
 
     try {
       // For now, we'll use a DELETE endpoint that we need to implement
-      await ApiService.delete(`/super/entities/${entityToRemoveAdmin.id}/remove-admin`);
+      await ApiService.delete(`/super/entities/${entityToRemoveAdmin.entityId}/remove-admin`);
 
       setSuccessMessage(`Admin removed successfully from '${entityToRemoveAdmin.name}'!`);
       setShowRemoveDialog(false);
@@ -253,7 +258,7 @@ const AssignAdminPage: React.FC = () => {
           ) : (
             <Grid container spacing={3}>
               {filteredEntities.map((entity) => (
-                <Grid item xs={12} sm={6} md={4} key={entity.id}>
+                <Grid item xs={12} sm={6} md={4} key={entity.entityId}>
                   <Card variant="outlined" sx={{ height: '100%', position: 'relative' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -264,7 +269,7 @@ const AssignAdminPage: React.FC = () => {
                       </Box>
 
                       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                        ID: {entity.id}
+                        Entity ID: {entity.entityId}
                       </Typography>
 
                       {entity.address && (

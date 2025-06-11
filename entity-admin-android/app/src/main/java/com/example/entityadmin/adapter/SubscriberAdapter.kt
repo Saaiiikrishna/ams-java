@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.entityadmin.R
 import com.example.entityadmin.model.Subscriber // Import the actual Subscriber model
 import android.widget.ImageButton
+import androidx.navigation.findNavController
 
 interface OnSubscriberActionListener {
     fun onEdit(subscriber: Subscriber) // Keep edit for consistency if needed, or remove if only delete
@@ -19,6 +20,8 @@ class SubscriberAdapter(
     private val listener: OnSubscriberActionListener
 ) : RecyclerView.Adapter<SubscriberAdapter.SubscriberViewHolder>() {
 
+    private var filteredSubscribers: List<Subscriber> = subscribers
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SubscriberViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_subscriber, parent, false)
@@ -26,43 +29,63 @@ class SubscriberAdapter(
     }
 
     override fun onBindViewHolder(holder: SubscriberViewHolder, position: Int) {
-        val subscriber = subscribers[position]
-        holder.bind(subscriber)
+        val subscriber = filteredSubscribers[position]
+        holder.bind(subscriber, listener)
     }
 
-    override fun getItemCount(): Int = subscribers.size
+    override fun getItemCount(): Int = filteredSubscribers.size
 
     fun updateData(newSubscribers: List<Subscriber>) { // Use Subscriber model
         this.subscribers = newSubscribers
+        this.filteredSubscribers = newSubscribers
         notifyDataSetChanged() // Consider using DiffUtil for better performance
+    }
+
+    fun filter(query: String) {
+        filteredSubscribers = if (query.isEmpty()) {
+            subscribers
+        } else {
+            subscribers.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                it.email.contains(query, ignoreCase = true)
+            }
+        }
+        notifyDataSetChanged()
     }
 
     class SubscriberViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val nameTextView: TextView = itemView.findViewById(R.id.textViewSubscriberName)
         private val emailTextView: TextView = itemView.findViewById(R.id.textViewSubscriberEmail)
+        private val initialsTextView: TextView = itemView.findViewById(R.id.tvSubscriberInitials)
+        private val statusTextView: TextView = itemView.findViewById(R.id.tvSubscriberStatus)
+        private val idTextView: TextView = itemView.findViewById(R.id.tvSubscriberId)
+        private val editButton: ImageButton = itemView.findViewById(R.id.buttonEditSubscriber)
         private val deleteButton: ImageButton = itemView.findViewById(R.id.buttonDeleteSubscriber)
 
         fun bind(subscriber: Subscriber, listener: OnSubscriberActionListener) { // Use Subscriber model
             nameTextView.text = subscriber.name
             emailTextView.text = subscriber.email
-            // Potentially display subscriber.nfcCardUid if a TextView for it exists in item_subscriber.xml
+            idTextView.text = "ID: ${subscriber.id}"
+            statusTextView.text = "Active" // For now, assume all are active
+
+            // Generate initials from name
+            val initials = subscriber.name.split(" ")
+                .take(2)
+                .map { it.firstOrNull()?.uppercaseChar() ?: "" }
+                .joinToString("")
+            initialsTextView.text = initials.ifEmpty { "?" }
+
+            editButton.setOnClickListener {
+                listener.onEdit(subscriber)
+            }
 
             deleteButton.setOnClickListener {
                 listener.onDelete(subscriber.id)
             }
-        }
 
-        init {
             itemView.setOnClickListener {
-                val position = adapterPosition
-                if (position != RecyclerView.NO_POSITION) {
-                    val subscriber = subscribers[position]
-                    listener.onEdit(subscriber) // Using listener for edit as well now
-                }
+                listener.onEdit(subscriber) // Using listener for edit as well now
             }
         }
     }
 }
-// Required import for findNavController
-import androidx.navigation.findNavController
-// import android.widget.ImageButton // Already added

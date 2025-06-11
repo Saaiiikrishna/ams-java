@@ -6,6 +6,8 @@ import com.example.attendancesystem.repository.AttendanceLogRepository;
 import com.example.attendancesystem.repository.AttendanceSessionRepository;
 import com.example.attendancesystem.repository.NfcCardRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,12 +20,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/attendance")
 @PreAuthorize("hasRole('ENTITY_ADMIN')")
 public class NfcController {
+
+    private static final Logger logger = LoggerFactory.getLogger(NfcController.class);
 
     @Autowired
     private NfcCardRepository nfcCardRepository;
@@ -37,15 +42,44 @@ public class NfcController {
     @PostMapping("/checkin")
     @Transactional
     public ResponseEntity<?> recordNfcScan(@RequestBody NfcScanDto nfcScanDto) {
+        logger.info("NFC scan request - Card UID: {}", nfcScanDto.getCardUid());
+
         if (nfcScanDto.getCardUid() == null || nfcScanDto.getCardUid().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Card UID is required.");
+            logger.warn("NFC scan failed - Card UID is required");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", "Card UID is required",
+                "code", "MISSING_CARD_UID"
+            ));
         }
 
-        NfcCard nfcCard = nfcCardRepository.findByCardUid(nfcScanDto.getCardUid())
-                .orElseThrow(() -> new EntityNotFoundException("NFC card not found with UID: " + nfcScanDto.getCardUid()));
+        // Find the card
+        Optional<NfcCard> cardOptional = nfcCardRepository.findByCardUid(nfcScanDto.getCardUid());
+        if (!cardOptional.isPresent()) {
+            logger.warn("NFC scan failed - Card not found: {}", nfcScanDto.getCardUid());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "NFC card not found with UID: " + nfcScanDto.getCardUid(),
+                "code", "CARD_NOT_FOUND"
+            ));
+        }
 
-        if (!nfcCard.isActive() || nfcCard.getSubscriber() == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("NFC card is inactive or not associated with a subscriber.");
+        NfcCard nfcCard = cardOptional.get();
+
+        // Check if card is active
+        if (!nfcCard.isActive()) {
+            logger.warn("NFC scan failed - Card inactive: {}", nfcScanDto.getCardUid());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "NFC card is inactive",
+                "code", "CARD_INACTIVE"
+            ));
+        }
+
+        // Check if card is assigned to a subscriber
+        if (nfcCard.getSubscriber() == null) {
+            logger.warn("NFC scan failed - Card not assigned: {}", nfcScanDto.getCardUid());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "NFC card is not assigned to any subscriber. Please assign the card first.",
+                "code", "CARD_NOT_ASSIGNED"
+            ));
         }
 
         Subscriber subscriber = nfcCard.getSubscriber();
@@ -58,7 +92,11 @@ public class NfcController {
 
 
         if (activeSessions.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No active attendance session found for organization: " + organization.getName());
+            logger.warn("NFC scan failed - No active session for organization: {}", organization.getName());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "No active attendance session found for organization: " + organization.getName(),
+                "code", "NO_ACTIVE_SESSION"
+            ));
         }
 
         // Assuming one subscriber can only be part of one session at a time,
@@ -70,7 +108,11 @@ public class NfcController {
             .orElse(null); // Should not happen if activeSessions is not empty
 
         if (targetSession == null) { // Should be redundant given the isEmpty check
-             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error identifying target session.");
+            logger.error("NFC scan failed - Error identifying target session");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Error identifying target session",
+                "code", "SESSION_ERROR"
+            ));
         }
 
 
@@ -82,12 +124,23 @@ public class NfcController {
                 // Already checked in, so check out
                 existingLog.setCheckOutTime(LocalDateTime.now());
                 AttendanceLog updatedLog = attendanceLogRepository.save(existingLog);
-                return ResponseEntity.ok("Checked out successfully from session: " + targetSession.getName() + " at " + updatedLog.getCheckOutTime());
+                logger.info("Check-out successful - Subscriber: {} {}, Session: {}",
+                           subscriber.getFirstName(), subscriber.getLastName(), targetSession.getName());
+                return ResponseEntity.ok(Map.of(
+                    "message", "Checked out successfully from session: " + targetSession.getName(),
+                    "action", "CHECK_OUT",
+                    "time", updatedLog.getCheckOutTime(),
+                    "subscriber", subscriber.getFirstName() + " " + subscriber.getLastName(),
+                    "session", targetSession.getName()
+                ));
             } else {
                 // Already checked in and out, prevent re-check-in to same log.
-                // Business rule: one check-in/out per session per subscriber.
-                // Could create a new log if re-entry is allowed, but that's more complex.
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Already checked in and out for this session.");
+                logger.warn("NFC scan failed - Already checked in and out: {} {}",
+                           subscriber.getFirstName(), subscriber.getLastName());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "Already checked in and out for this session",
+                    "code", "ALREADY_COMPLETED"
+                ));
             }
         } else {
             // New check-in
@@ -97,7 +150,15 @@ public class NfcController {
             newLog.setCheckInTime(LocalDateTime.now());
             // checkOutTime is null initially
             AttendanceLog savedLog = attendanceLogRepository.save(newLog);
-            return ResponseEntity.status(HttpStatus.CREATED).body("Checked in successfully to session: " + targetSession.getName() + " at " + savedLog.getCheckInTime());
+            logger.info("Check-in successful - Subscriber: {} {}, Session: {}",
+                       subscriber.getFirstName(), subscriber.getLastName(), targetSession.getName());
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "Checked in successfully to session: " + targetSession.getName(),
+                "action", "CHECK_IN",
+                "time", savedLog.getCheckInTime(),
+                "subscriber", subscriber.getFirstName() + " " + subscriber.getLastName(),
+                "session", targetSession.getName()
+            ));
         }
     }
 }

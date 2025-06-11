@@ -12,6 +12,9 @@ public class Organization {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = true, unique = true, length = 8)
+    private String entityId; // Custom 8-character ID with MSD prefix
+
     @Column(nullable = false, unique = true)
     private String name;
 
@@ -43,6 +46,14 @@ public class Organization {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getEntityId() {
+        return entityId;
+    }
+
+    public void setEntityId(String entityId) {
+        this.entityId = entityId;
     }
 
     public String getName() {

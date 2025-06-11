@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="16dp"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical">
+
+    <!-- Avatar Circle -->
+    <LinearLayout
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/circle_gradient_green"
+        android:gravity="center"
+        android:layout_marginEnd="16dp">
+
+        <TextView
+            android:id="@+id/tvAttendeeInitials"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="JD"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_on_primary" />
+
+    </LinearLayout>
+
+    <!-- Attendee Info -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvAttendeeName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="John Doe"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:id="@+id/tvAttendeeStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Present"
+                android:textSize="10sp"
+                android:textColor="@color/text_on_primary"
+                android:background="@drawable/status_active_background"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvAttendeeEmail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="john.doe@example.com"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="4dp"
+            android:drawableStart="@drawable/ic_email"
+            android:drawablePadding="6dp"
+            android:gravity="center_vertical" />
+
+        <TextView
+            android:id="@+id/tvCheckInTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Check-in: 09:15 AM"
+            android:textSize="12sp"
+            android:textColor="@color/text_hint"
+            android:layout_marginTop="2dp"
+            android:drawableStart="@drawable/ic_access_time"
+            android:drawablePadding="6dp"
+            android:gravity="center_vertical" />
+
+    </LinearLayout>
+
+</LinearLayout>

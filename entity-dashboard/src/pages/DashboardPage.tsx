@@ -17,6 +17,9 @@ import {
   ListItemText,
   Divider,
   Button,
+  ListItemButton,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
   People,
@@ -27,7 +30,8 @@ import {
   Schedule,
   Today,
   CheckCircle,
-
+  ArrowForward,
+  Group,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 
@@ -127,14 +131,32 @@ const DashboardPage: React.FC = () => {
   };
 
   const formatTime = (timeString: string) => {
-    return new Date(timeString).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timeString).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   const formatDate = (timeString: string) => {
     return new Date(timeString).toLocaleDateString();
+  };
+
+  const getTimeAgo = (timeString: string) => {
+    const now = new Date();
+    const sessionTime = new Date(timeString);
+    const diffInMs = now.getTime() - sessionTime.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
+
+  const handleSessionClick = (sessionId: number) => {
+    navigate(`/dashboard/sessions/${sessionId}`);
   };
 
   if (loading) {
@@ -252,38 +274,70 @@ const DashboardPage: React.FC = () => {
                 No sessions found
               </Typography>
             ) : (
-              <List>
+              <List sx={{ p: 0 }}>
                 {recentSessions.map((session, index) => (
                   <React.Fragment key={session.id}>
-                    <ListItem>
+                    <ListItemButton
+                      onClick={() => handleSessionClick(session.id)}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 1,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          backgroundColor: 'primary.50',
+                        },
+                        transition: 'all 0.2s ease-in-out',
+                      }}
+                    >
                       <ListItemAvatar>
-                        <Avatar>
-                          <Person />
+                        <Avatar
+                          sx={{
+                            bgcolor: session.status === 'active' ? 'warning.main' : 'success.main',
+                            width: 48,
+                            height: 48,
+                          }}
+                        >
+                          {session.status === 'active' ? <Schedule /> : <Group />}
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText
-                        primary={session.name}
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="subtitle1" fontWeight="bold">
+                              {session.name}
+                            </Typography>
+                            <Chip
+                              icon={session.status === 'active' ? <Schedule /> : <CheckCircle />}
+                              label={session.status === 'active' ? 'Active' : 'Completed'}
+                              color={session.status === 'active' ? 'warning' : 'success'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Box>
+                        }
                         secondary={
-                          <Box>
-                            <Typography variant="body2" color="textSecondary">
-                              Started: {formatDate(session.startTime)} at {formatTime(session.startTime)}
+                          <Box sx={{ mt: 0.5 }}>
+                            <Typography variant="body2" color="textSecondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Schedule fontSize="small" />
+                              Started {getTimeAgo(session.startTime)} • {formatTime(session.startTime)}
                             </Typography>
                             {session.endTime && (
-                              <Typography variant="body2" color="textSecondary">
-                                Ended: {formatTime(session.endTime)}
+                              <Typography variant="body2" color="textSecondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                <CheckCircle fontSize="small" />
+                                Ended at {formatTime(session.endTime)}
                               </Typography>
                             )}
                           </Box>
                         }
                       />
-                      <Chip
-                        icon={session.status === 'active' ? <Schedule /> : <CheckCircle />}
-                        label={session.status === 'active' ? 'Active' : 'Completed'}
-                        color={session.status === 'active' ? 'warning' : 'success'}
-                        size="small"
-                      />
-                    </ListItem>
-                    {index < recentSessions.length - 1 && <Divider />}
+                      <Tooltip title="View session details">
+                        <IconButton edge="end" color="primary">
+                          <ArrowForward />
+                        </IconButton>
+                      </Tooltip>
+                    </ListItemButton>
                   </React.Fragment>
                 ))}
               </List>

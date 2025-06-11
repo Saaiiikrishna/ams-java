@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import AuthService from './AuthService';
+import logger from './LoggingService';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'; // Backend API URL
 
@@ -12,14 +13,19 @@ const ApiService: AxiosInstance = axios.create({
 
 // Request interceptor to add the auth token to headers
 ApiService.interceptors.request.use(
-  (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => { // Corrected type
+  (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
     const token = AuthService.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Log API request
+    logger.apiRequest(config.method?.toUpperCase() || 'UNKNOWN', config.url || '', config.data);
+
     return config;
   },
   (error) => {
+    logger.error('API Request Error', 'API', error);
     return Promise.reject(error);
   }
 );
@@ -47,8 +53,24 @@ const processQueue = (error: any, token: string | null = null) => {
 
 // Response interceptor for handling token refresh
 ApiService.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    // Log successful API response
+    logger.apiResponse(
+      response.config.method?.toUpperCase() || 'UNKNOWN',
+      response.config.url || '',
+      response.status,
+      response.data
+    );
+    return response;
+  },
   async (error) => {
+    // Log API error
+    logger.apiError(
+      error.config?.method?.toUpperCase() || 'UNKNOWN',
+      error.config?.url || '',
+      error
+    );
+
     const originalRequest = error.config;
 
     // Check if error is 401 and not a retry request
@@ -89,6 +111,7 @@ ApiService.interceptors.response.use(
 
         } catch (refreshError: any) {
           processQueue(refreshError, null);
+          logger.authEvent('Token refresh failed - logging out');
           AuthService.logout();
           // Consider using a router or navigation service for redirection
           window.location.href = '/login';
@@ -99,6 +122,7 @@ ApiService.interceptors.response.use(
       } else {
         // No refresh token available, logout and redirect
         isRefreshing = false;
+        logger.authEvent('No refresh token available - logging out');
         AuthService.logout();
         window.location.href = '/login';
         return Promise.reject(error);

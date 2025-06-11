@@ -6,7 +6,7 @@
     <string name="login">Login</string>
     <string name="error_username_required">Username is required</string>
     <string name="error_password_required">Password is required</string>
-    <string name="login_success">Login successful (stub)</string>
+    <string name="login_success">Login successful! Welcome to Entity Admin.</string>
     <string name="login_failed">Login failed</string>
     <string name="sessions_title">Sessions</string>
 </resources>

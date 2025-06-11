@@ -1,5 +1,7 @@
+import logger from './LoggingService';
+
 const TOKEN_KEY = 'authToken';
-const REFRESH_TOKEN_KEY = 'refreshToken'; // New key
+const REFRESH_TOKEN_KEY = 'refreshToken';
 
 const AuthService = {
   // login method is replaced by storeTokens for clarity or can be updated
@@ -10,12 +12,13 @@ const AuthService = {
   storeTokens: (accessToken: string, refreshToken: string): void => {
     localStorage.setItem(TOKEN_KEY, accessToken);
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    logger.authEvent('Tokens stored successfully');
   },
 
   logout: (): void => {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY); // Clear refresh token as well
-    // window.location.href = '/login'; // Handled by UI components reacting to auth state
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    logger.authEvent('User logged out - tokens cleared');
   },
 
   getToken: (): string | null => { // This is for the access token
@@ -26,8 +29,9 @@ const AuthService = {
     return localStorage.getItem(REFRESH_TOKEN_KEY);
   },
 
-  updateAccessToken: (newAccessToken: string): void => { // New method
+  updateAccessToken: (newAccessToken: string): void => {
     localStorage.setItem(TOKEN_KEY, newAccessToken);
+    logger.authEvent('Access token updated');
   },
 
   isLoggedIn: (): boolean => {

@@ -78,9 +78,15 @@ class SubscriberRepository @Inject constructor(
                     try {
                         val jsonObject = JSONObject(errorBody)
                         if (jsonObject.has("message")) {
-                            jsonObject.getString("message").takeIf { it.isNotBlank() }?.let { errorMessage = it }
+                            val message = jsonObject.getString("message")
+                            if (message.isNotBlank()) {
+                                errorMessage = message
+                            }
                         } else if (jsonObject.has("error")) {
-                            jsonObject.getString("error").takeIf { it.isNotBlank() }?.let { errorMessage = it }
+                            val error = jsonObject.getString("error")
+                            if (error.isNotBlank()) {
+                                errorMessage = error
+                            }
                         }
                     } catch (e: Exception) { /* Ignore parsing error */ }
                 }

@@ -9,6 +9,19 @@ class SessionRepository @Inject constructor(
     private val apiService: ApiService,
     private val tokenManager: TokenManager
 ) {
+    suspend fun getSessions(): Result<List<Session>> {
+        val token = tokenManager.getToken()
+        if (token == null) {
+            return Result.failure(IllegalArgumentException("User not authenticated. Token is missing."))
+        }
+        return try {
+            val response = apiService.getSessions("Bearer $token")
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(Exception(e.toUserFriendlyMessage(), e))
+        }
+    }
+
     suspend fun createSession(name: String): Result<Session> {
         val token = tokenManager.getToken()
         if (token == null) {

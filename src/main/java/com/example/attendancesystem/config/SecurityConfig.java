@@ -83,7 +83,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/super/auth/login", "/super/auth/refresh-token").permitAll()
+                .requestMatchers("/super/auth/login", "/super/auth/refresh-token", "/super/auth/reset-superadmin-password").permitAll()
                 .requestMatchers("/super/**").hasRole("SUPER_ADMIN")
                 .anyRequest().denyAll() // Deny all other requests for this matcher
             )

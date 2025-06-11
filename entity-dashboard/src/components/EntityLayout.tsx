@@ -27,6 +27,7 @@ import {
   Logout,
   AccountCircle,
   Business,
+  Nfc,
 } from '@mui/icons-material';
 import AuthService from '../services/AuthService';
 import ApiService from '../services/ApiService';
@@ -132,6 +133,11 @@ const EntityLayout: React.FC = () => {
       text: 'Subscribers',
       icon: <People />,
       path: '/dashboard/subscribers',
+    },
+    {
+      text: 'NFC Cards',
+      icon: <Nfc />,
+      path: '/dashboard/cards',
     },
     {
       text: 'Sessions',

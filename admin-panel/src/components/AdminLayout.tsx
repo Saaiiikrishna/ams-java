@@ -30,6 +30,7 @@ import {
   People,
   Security,
   Lock,
+  Nfc,
 } from '@mui/icons-material';
 import AuthService from '../services/AuthService';
 import ChangePasswordDialog from './ChangePasswordDialog';
@@ -83,6 +84,11 @@ const AdminLayout: React.FC = () => {
       text: 'Entity Management',
       icon: <Business />,
       path: '/dashboard/entities',
+    },
+    {
+      text: 'NFC Cards & Simulation',
+      icon: <Nfc />,
+      path: '/dashboard/nfc-cards',
     },
     {
       text: 'Change Entity Admin',

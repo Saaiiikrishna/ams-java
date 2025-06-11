@@ -16,19 +16,16 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   IconButton,
   Chip,
   Alert,
   Snackbar,
   Grid,
-
   CircularProgress,
   Tooltip,
   InputAdornment,
 } from '@mui/material';
 import {
-  Add,
   Edit,
   Delete,
   Business,
@@ -40,12 +37,13 @@ import {
   PersonAdd,
   Warning,
   CheckCircle,
-  Assignment,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
+import logger from '../services/LoggingService';
 
 interface Organization {
-  id: number;
+  id: number; // Keep for internal use, but use entityId for API calls
+  entityId: string; // Primary identifier for API operations
   name: string;
   address: string;
   latitude?: number;
@@ -76,11 +74,17 @@ const EntityPage: React.FC = () => {
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [assigningAdmin, setAssigningAdmin] = useState(false);
+
+  // Confirmation dialog for admin assignment after entity creation
+  const [showAssignAfterCreateDialog, setShowAssignAfterCreateDialog] = useState(false);
+  const [createdEntity, setCreatedEntity] = useState<Organization | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingEntity, setEditingEntity] = useState<Organization | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingEntity, setDeletingEntity] = useState<Organization | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showForceDelete, setShowForceDelete] = useState(false);
 
   // Form state for creating new entity
   const [newName, setNewName] = useState('');
@@ -105,7 +109,7 @@ const EntityPage: React.FC = () => {
       setEntities(entitiesResponse.data || []);
       setEntitiesWithoutAdmin(entitiesWithoutAdminResponse.data || []);
     } catch (err: any) {
-      console.error("Failed to fetch entities:", err);
+      logger.error("Failed to fetch entities", 'ENTITY', err);
       if (err.response && err.response.status === 403) {
         setError('Failed to fetch entities: You do not have permission.');
       } else {
@@ -120,7 +124,7 @@ const EntityPage: React.FC = () => {
 
   useEffect(() => {
     fetchEntities();
-    // console.warn("EntityPage: GET /admin/entities endpoint is not yet implemented on backend. Data fetching is disabled.");
+
   }, []);
 
   const resetForm = () => {
@@ -162,17 +166,14 @@ const EntityPage: React.FC = () => {
       const response = await ApiService.post('/super/entities', newEntityData);
       setSuccessMessage(`Entity '${response.data.name}' created successfully!`);
 
-      // Ask if user wants to assign admin immediately
-      const assignNow = window.confirm(`Entity '${response.data.name}' created successfully!\n\nWould you like to assign an admin now?`);
-      if (assignNow) {
-        setSelectedEntityForAdmin(response.data);
-        setShowAssignDialog(true);
-      }
+      // Show dialog to ask if user wants to assign admin immediately
+      setCreatedEntity(response.data);
+      setShowAssignAfterCreateDialog(true);
 
       resetForm();
       fetchEntities();
     } catch (err: any) {
-      console.error("Failed to create entity:", err);
+      logger.error("Failed to create entity", 'ENTITY', err);
       if (err.response && err.response.data) {
          if (typeof err.response.data === 'string') {
             setError(`Failed to create entity: ${err.response.data}`);
@@ -198,7 +199,7 @@ const EntityPage: React.FC = () => {
     setSuccessMessage(null);
 
     try {
-      const response = await ApiService.post(`/super/entities/${selectedEntityForAdmin.id}/assign-admin`, {
+      await ApiService.post(`/super/entities/${selectedEntityForAdmin.entityId}/assign-admin`, {
         username: adminUsername,
         password: adminPassword,
       });
@@ -207,7 +208,7 @@ const EntityPage: React.FC = () => {
       resetAssignForm();
       fetchEntities(); // Refresh the lists
     } catch (err: any) {
-      console.error("Failed to assign admin:", err);
+      logger.error("Failed to assign admin", 'ADMIN', err);
       if (err.response && err.response.data) {
         if (typeof err.response.data === 'string') {
           setError(`Failed to assign admin: ${err.response.data}`);
@@ -258,14 +259,14 @@ const EntityPage: React.FC = () => {
     };
 
     try {
-      const response = await ApiService.put(`/super/entities/${editingEntity.id}`, updatedEntityData);
+      const response = await ApiService.put(`/super/entities/${editingEntity.entityId}`, updatedEntityData);
       setSuccessMessage(`Entity '${response.data.name}' updated successfully!`);
       setShowEditDialog(false);
       setEditingEntity(null);
       resetForm();
       fetchEntities();
     } catch (err: any) {
-      console.error("Failed to update entity:", err);
+      logger.error("Failed to update entity", 'ENTITY', err);
       if (err.response && err.response.data) {
         if (typeof err.response.data === 'string') {
           setError(`Failed to update entity: ${err.response.data}`);
@@ -284,34 +285,57 @@ const EntityPage: React.FC = () => {
 
   const handleDeleteClick = (entity: Organization) => {
     setDeletingEntity(entity);
+    setDeleteError(null);
+    setShowForceDelete(false);
     setShowDeleteDialog(true);
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = async (force: boolean = false) => {
     if (!deletingEntity) return;
 
     setFormLoading(true);
     setError(null);
     setSuccessMessage(null);
+    setDeleteError(null);
 
     try {
-      await ApiService.delete(`/super/entities/${deletingEntity.id}`);
-      setSuccessMessage(`Entity '${deletingEntity.name}' deleted successfully!`);
+      const endpoint = force
+        ? `/super/entities/${deletingEntity.entityId}/force`
+        : `/super/entities/${deletingEntity.entityId}`;
+
+      const response = await ApiService.delete(endpoint);
+
+      if (force && response.data) {
+        setSuccessMessage(
+          `Entity '${deletingEntity.name}' and all related data deleted successfully! ` +
+          `(${response.data.deletedEntityAdmins} admins, ${response.data.deletedSubscribers} subscribers, ${response.data.deletedSessions} sessions removed)`
+        );
+      } else {
+        setSuccessMessage(`Entity '${deletingEntity.name}' deleted successfully!`);
+      }
+
       setShowDeleteDialog(false);
       setDeletingEntity(null);
+      setShowForceDelete(false);
       fetchEntities();
     } catch (err: any) {
-      console.error("Failed to delete entity:", err);
+      logger.error("Failed to delete entity", 'ENTITY', err);
       if (err.response && err.response.data) {
         if (typeof err.response.data === 'string') {
-          setError(`Failed to delete entity: ${err.response.data}`);
+          const errorMessage = err.response.data;
+          setDeleteError(errorMessage);
+
+          // Show force delete option if there are related records
+          if (errorMessage.includes('because it has:')) {
+            setShowForceDelete(true);
+          }
         } else if (err.response.data.message) {
-          setError(`Failed to delete entity: ${err.response.data.message}`);
+          setDeleteError(err.response.data.message);
         } else {
-          setError('Failed to delete entity: An unexpected error occurred.');
+          setDeleteError('An unexpected error occurred.');
         }
       } else {
-        setError('Failed to delete entity. Please try again.');
+        setDeleteError('Failed to delete entity. Please try again.');
       }
     } finally {
       setFormLoading(false);
@@ -378,7 +402,7 @@ const EntityPage: React.FC = () => {
 
             <Grid container spacing={2}>
               {entitiesWithoutAdmin.map((entity) => (
-                <Grid item xs={12} sm={6} md={4} key={entity.id}>
+                <Grid item xs={12} sm={6} md={4} key={entity.entityId}>
                   <Card variant="outlined" sx={{ height: '100%' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -388,7 +412,7 @@ const EntityPage: React.FC = () => {
                         </Typography>
                       </Box>
                       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                        ID: {entity.id}
+                        Entity ID: {entity.entityId}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         {entity.address}
@@ -738,13 +762,53 @@ const EntityPage: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             This action cannot be undone. All associated data will be permanently removed.
           </Typography>
+
+          {deleteError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-line' }}>
+                {deleteError}
+              </Typography>
+            </Alert>
+          )}
+
+          {showForceDelete && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <Typography variant="body2" fontWeight="bold">
+                Force Delete Option Available
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                You can force delete this entity, which will automatically remove all related data including entity admins, subscribers, and attendance sessions.
+              </Typography>
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setShowDeleteDialog(false)} disabled={formLoading}>
+          <Button
+            onClick={() => {
+              setShowDeleteDialog(false);
+              setDeleteError(null);
+              setShowForceDelete(false);
+            }}
+            disabled={formLoading}
+          >
             Cancel
           </Button>
+
+          {showForceDelete && (
+            <Button
+              onClick={() => handleDeleteConfirm(true)}
+              variant="contained"
+              color="warning"
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={20} /> : <Delete />}
+              sx={{ mr: 1 }}
+            >
+              {formLoading ? 'Force Deleting...' : 'Force Delete'}
+            </Button>
+          )}
+
           <Button
-            onClick={handleDeleteConfirm}
+            onClick={() => handleDeleteConfirm(false)}
             variant="contained"
             color="error"
             disabled={formLoading}
@@ -793,6 +857,7 @@ const EntityPage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell>Entity ID</TableCell>
                     <TableCell>Entity</TableCell>
                     <TableCell>Address</TableCell>
                     <TableCell>Contact</TableCell>
@@ -803,9 +868,18 @@ const EntityPage: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {filteredEntities.map((entity) => {
-                    const hasAdmin = !entitiesWithoutAdmin.some(e => e.id === entity.id);
+                    const hasAdmin = !entitiesWithoutAdmin.some(e => e.entityId === entity.entityId);
                     return (
-                    <TableRow key={entity.id} hover>
+                    <TableRow key={entity.entityId} hover>
+                      <TableCell>
+                        <Chip
+                          label={entity.entityId}
+                          color="primary"
+                          variant="outlined"
+                          size="small"
+                          sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Box
@@ -825,9 +899,6 @@ const EntityPage: React.FC = () => {
                           <Box>
                             <Typography variant="subtitle2" fontWeight="bold">
                               {entity.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              ID: {entity.id}
                             </Typography>
                           </Box>
                         </Box>
@@ -938,6 +1009,48 @@ const EntityPage: React.FC = () => {
       >
         <Alert onClose={() => setError(null)} severity="error">
           {error}
+        </DialogActions>
+      </Dialog>
+
+      {/* Assign Admin After Entity Creation Dialog */}
+      <Dialog open={showAssignAfterCreateDialog} onClose={() => setShowAssignAfterCreateDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CheckCircle sx={{ color: 'success.main', fontSize: 40 }} />
+            <Typography variant="h6" component="span">
+              Entity Created Successfully!
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Entity '{createdEntity?.name}' has been created successfully.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Would you like to assign an admin to this entity now?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button
+            onClick={() => setShowAssignAfterCreateDialog(false)}
+            variant="outlined"
+          >
+            Later
+          </Button>
+          <Button
+            onClick={() => {
+              if (createdEntity) {
+                setSelectedEntityForAdmin(createdEntity);
+                setShowAssignDialog(true);
+                setShowAssignAfterCreateDialog(false);
+                setCreatedEntity(null);
+              }
+            }}
+            variant="contained"
+            color="primary"
+          >
+            Assign Admin Now
+          </Button>
         </Alert>
       </Snackbar>
     </Box>

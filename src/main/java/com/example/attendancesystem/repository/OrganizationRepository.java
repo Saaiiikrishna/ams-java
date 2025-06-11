@@ -8,4 +8,9 @@ import org.springframework.stereotype.Repository;
 public interface OrganizationRepository extends JpaRepository<Organization, Long> {
     boolean existsByName(String name);
     java.util.Optional<Organization> findByName(String name);
+    java.util.Optional<Organization> findByEntityId(String entityId);
+    boolean existsByEntityId(String entityId);
+
+    // Additional methods for entity ID based operations
+    void deleteByEntityId(String entityId);
 }

@@ -17,6 +17,10 @@ public class NfcCard {
     @JoinColumn(name = "subscriber_id", unique = true) // A card is linked to one subscriber
     private Subscriber subscriber;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = true) // Temporarily nullable for migration
+    private Organization organization;
+
     private boolean isActive;
 
     // Getters and Setters
@@ -50,5 +54,13 @@ public class NfcCard {
 
     public void setActive(boolean active) {
         isActive = active;
+    }
+
+    public Organization getOrganization() {
+        return organization;
+    }
+
+    public void setOrganization(Organization organization) {
+        this.organization = organization;
     }
 }

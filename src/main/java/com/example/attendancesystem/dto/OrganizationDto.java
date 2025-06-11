@@ -2,6 +2,7 @@ package com.example.attendancesystem.dto;
 
 public class OrganizationDto {
     private Long id; // Added ID field
+    private String entityId; // Custom Entity ID (MSD + 5 digits)
     private String name;
     private String address;
 
@@ -43,6 +44,14 @@ public class OrganizationDto {
 
     public void setId(Long id) { // Setter for ID
         this.id = id;
+    }
+
+    public String getEntityId() { // Getter for Entity ID
+        return entityId;
+    }
+
+    public void setEntityId(String entityId) { // Setter for Entity ID
+        this.entityId = entityId;
     }
 
     public String getName() {

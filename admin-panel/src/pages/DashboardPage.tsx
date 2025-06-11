@@ -65,7 +65,7 @@ const DashboardPage: React.FC = () => {
 
     // Generate activities based on actual entities
     entities.forEach((entity, index) => {
-      const hasAdmin = !entitiesWithoutAdmin.some(e => e.id === entity.id);
+      const hasAdmin = !entitiesWithoutAdmin.some(e => e.entityId === entity.entityId);
 
       // Entity creation activity
       activities.push({

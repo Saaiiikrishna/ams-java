@@ -24,7 +24,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttp(tokenManager: TokenManager): OkHttpClient {
-        val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
         val authInterceptor = Interceptor { chain ->
             val token = tokenManager.getToken()
             val request = if (token != null) {
@@ -37,6 +39,9 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(logging)
             .addInterceptor(authInterceptor)
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .build()
     }
 
@@ -44,7 +49,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(client: OkHttpClient, gson: Gson): Retrofit =
         Retrofit.Builder()
-            .baseUrl("http://localhost:8080")
+            .baseUrl("http://10.0.2.2:8080")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()

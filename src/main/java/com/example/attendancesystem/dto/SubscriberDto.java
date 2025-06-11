@@ -8,6 +8,8 @@ public class SubscriberDto {
     private String mobileNumber;
     private Long organizationId; // Needed for context, especially in responses if not creating
     private String nfcCardUid; // For associating/updating NFC card
+    private boolean hasNfcCard; // Indicates if subscriber has an assigned card
+    private String entityId; // Entity ID for the organization
 
     // Default constructor
     public SubscriberDto() {
@@ -89,5 +91,21 @@ public class SubscriberDto {
 
     public void setNfcCardUid(String nfcCardUid) {
         this.nfcCardUid = nfcCardUid;
+    }
+
+    public boolean isHasNfcCard() {
+        return hasNfcCard;
+    }
+
+    public void setHasNfcCard(boolean hasNfcCard) {
+        this.hasNfcCard = hasNfcCard;
+    }
+
+    public String getEntityId() {
+        return entityId;
+    }
+
+    public void setEntityId(String entityId) {
+        this.entityId = entityId;
     }
 }

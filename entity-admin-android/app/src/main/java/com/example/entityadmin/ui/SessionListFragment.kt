@@ -20,6 +20,10 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject // Added
 import androidx.navigation.NavOptions // Added
+import androidx.navigation.fragment.findNavController
+import android.widget.ProgressBar
+import android.widget.Toast
+import androidx.core.view.isVisible
 
 @AndroidEntryPoint
 class SessionListFragment : Fragment() {
@@ -44,27 +48,67 @@ class SessionListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val recycler = view.findViewById<RecyclerView>(R.id.recyclerSessions)
+        val progressBar = view.findViewById<ProgressBar>(R.id.progressBarSessions)
+        val emptyState = view.findViewById<View>(R.id.layoutEmptyState)
+        val tvActiveCount = view.findViewById<android.widget.TextView>(R.id.tvActiveSessionsCount)
+        val tvTotalCount = view.findViewById<android.widget.TextView>(R.id.tvTotalSessionsCount)
+
         recycler.layoutManager = LinearLayoutManager(requireContext())
-        val adapter = SessionAdapter()
+        val adapter = SessionAdapter { session ->
+            // Navigate to session details
+            try {
+                val action = SessionListFragmentDirections.actionSessionsToSessionDetails(session.id.toInt())
+                findNavController().navigate(action)
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Session: ${session.name} (ID: ${session.id})", Toast.LENGTH_SHORT).show()
+            }
+        }
         recycler.adapter = adapter
 
-        view.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAddSession)
+        view.findViewById<com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton>(R.id.fabAddSession)
             .setOnClickListener {
-                findNavController().navigate(R.id.action_sessionListFragment_to_createSessionFragment)
+                try {
+                    findNavController().navigate(R.id.action_sessions_to_createSession)
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "Create session feature coming soon!", Toast.LENGTH_SHORT).show()
+                }
             }
 
         // Observe LiveData from SessionViewModel
         viewModel.sessionsLiveData.observe(viewLifecycleOwner) { sessionList ->
             adapter.sessions = sessionList
             adapter.notifyDataSetChanged()
+
+            // Update stats
+            tvTotalCount.text = sessionList.size.toString()
+            tvActiveCount.text = sessionList.size.toString() // For now, assume all are active
+
+            // Show/hide empty state
+            if (sessionList.isEmpty()) {
+                recycler.isVisible = false
+                emptyState.isVisible = true
+            } else {
+                recycler.isVisible = true
+                emptyState.isVisible = false
+            }
         }
+
         viewModel.isLoadingLiveData.observe(viewLifecycleOwner) { isLoading ->
-            // Assuming a progress bar with id progressBarSessions exists in fragment_session_list.xml
-            view.findViewById<ProgressBar>(R.id.progressBarSessions)?.isVisible = isLoading
-            recycler.isVisible = !isLoading
+            progressBar.isVisible = isLoading
+            if (isLoading) {
+                recycler.isVisible = false
+                emptyState.isVisible = false
+            }
         }
+
         viewModel.errorLiveData.observe(viewLifecycleOwner) { error ->
-            error?.let { Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show() }
+            error?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
+                // Show empty state on error
+                recycler.isVisible = false
+                emptyState.isVisible = true
+                progressBar.isVisible = false
+            }
         }
 
         viewModel.loadSessions() // Initial call to load sessions
@@ -78,21 +122,28 @@ class SessionListFragment : Fragment() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_manage_subscribers -> {
-                findNavController().navigate(R.id.action_sessionListFragment_to_subscriberListFragment)
+                try {
+                    // Navigate to subscribers tab in bottom navigation
+                    requireActivity().findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottom_navigation)
+                        ?.selectedItemId = R.id.navigation_subscribers
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "Navigation error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
                 true
             }
             R.id.action_logout -> { // Added
-                tokenManager.clearToken()
-                val navOptions = NavOptions.Builder()
-                    .setPopUpTo(R.id.loginFragment, true) // Pop up to loginFragment inclusive
-                    .build()
-                findNavController().navigate(R.id.loginFragment, null, navOptions)
+                try {
+                    tokenManager.clearToken()
+                    val navOptions = NavOptions.Builder()
+                        .setPopUpTo(R.id.loginFragment, true) // Pop up to loginFragment inclusive
+                        .build()
+                    findNavController().navigate(R.id.loginFragment, null, navOptions)
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "Logout error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
     }
 }
-// Ensure imports for findNavController and FloatingActionButton if they are missing
-import androidx.navigation.fragment.findNavController
-// import com.google.android.material.floatingactionbutton.FloatingActionButton // Already imported via view.findViewById type

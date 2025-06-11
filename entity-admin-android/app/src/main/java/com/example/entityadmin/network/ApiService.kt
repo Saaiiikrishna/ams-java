@@ -4,10 +4,14 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.DELETE
+import retrofit2.http.Path
+import retrofit2.Response
 
 data class AuthRequest(val username: String, val password: String)
 
-data class AuthResponse(val token: String)
+data class AuthResponse(val jwt: String)
 
 data class Session(val id: String, val name: String)
 
@@ -31,11 +35,11 @@ interface ApiService {
     suspend fun createSubscriber(@Header("Authorization") token: String, @Body subscriberRequest: com.example.entityadmin.model.SubscriberRequest): com.example.entityadmin.model.Subscriber
 
     @GET("/api/subscribers/{id}")
-    suspend fun getSubscriberById(@Header("Authorization") token: String, @retrofit2.http.Path("id") subscriberId: String): com.example.entityadmin.model.Subscriber
+    suspend fun getSubscriberById(@Header("Authorization") token: String, @Path("id") subscriberId: String): com.example.entityadmin.model.Subscriber
 
     @PUT("/api/subscribers/{id}")
-    suspend fun updateSubscriber(@Header("Authorization") token: String, @retrofit2.http.Path("id") subscriberId: String, @Body subscriberRequest: com.example.entityadmin.model.SubscriberRequest): com.example.entityadmin.model.Subscriber
+    suspend fun updateSubscriber(@Header("Authorization") token: String, @Path("id") subscriberId: String, @Body subscriberRequest: com.example.entityadmin.model.SubscriberRequest): com.example.entityadmin.model.Subscriber
 
-    @retrofit2.http.DELETE("/api/subscribers/{id}")
-    suspend fun deleteSubscriber(@Header("Authorization") token: String, @retrofit2.http.Path("id") subscriberId: String): retrofit2.Response<Unit>
+    @DELETE("/api/subscribers/{id}")
+    suspend fun deleteSubscriber(@Header("Authorization") token: String, @Path("id") subscriberId: String): Response<Unit>
 }

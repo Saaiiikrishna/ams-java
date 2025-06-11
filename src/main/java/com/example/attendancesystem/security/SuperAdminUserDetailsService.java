@@ -16,8 +16,14 @@ public class SuperAdminUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        System.out.println("DEBUG: SuperAdminUserDetailsService - Loading user: " + username);
         SuperAdmin superAdmin = superAdminRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Super Admin not found with username: " + username));
+                .orElseThrow(() -> {
+                    System.err.println("DEBUG: Super Admin not found with username: " + username);
+                    return new UsernameNotFoundException("Super Admin not found with username: " + username);
+                });
+        System.out.println("DEBUG: Found SuperAdmin: " + superAdmin.getUsername() + ", Role: " +
+                          (superAdmin.getRole() != null ? superAdmin.getRole().getName() : "null"));
 
         // Verify that this user has SUPER_ADMIN role
         if (superAdmin.getRole() == null || !"SUPER_ADMIN".equals(superAdmin.getRole().getName())) {

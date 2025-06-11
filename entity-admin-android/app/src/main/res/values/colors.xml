@@ -1,23 +1,27 @@
 <resources>
-    <!-- Primary Colors -->
-    <color name="primary_blue">#1976D2</color>
-    <color name="primary_blue_light">#42A5F5</color>
-    <color name="primary_blue_dark">#1565C0</color>
+    <!-- Primary Colors - Modern Blue Palette -->
+    <color name="primary_blue">#2563EB</color>
+    <color name="primary_blue_light">#3B82F6</color>
+    <color name="primary_blue_dark">#1D4ED8</color>
+    <color name="primary_accent">#06B6D4</color>
 
-    <!-- Secondary Colors -->
-    <color name="secondary_pink">#F50057</color>
-    <color name="secondary_pink_light">#FF5983</color>
-    <color name="secondary_pink_dark">#C51162</color>
+    <!-- Secondary Colors - Modern Accent -->
+    <color name="secondary_purple">#8B5CF6</color>
+    <color name="secondary_purple_light">#A78BFA</color>
+    <color name="secondary_purple_dark">#7C3AED</color>
 
     <!-- Background Colors -->
-    <color name="background_light">#F5F5F5</color>
+    <color name="background_light">#F8FAFC</color>
     <color name="background_white">#FFFFFF</color>
     <color name="surface_white">#FFFFFF</color>
+    <color name="surface_elevated">#FFFFFF</color>
 
-    <!-- Text Colors -->
-    <color name="text_primary">#212121</color>
-    <color name="text_secondary">#757575</color>
-    <color name="text_hint">#BDBDBD</color>
+    <!-- Text Colors - High Contrast -->
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="text_hint">#94A3B8</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    <color name="text_on_surface">#0F172A</color>
 
     <!-- Status Colors -->
     <color name="success_green">#4CAF50</color>
@@ -25,9 +29,16 @@
     <color name="error_red">#F44336</color>
     <color name="info_blue">#2196F3</color>
 
-    <!-- Gradient Colors -->
-    <color name="gradient_start">#667EEA</color>
-    <color name="gradient_end">#764BA2</color>
+    <!-- Gradient Colors - Modern Blue to Purple -->
+    <color name="gradient_start">#3B82F6</color>
+    <color name="gradient_middle">#8B5CF6</color>
+    <color name="gradient_end">#06B6D4</color>
+
+    <!-- Login Specific Colors -->
+    <color name="login_card_background">#FFFFFF</color>
+    <color name="login_card_shadow">#1E293B</color>
+    <color name="input_border">#E2E8F0</color>
+    <color name="input_border_focused">#3B82F6</color>
 
     <!-- Legacy Colors -->
     <color name="purple_200">#BB86FC</color>

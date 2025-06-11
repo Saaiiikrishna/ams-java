@@ -6,9 +6,14 @@ import com.example.attendancesystem.dto.NewAccessTokenResponse;
 import com.example.attendancesystem.dto.RefreshTokenRequest;
 import com.example.attendancesystem.model.EntityAdmin;
 import com.example.attendancesystem.model.RefreshToken;
+import com.example.attendancesystem.model.SuperAdminRefreshToken;
 import com.example.attendancesystem.security.SuperAdminJwtUtil;
 import com.example.attendancesystem.security.SuperAdminUserDetailsService;
 import com.example.attendancesystem.service.RefreshTokenService;
+import com.example.attendancesystem.service.SuperAdminRefreshTokenService;
+import com.example.attendancesystem.model.SuperAdmin;
+import com.example.attendancesystem.repository.SuperAdminRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -45,15 +50,31 @@ public class SuperAdminAuthController {
     @Autowired
     private RefreshTokenService refreshTokenService;
 
+    @Autowired
+    private SuperAdminRefreshTokenService superAdminRefreshTokenService;
+
+    @Autowired
+    private SuperAdminRepository superAdminRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         try {
+            System.out.println("DEBUG: ===== SUPER ADMIN LOGIN ATTEMPT =====");
+            System.out.println("DEBUG: Username: " + loginRequest.getUsername());
+            System.out.println("DEBUG: Attempting authentication...");
+
             superAdminAuthenticationProvider.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             loginRequest.getUsername(),
                             loginRequest.getPassword())
             );
+
+            System.out.println("DEBUG: Authentication successful!");
         } catch (BadCredentialsException | UsernameNotFoundException ex) {
+            System.err.println("DEBUG: Authentication failed: " + ex.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Incorrect username or password");
         }
@@ -71,8 +92,8 @@ public class SuperAdminAuthController {
         final String accessToken = superAdminJwtUtil.generateToken(userDetails);
         final String refreshTokenString = superAdminJwtUtil.generateRefreshToken(userDetails);
 
-        // Save the refresh token to the database
-        refreshTokenService.createAndSaveRefreshToken(
+        // Save the refresh token to the database using SuperAdmin-specific service
+        superAdminRefreshTokenService.createAndSaveRefreshToken(
                 userDetails.getUsername(), refreshTokenString);
 
         return ResponseEntity.ok(new LoginResponse(accessToken, refreshTokenString));
@@ -89,21 +110,21 @@ public class SuperAdminAuthController {
                     .body("Invalid Super Admin refresh token");
         }
 
-        Optional<RefreshToken> refreshTokenOptional = refreshTokenService.findByToken(requestRefreshToken);
+        Optional<SuperAdminRefreshToken> refreshTokenOptional = superAdminRefreshTokenService.findByToken(requestRefreshToken);
 
         if (refreshTokenOptional.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Refresh token not found in database");
         }
 
-        RefreshToken storedRefreshToken = refreshTokenOptional.get();
+        SuperAdminRefreshToken storedRefreshToken = refreshTokenOptional.get();
 
-        if (!refreshTokenService.verifyExpiration(storedRefreshToken)) {
+        if (!superAdminRefreshTokenService.verifyExpiration(storedRefreshToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Refresh token expired");
         }
 
-        EntityAdmin user = storedRefreshToken.getUser();
+        SuperAdmin user = storedRefreshToken.getUser();
         UserDetails userDetails = superAdminUserDetailsService.loadUserByUsername(user.getUsername());
 
         // Verify this is still a Super Admin
@@ -116,10 +137,35 @@ public class SuperAdminAuthController {
         String newAccessToken = superAdminJwtUtil.generateToken(userDetails);
 
         // Refresh Token Rotation
-        refreshTokenService.deleteToken(requestRefreshToken);
+        superAdminRefreshTokenService.deleteToken(requestRefreshToken);
         String newRefreshTokenString = superAdminJwtUtil.generateRefreshToken(userDetails);
-        refreshTokenService.createAndSaveRefreshToken(userDetails.getUsername(), newRefreshTokenString);
+        superAdminRefreshTokenService.createAndSaveRefreshToken(userDetails.getUsername(), newRefreshTokenString);
 
         return ResponseEntity.ok(new NewAccessTokenResponse(newAccessToken, newRefreshTokenString));
+    }
+
+    // TEMPORARY ENDPOINT TO RESET SUPERADMIN PASSWORD - REMOVE IN PRODUCTION
+    @PostMapping("/reset-superadmin-password")
+    public ResponseEntity<?> resetSuperAdminPassword() {
+        try {
+            System.out.println("DEBUG: ===== RESETTING SUPERADMIN PASSWORD =====");
+            SuperAdmin superAdmin = superAdminRepository.findByUsername("superadmin")
+                    .orElseThrow(() -> new RuntimeException("SuperAdmin not found"));
+
+            String newPassword = "admin123";
+            String encodedPassword = passwordEncoder.encode(newPassword);
+            superAdmin.setPassword(encodedPassword);
+            superAdminRepository.save(superAdmin);
+
+            System.out.println("DEBUG: SuperAdmin password reset successfully");
+            System.out.println("DEBUG: New password: " + newPassword);
+            System.out.println("DEBUG: Encoded password: " + encodedPassword);
+
+            return ResponseEntity.ok("SuperAdmin password reset to: " + newPassword);
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to reset SuperAdmin password: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to reset password");
+        }
     }
 }

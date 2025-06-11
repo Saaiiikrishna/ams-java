@@ -7,7 +7,9 @@ import EntityLayout from './components/EntityLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import DashboardPage from './pages/DashboardPage';
 import SubscriberPage from './pages/SubscriberPage';
+import CardsPage from './pages/CardsPage';
 import SessionPage from './pages/SessionPage';
+import SessionDetailsPage from './pages/SessionDetailsPage';
 import ReportPage from './pages/ReportPage';
 import theme from './theme/theme';
 import './App.css';
@@ -25,7 +27,9 @@ function App() {
               <Route index element={<DashboardPage />} />
               <Route path="overview" element={<DashboardPage />} />
               <Route path="subscribers" element={<SubscriberPage />} />
+              <Route path="cards" element={<CardsPage />} />
               <Route path="sessions" element={<SessionPage />} />
+              <Route path="sessions/:sessionId" element={<SessionDetailsPage />} />
               <Route path="reports" element={<ReportPage />} />
             </Route>
           </Route>

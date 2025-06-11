@@ -37,7 +37,9 @@ public class SuperAdminController {
     @GetMapping("/super-admins")
     public ResponseEntity<List<Map<String, Object>>> getAllSuperAdmins() {
         try {
+            System.out.println("DEBUG: ===== SUPER ADMINS ENDPOINT CALLED =====");
             List<SuperAdmin> superAdmins = superAdminRepository.findByIsActiveTrue();
+            System.out.println("DEBUG: Found " + superAdmins.size() + " active super admins");
             List<Map<String, Object>> adminDtos = superAdmins.stream()
                     .map(admin -> {
                         Map<String, Object> dto = new HashMap<>();

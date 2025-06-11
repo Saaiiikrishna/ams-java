@@ -275,7 +275,9 @@ public class EntityController {
     // DTO Converters
     private SubscriberDto convertToDto(Subscriber subscriber) {
         String nfcUid = subscriber.getNfcCard() != null ? subscriber.getNfcCard().getCardUid() : null;
-        return new SubscriberDto(
+        boolean hasNfcCard = subscriber.getNfcCard() != null;
+
+        SubscriberDto dto = new SubscriberDto(
                 subscriber.getId(),
                 subscriber.getFirstName(),
                 subscriber.getLastName(),
@@ -284,6 +286,10 @@ public class EntityController {
                 subscriber.getOrganization().getId(),
                 nfcUid
         );
+        dto.setHasNfcCard(hasNfcCard);
+        dto.setEntityId(subscriber.getOrganization().getEntityId());
+
+        return dto;
     }
 
     private AttendanceSessionDto convertToDto(AttendanceSession session) {

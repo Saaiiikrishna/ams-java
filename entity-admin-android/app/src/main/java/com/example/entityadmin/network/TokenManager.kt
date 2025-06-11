@@ -23,7 +23,23 @@ class TokenManager @Inject constructor(@ApplicationContext context: Context) {
 
     fun getToken(): String? = prefs.getString("jwt", null)
 
+    fun saveEntityName(entityName: String) {
+        prefs.edit().putString("entity_name", entityName).apply()
+    }
+
+    fun getEntityName(): String? = prefs.getString("entity_name", null)
+
+    fun saveUserName(userName: String) {
+        prefs.edit().putString("user_name", userName).apply()
+    }
+
+    fun getUserName(): String? = prefs.getString("user_name", null)
+
     fun clearToken() {
-        prefs.edit().remove("jwt").apply()
+        prefs.edit()
+            .remove("jwt")
+            .remove("entity_name")
+            .remove("user_name")
+            .apply()
     }
 }

@@ -37,18 +37,23 @@ import {
   ContactlessOutlined,
   Search,
   PersonAdd,
+  Assignment,
+  PersonOff,
+  Nfc,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 
 interface Subscriber {
   id: number;
   firstName: string;
   lastName: string;
-  email?: string; // Now optional
-  mobileNumber: string; // Now required
-  nfcCardUid?: string; // From SubscriberDto
-  organizationId?: number; // From SubscriberDto (though not directly used in form for new sub)
-  // 'photoUrl' is conceptual for now as backend DTO doesn't have it
+  email?: string;
+  mobileNumber: string;
+  nfcCardUid?: string;
+  hasNfcCard: boolean;
+  organizationId?: number;
+  entityId?: string;
 }
 
 interface NewSubscriber {
@@ -65,6 +70,14 @@ const SubscriberPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Confirmation dialog state
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [confirmationData, setConfirmationData] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Form state for creating/editing subscriber
@@ -152,18 +165,28 @@ const SubscriberPage: React.FC = () => {
     setSuccessMessage(null);
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this subscriber?')) {
-      setError(null);
-      setSuccessMessage(null);
-      try {
-        await ApiService.delete(`/api/subscribers/${id}`);
-        setSuccessMessage('Subscriber deleted successfully!');
-        fetchSubscribers(); // Refresh list
-      } catch (err: any) {
-        console.error("Failed to delete subscriber:", err);
-        setError(err.response?.data?.message || 'Failed to delete subscriber.');
-      }
+  const handleDelete = (id: number) => {
+    const subscriber = subscribers.find(s => s.id === id);
+    setConfirmationData({
+      title: 'Delete Subscriber',
+      message: `Are you sure you want to delete subscriber "${subscriber?.firstName} ${subscriber?.lastName}"? This action cannot be undone and will remove all their attendance records.`,
+      onConfirm: () => performDelete(id),
+    });
+    setConfirmationOpen(true);
+  };
+
+  const performDelete = async (id: number) => {
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      await ApiService.delete(`/api/subscribers/${id}`);
+      setSuccessMessage('Subscriber deleted successfully!');
+      fetchSubscribers(); // Refresh list
+      setConfirmationOpen(false);
+    } catch (err: any) {
+      console.error("Failed to delete subscriber:", err);
+      setError(err.response?.data?.message || 'Failed to delete subscriber.');
+      setConfirmationOpen(false);
     }
   };
 
@@ -392,19 +415,38 @@ const SubscriberPage: React.FC = () => {
                         <Typography variant="body2">{subscriber.mobileNumber}</Typography>
                       </TableCell>
                       <TableCell>
-                        {subscriber.nfcCardUid ? (
-                          <Chip
-                            icon={<ContactlessOutlined />}
-                            label={subscriber.nfcCardUid}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        ) : (
-                          <Chip label="No Card" size="small" variant="outlined" />
-                        )}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {subscriber.hasNfcCard && subscriber.nfcCardUid ? (
+                            <Chip
+                              icon={<Nfc />}
+                              label={subscriber.nfcCardUid}
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip
+                              icon={<ContactlessOutlined />}
+                              label="No Card"
+                              size="small"
+                              color="warning"
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell align="right">
+                        {!subscriber.hasNfcCard && (
+                          <Tooltip title="Assign NFC Card">
+                            <IconButton
+                              onClick={() => window.open('/dashboard/cards', '_blank')}
+                              color="info"
+                              size="small"
+                            >
+                              <Assignment />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title="Edit subscriber">
                           <IconButton
                             onClick={() => handleEdit(subscriber)}
@@ -453,6 +495,19 @@ const SubscriberPage: React.FC = () => {
           {error}
         </Alert>
       </Snackbar>
+
+      {/* Confirmation Dialog */}
+      {confirmationData && (
+        <ConfirmationDialog
+          open={confirmationOpen}
+          title={confirmationData.title}
+          message={confirmationData.message}
+          onConfirm={confirmationData.onConfirm}
+          onCancel={() => setConfirmationOpen(false)}
+          confirmText="Delete"
+          severity="error"
+        />
+      )}
     </Box>
   );
 };

@@ -1,13 +1,16 @@
+import logger from './LoggingService';
+
 const TOKEN_KEY = 'authToken';
 
 const AuthService = {
   login: (token: string): void => {
     localStorage.setItem(TOKEN_KEY, token);
+    logger.authEvent('Entity admin logged in');
   },
 
   logout: (): void => {
     localStorage.removeItem(TOKEN_KEY);
-    // Optionally, redirect to login or notify other parts of the app
+    logger.authEvent('Entity admin logged out');
   },
 
   getToken: (): string | null => {

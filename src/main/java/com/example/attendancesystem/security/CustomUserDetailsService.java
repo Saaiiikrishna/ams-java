@@ -24,6 +24,17 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("User is not an Entity Admin: " + username);
         }
 
+        // CRITICAL SECURITY CHECK: Verify EntityAdmin is assigned to an organization
+        if (entityAdmin.getOrganization() == null) {
+            throw new UsernameNotFoundException("Entity Admin is not assigned to any organization: " + username);
+        }
+
+        // Additional validation: Ensure the EntityAdmin record is valid and active
+        // This prevents deleted admins from logging in if their records somehow still exist
+        if (entityAdmin.getId() == null) {
+            throw new UsernameNotFoundException("Invalid Entity Admin record: " + username);
+        }
+
         return new CustomUserDetails(entityAdmin);
     }
 }

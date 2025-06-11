@@ -11,7 +11,7 @@ class AuthRepository @Inject constructor(private val api: ApiService, private va
             // Assuming login response itself doesn't need complex parsing for errors,
             // and HttpException will be caught if login fails at network/server level.
             // If login can return a structured error in a 2xx response, that needs handling here.
-            tokenManager.saveToken(response.token) // Assuming token is directly in response
+            tokenManager.saveToken(response.jwt) // Backend returns jwt field
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(Exception(e.toUserFriendlyMessage(), e))

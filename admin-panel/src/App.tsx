@@ -8,6 +8,7 @@ import {
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import EntityPage from './pages/EntityPage'; // Actual component
+import NfcCardsPage from './pages/NfcCardsPage';
 import AssignAdminPage from './pages/AssignAdminPage'; // Actual component
 import EntityAdminsPage from './pages/EntityAdminsPage';
 import SuperAdminsPage from './pages/SuperAdminsPage';
@@ -32,6 +33,7 @@ function App() {
           <Route path="/dashboard" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="entities" element={<EntityPage />} />
+            <Route path="nfc-cards" element={<NfcCardsPage />} />
             <Route path="assign-admin" element={<AssignAdminPage />} />
             <Route path="entity-admins" element={<EntityAdminsPage />} />
             <Route path="super-admins" element={<SuperAdminsPage />} />

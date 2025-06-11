@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:startDestination="@id/navigation_dashboard">
+
+    <fragment
+        android:id="@+id/navigation_dashboard"
+        android:name="com.example.entityadmin.ui.DashboardFragment"
+        android:label="Dashboard" />
+
+    <fragment
+        android:id="@+id/navigation_subscribers"
+        android:name="com.example.entityadmin.ui.SubscriberListFragment"
+        android:label="Subscribers">
+        <action
+            android:id="@+id/action_subscribers_to_addEditSubscriber"
+            app:destination="@id/addEditSubscriberFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_sessions"
+        android:name="com.example.entityadmin.ui.SessionListFragment"
+        android:label="Sessions">
+        <action
+            android:id="@+id/action_sessions_to_createSession"
+            app:destination="@id/createSessionFragment" />
+        <action
+            android:id="@+id/action_sessions_to_sessionDetails"
+            app:destination="@id/sessionDetailsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_reports"
+        android:name="com.example.entityadmin.ui.ReportsFragment"
+        android:label="Reports" />
+
+    <!-- Detail/Form Fragments -->
+    <fragment
+        android:id="@+id/addEditSubscriberFragment"
+        android:name="com.example.entityadmin.ui.AddEditSubscriberFragment"
+        android:label="{title}">
+        <argument
+            android:name="subscriberId"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="title"
+            app:argType="string"
+            android:defaultValue="Add Subscriber" />
+        <action
+            android:id="@+id/action_addEditSubscriber_back"
+            app:destination="@id/navigation_subscribers"
+            app:popUpTo="@id/navigation_subscribers"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/createSessionFragment"
+        android:name="com.example.entityadmin.ui.CreateSessionFragment"
+        android:label="Create Session">
+        <action
+            android:id="@+id/action_createSession_back"
+            app:destination="@id/navigation_sessions"
+            app:popUpTo="@id/navigation_sessions"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/sessionDetailsFragment"
+        android:name="com.example.entityadmin.ui.SessionDetailsFragment"
+        android:label="Session Details">
+        <argument
+            android:name="sessionId"
+            app:argType="integer" />
+    </fragment>
+
+</navigation>
