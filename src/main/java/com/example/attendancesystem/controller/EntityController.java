@@ -44,6 +44,9 @@ public class EntityController {
     @Autowired
     private EntityAdminRepository entityAdminRepository;
 
+    @Autowired
+    private AttendanceLogRepository attendanceLogRepository;
+
     // Helper to get current EntityAdmin's organization
     private Organization getCurrentOrganization() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -87,6 +90,7 @@ public class EntityController {
             nfcCard.setCardUid(subscriberDto.getNfcCardUid());
             nfcCard.setSubscriber(subscriber);
             nfcCard.setActive(true);
+            nfcCard.setOrganization(organization); // Set the organization (now uses entity_id as FK)
             subscriber.setNfcCard(nfcCard); // This will save NfcCard due to cascade if configured, or save manually
         }
 
@@ -151,6 +155,7 @@ public class EntityController {
                 newCard.setCardUid(newNfcCardUid);
                 newCard.setSubscriber(subscriber);
                 newCard.setActive(true);
+                newCard.setOrganization(subscriber.getOrganization()); // Set the organization (now uses entity_id as FK)
                 subscriber.setNfcCard(newCard);
                 // nfcCardRepository.save(newCard); // If not cascaded
             }
@@ -171,14 +176,16 @@ public class EntityController {
         Subscriber subscriber = subscriberRepository.findByIdAndOrganization(id, organization)
                 .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + id + " in your organization."));
 
-        // Consider what to do with AttendanceLogs: anonymize, delete, or keep.
-        // For now, we'll delete the subscriber. Associated NfcCard will be deleted by cascade if set up.
-        // If NfcCard is not set to cascade delete, delete it manually:
-        if (subscriber.getNfcCard() != null) {
-            nfcCardRepository.delete(subscriber.getNfcCard());
-        }
+        String subscriberName = subscriber.getFirstName() + " " + subscriber.getLastName();
+
+        // Delete the subscriber (cascade will handle AttendanceLogs and NfcCard)
         subscriberRepository.delete(subscriber);
-        return ResponseEntity.ok().body("Subscriber with id " + id + " deleted successfully.");
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Subscriber deleted successfully",
+                "subscriberId", id,
+                "subscriberName", subscriberName
+        ));
     }
 
 
@@ -228,6 +235,7 @@ public class EntityController {
     }
 
     @DeleteMapping("/sessions/{id}")
+    @Transactional
     public ResponseEntity<?> deleteSession(@PathVariable Long id) {
         Organization organization = getCurrentOrganization();
         AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
@@ -269,6 +277,74 @@ public class EntityController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch entity info"));
+        }
+    }
+
+    /**
+     * Get recent attendance logs/NFC scans for real-time dashboard updates
+     */
+    @GetMapping("/attendance/recent")
+    public ResponseEntity<List<Map<String, Object>>> getRecentAttendanceLogs(
+            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+        try {
+            Organization organization = getCurrentOrganization();
+
+            // Get recent attendance logs for this organization
+            List<AttendanceLog> recentLogs = attendanceLogRepository
+                .findTop10BySessionOrganizationOrderByCheckInTimeDesc(organization);
+
+            List<Map<String, Object>> recentScans = recentLogs.stream()
+                .limit(limit)
+                .map(log -> {
+                    Map<String, Object> scan = new HashMap<>();
+                    scan.put("id", log.getId());
+                    scan.put("subscriber", log.getSubscriber().getFirstName() + " " + log.getSubscriber().getLastName());
+                    scan.put("session", log.getSession().getName());
+                    scan.put("time", log.getCheckInTime());
+                    scan.put("type", log.getCheckOutTime() != null ? "Check-out" : "Check-in");
+                    scan.put("checkOutTime", log.getCheckOutTime());
+                    return scan;
+                })
+                .collect(Collectors.toList());
+
+            return ResponseEntity.ok(recentScans);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(List.of(Map.of("error", "Failed to fetch recent attendance logs")));
+        }
+    }
+
+    /**
+     * Get attendance logs for a specific session
+     */
+    @GetMapping("/sessions/{sessionId}/attendance")
+    public ResponseEntity<List<Map<String, Object>>> getSessionAttendance(@PathVariable Long sessionId) {
+        try {
+            Organization organization = getCurrentOrganization();
+
+            // Verify session belongs to this organization
+            AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(sessionId, organization)
+                    .orElseThrow(() -> new EntityNotFoundException("Session not found"));
+
+            List<AttendanceLog> attendanceLogs = attendanceLogRepository.findBySession(session);
+
+            List<Map<String, Object>> attendees = attendanceLogs.stream()
+                .map(log -> {
+                    Map<String, Object> attendee = new HashMap<>();
+                    attendee.put("id", log.getId());
+                    attendee.put("subscriberId", log.getSubscriber().getId());
+                    attendee.put("subscriberName", log.getSubscriber().getFirstName() + " " + log.getSubscriber().getLastName());
+                    attendee.put("checkInTime", log.getCheckInTime());
+                    attendee.put("checkOutTime", log.getCheckOutTime());
+                    attendee.put("status", log.getCheckOutTime() != null ? "checked_out" : "checked_in");
+                    return attendee;
+                })
+                .collect(Collectors.toList());
+
+            return ResponseEntity.ok(attendees);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(List.of(Map.of("error", "Failed to fetch session attendance")));
         }
     }
 

@@ -222,12 +222,18 @@ public class NfcCardService {
     private NfcCardDto convertToDto(NfcCard card) {
         if (card.getSubscriber() == null) {
             // Unassigned card
-            return new NfcCardDto(card.getId(), card.getCardUid(), card.isActive());
+            NfcCardDto dto = new NfcCardDto(card.getId(), card.getCardUid(), card.isActive());
+            // Set organization info if available (now using entity_id FK)
+            if (card.getOrganization() != null) {
+                dto.setOrganizationName(card.getOrganization().getName());
+                dto.setEntityId(card.getOrganization().getEntityId());
+            }
+            return dto;
         } else {
             // Assigned card
             Subscriber subscriber = card.getSubscriber();
             String subscriberName = subscriber.getFirstName() + " " + subscriber.getLastName();
-            
+
             return new NfcCardDto(
                 card.getId(),
                 card.getCardUid(),

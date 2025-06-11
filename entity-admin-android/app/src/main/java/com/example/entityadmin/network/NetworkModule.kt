@@ -27,6 +27,7 @@ object NetworkModule {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
+
         val authInterceptor = Interceptor { chain ->
             val token = tokenManager.getToken()
             val request = if (token != null) {
@@ -36,9 +37,30 @@ object NetworkModule {
             } else chain.request()
             chain.proceed(request)
         }
+
+        // Add error handling interceptor for authentication issues
+        val errorInterceptor = Interceptor { chain ->
+            val response = chain.proceed(chain.request())
+
+            // Handle authentication errors globally
+            when (response.code) {
+                401 -> {
+                    // Token expired or invalid - clear it
+                    tokenManager.clearToken()
+                }
+                403 -> {
+                    // Access forbidden - user doesn't have permission
+                    // Log this for debugging but don't clear token
+                }
+            }
+
+            response
+        }
+
         return OkHttpClient.Builder()
             .addInterceptor(logging)
             .addInterceptor(authInterceptor)
+            .addInterceptor(errorInterceptor)
             .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)

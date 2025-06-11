@@ -22,6 +22,8 @@
     <color name="text_hint">#94A3B8</color>
     <color name="text_on_primary">#FFFFFF</color>
     <color name="text_on_surface">#0F172A</color>
+    <color name="text_button_primary">#FFFFFF</color>
+    <color name="text_button_secondary">#2563EB</color>
 
     <!-- Status Colors -->
     <color name="success_green">#4CAF50</color>

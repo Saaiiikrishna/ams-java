@@ -42,8 +42,10 @@ import {
   Delete,
   Person,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import ApiService from '../services/ApiService';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import logger from '../services/LoggingService';
 
 interface AttendanceSession {
   id: number;
@@ -60,9 +62,11 @@ interface NewAttendanceSession {
 }
 
 const SessionPage: React.FC = () => {
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recentScans, setRecentScans] = useState<any[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Confirmation dialog state
@@ -106,9 +110,27 @@ const SessionPage: React.FC = () => {
     }
   };
 
+  const fetchRecentScans = async () => {
+    try {
+      const response = await ApiService.get('/api/attendance/recent?limit=10');
+      setRecentScans(response.data);
+      logger.info('Recent scans fetched successfully', 'SessionPage', { count: response.data.length });
+    } catch (err: any) {
+      logger.error('Failed to fetch recent scans', 'SessionPage', err);
+      // Don't set error state for this as it's not critical
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
-    // console.warn("SessionPage: GET /entity/sessions endpoint is not implemented or confirmed on backend. Data fetching for session list is disabled.");
+    fetchRecentScans();
+
+    // Set up polling for real-time updates
+    const interval = setInterval(() => {
+      fetchRecentScans();
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleCreateSubmit = async (event: FormEvent) => {
@@ -384,7 +406,12 @@ const SessionPage: React.FC = () => {
                       : Math.round((new Date().getTime() - startTime.getTime()) / (1000 * 60));
 
                     return (
-                      <TableRow key={session.id} hover>
+                      <TableRow
+                        key={session.id}
+                        hover
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => navigate(`/dashboard/sessions/${session.id}`)}
+                      >
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Avatar sx={{ bgcolor: isActive ? 'success.main' : 'grey.500' }}>
@@ -432,7 +459,10 @@ const SessionPage: React.FC = () => {
                                   color="warning"
                                   size="small"
                                   startIcon={<Stop />}
-                                  onClick={() => handleEndSession(session.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEndSession(session.id);
+                                  }}
                                 >
                                   End
                                 </Button>
@@ -444,7 +474,10 @@ const SessionPage: React.FC = () => {
                                 color="error"
                                 size="small"
                                 startIcon={<Delete />}
-                                onClick={() => handleDeleteSession(session.id, session.name)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteSession(session.id, session.name);
+                                }}
                               >
                                 Delete
                               </Button>
@@ -482,12 +515,22 @@ const SessionPage: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {/* Mock NFC scan data - replace with real data when available */}
-                  {[
-                    { id: 1, subscriber: 'John Doe', session: 'Morning Meeting', time: new Date().toISOString(), type: 'Check-in' },
-                    { id: 2, subscriber: 'Jane Smith', session: 'Training Session', time: new Date(Date.now() - 300000).toISOString(), type: 'Check-out' },
-                    { id: 3, subscriber: 'Bob Johnson', session: 'Daily Standup', time: new Date(Date.now() - 600000).toISOString(), type: 'Check-in' },
-                  ].map((scan) => (
+                  {recentScans.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4}>
+                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                          <NearMe sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                          <Typography variant="h6" color="text.secondary" gutterBottom>
+                            No Recent NFC Scans
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            NFC scan events will appear here when subscribers check in/out
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    recentScans.map((scan) => (
                     <TableRow key={scan.id} hover>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -511,23 +554,13 @@ const SessionPage: React.FC = () => {
                         />
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
 
-            {/* Empty state when no scans */}
-            {false && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <NearMe sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No Recent NFC Scans
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  NFC scan events will appear here when subscribers check in/out
-                </Typography>
-              </Box>
-            )}
+
           </Box>
         </CardContent>
       </Card>

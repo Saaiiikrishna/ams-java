@@ -81,35 +81,47 @@
                 <Button
                     android:id="@+id/btnWeekly"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="4dp"
-                    android:text="Week"
-                    android:textSize="12sp"
+                    android:text="WEEK"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
                     android:background="@drawable/button_primary_background"
-                    android:textColor="@color/text_on_primary" />
+                    android:textColor="@color/text_button_primary"
+                    android:textAllCaps="true"
+                    android:elevation="2dp"
+                    android:stateListAnimator="@null" />
 
                 <Button
                     android:id="@+id/btnMonthly"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:layout_marginHorizontal="4dp"
-                    android:text="Month"
-                    android:textSize="12sp"
+                    android:text="MONTH"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
                     android:background="@drawable/button_outline_background"
-                    android:textColor="@color/primary_blue" />
+                    android:textColor="@color/text_button_secondary"
+                    android:textAllCaps="true"
+                    android:elevation="2dp"
+                    android:stateListAnimator="@null" />
 
                 <Button
                     android:id="@+id/btnYearly"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:layout_marginStart="4dp"
-                    android:text="Year"
-                    android:textSize="12sp"
+                    android:text="YEAR"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
                     android:background="@drawable/button_outline_background"
-                    android:textColor="@color/primary_blue" />
+                    android:textColor="@color/text_button_secondary"
+                    android:textAllCaps="true"
+                    android:elevation="2dp"
+                    android:stateListAnimator="@null" />
 
             </LinearLayout>
 
@@ -340,26 +352,34 @@
                 <Button
                     android:id="@+id/btnExportPDF"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="52dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
-                    android:text="Export PDF"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_on_primary"
+                    android:text="EXPORT PDF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_button_primary"
                     android:background="@drawable/button_primary_background"
-                    android:gravity="center" />
+                    android:gravity="center"
+                    android:textAllCaps="true"
+                    android:elevation="4dp"
+                    android:stateListAnimator="@null" />
 
                 <Button
                     android:id="@+id/btnExportExcel"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="52dp"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
-                    android:text="Export Excel"
-                    android:textSize="14sp"
-                    android:textColor="@color/primary_blue"
-                    android:background="@drawable/button_outline_background"
-                    android:gravity="center" />
+                    android:text="EXPORT EXCEL"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_button_secondary"
+                    android:background="@drawable/button_export_outline_background"
+                    android:gravity="center"
+                    android:textAllCaps="true"
+                    android:elevation="4dp"
+                    android:stateListAnimator="@null" />
 
             </LinearLayout>
 

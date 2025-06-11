@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Selected state - white text on blue background -->
+    <item android:color="@color/text_button_primary" android:state_selected="true" />
+
+    <!-- Pressed state - white text -->
+    <item android:color="@color/text_button_primary" android:state_pressed="true" />
+
+    <!-- Default state - blue text on white background -->
+    <item android:color="@color/text_button_secondary" />
+</selector>

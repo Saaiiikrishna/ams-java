@@ -28,7 +28,7 @@ public class Subscriber {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
-    @OneToMany(mappedBy = "subscriber")
+    @OneToMany(mappedBy = "subscriber", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore // Prevent circular reference during serialization
     private Set<AttendanceLog> attendanceLogs;
 

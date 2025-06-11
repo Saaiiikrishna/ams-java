@@ -23,7 +23,7 @@ public class AttendanceSession {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
-    @OneToMany(mappedBy = "session")
+    @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<AttendanceLog> attendanceLogs;
 
     // Getters and Setters

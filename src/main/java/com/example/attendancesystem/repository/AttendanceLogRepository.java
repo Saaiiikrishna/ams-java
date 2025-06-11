@@ -2,8 +2,11 @@ package com.example.attendancesystem.repository;
 
 import com.example.attendancesystem.model.AttendanceLog;
 import com.example.attendancesystem.model.AttendanceSession;
+import com.example.attendancesystem.model.Organization;
 import com.example.attendancesystem.model.Subscriber;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -24,4 +27,12 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, Lo
 
     // Find logs for a specific session and subscriber
     List<AttendanceLog> findBySessionAndSubscriber(AttendanceSession session, Subscriber subscriber);
+
+    // Find recent attendance logs for an organization (for real-time dashboard)
+    @Query("SELECT al FROM AttendanceLog al WHERE al.session.organization = :organization ORDER BY al.checkInTime DESC")
+    List<AttendanceLog> findTop10BySessionOrganizationOrderByCheckInTimeDesc(@Param("organization") Organization organization);
+
+    // Delete methods for cleanup
+    void deleteBySession(AttendanceSession session);
+    void deleteBySubscriber(Subscriber subscriber);
 }

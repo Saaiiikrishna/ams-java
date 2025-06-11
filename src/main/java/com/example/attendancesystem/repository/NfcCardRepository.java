@@ -17,21 +17,22 @@ public interface NfcCardRepository extends JpaRepository<NfcCard, Long> {
     Optional<NfcCard> findBySubscriber(Subscriber subscriber);
     boolean existsByCardUid(String cardUid);
 
-    // Find all unassigned cards for a specific organization
+    // Find all unassigned cards for a specific organization by entity ID
     @Query("SELECT c FROM NfcCard c WHERE c.subscriber IS NULL AND c.organization.entityId = :entityId")
     List<NfcCard> findBySubscriberIsNullAndOrganizationEntityId(@Param("entityId") String entityId);
 
-    // Find all assigned cards for a specific organization
+    // Find all assigned cards for a specific organization by entity ID
     @Query("SELECT c FROM NfcCard c WHERE c.subscriber IS NOT NULL AND c.organization.entityId = :entityId")
     List<NfcCard> findBySubscriberIsNotNullAndOrganizationEntityId(@Param("entityId") String entityId);
 
-    // Find cards by organization
+    // Find cards by organization entity ID (using the new FK relationship)
+    @Query("SELECT c FROM NfcCard c WHERE c.organization.entityId = :entityId")
+    List<NfcCard> findByOrganizationEntityId(@Param("entityId") String entityId);
+
+    // Find cards by organization object
     List<NfcCard> findByOrganization(Organization organization);
 
-    // Find cards by organization entity ID
-    List<NfcCard> findByOrganizationEntityId(String entityId);
-
-    // Find unassigned cards for a specific organization
+    // Find unassigned active cards for a specific organization by entity ID
     @Query("SELECT c FROM NfcCard c WHERE c.subscriber IS NULL AND c.organization.entityId = :entityId AND c.isActive = true")
     List<NfcCard> findUnassignedActiveCardsByEntityId(@Param("entityId") String entityId);
 
@@ -41,12 +42,16 @@ public interface NfcCardRepository extends JpaRepository<NfcCard, Long> {
     // Find all assigned cards (global - for super admin)
     List<NfcCard> findBySubscriberIsNotNull();
 
-    // Count cards by assignment status for specific organization
-    long countBySubscriberIsNullAndOrganizationEntityId(String entityId);
-    long countBySubscriberIsNotNullAndOrganizationEntityId(String entityId);
+    // Count cards by assignment status for specific organization by entity ID
+    @Query("SELECT COUNT(c) FROM NfcCard c WHERE c.subscriber IS NULL AND c.organization.entityId = :entityId")
+    long countBySubscriberIsNullAndOrganizationEntityId(@Param("entityId") String entityId);
 
-    // Count cards by organization
-    long countByOrganizationEntityId(String entityId);
+    @Query("SELECT COUNT(c) FROM NfcCard c WHERE c.subscriber IS NOT NULL AND c.organization.entityId = :entityId")
+    long countBySubscriberIsNotNullAndOrganizationEntityId(@Param("entityId") String entityId);
+
+    // Count cards by organization entity ID
+    @Query("SELECT COUNT(c) FROM NfcCard c WHERE c.organization.entityId = :entityId")
+    long countByOrganizationEntityId(@Param("entityId") String entityId);
 
     // Global counts (for super admin)
     long countBySubscriberIsNull();

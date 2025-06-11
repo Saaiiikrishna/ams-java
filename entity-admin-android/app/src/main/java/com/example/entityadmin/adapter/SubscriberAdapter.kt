@@ -29,16 +29,34 @@ class SubscriberAdapter(
     }
 
     override fun onBindViewHolder(holder: SubscriberViewHolder, position: Int) {
-        val subscriber = filteredSubscribers[position]
-        holder.bind(subscriber, listener)
+        try {
+            if (position < filteredSubscribers.size) {
+                val subscriber = filteredSubscribers[position]
+                holder.bind(subscriber, listener)
+            }
+        } catch (e: Exception) {
+            // Log error but don't crash the app
+            e.printStackTrace()
+        }
     }
 
     override fun getItemCount(): Int = filteredSubscribers.size
 
-    fun updateData(newSubscribers: List<Subscriber>) { // Use Subscriber model
-        this.subscribers = newSubscribers
-        this.filteredSubscribers = newSubscribers
-        notifyDataSetChanged() // Consider using DiffUtil for better performance
+    fun updateData(newSubscribers: List<Subscriber>?) { // Use Subscriber model, allow null
+        try {
+            // Safely handle null input
+            val safeSubscribers = newSubscribers ?: emptyList()
+            this.subscribers = safeSubscribers
+            this.filteredSubscribers = safeSubscribers
+            notifyDataSetChanged() // Consider using DiffUtil for better performance
+        } catch (e: Exception) {
+            // Log error but don't crash
+            e.printStackTrace()
+            // Set empty lists as fallback
+            this.subscribers = emptyList()
+            this.filteredSubscribers = emptyList()
+            notifyDataSetChanged()
+        }
     }
 
     fun filter(query: String) {
@@ -46,8 +64,8 @@ class SubscriberAdapter(
             subscribers
         } else {
             subscribers.filter {
-                it.name.contains(query, ignoreCase = true) ||
-                it.email.contains(query, ignoreCase = true)
+                (it.name?.contains(query, ignoreCase = true) == true) ||
+                (it.email?.contains(query, ignoreCase = true) == true)
             }
         }
         notifyDataSetChanged()
@@ -63,16 +81,21 @@ class SubscriberAdapter(
         private val deleteButton: ImageButton = itemView.findViewById(R.id.buttonDeleteSubscriber)
 
         fun bind(subscriber: Subscriber, listener: OnSubscriberActionListener) { // Use Subscriber model
-            nameTextView.text = subscriber.name
-            emailTextView.text = subscriber.email
+            // Handle null values safely
+            nameTextView.text = subscriber.name ?: "Unknown Name"
+            emailTextView.text = subscriber.email ?: "No Email"
             idTextView.text = "ID: ${subscriber.id}"
             statusTextView.text = "Active" // For now, assume all are active
 
-            // Generate initials from name
-            val initials = subscriber.name.split(" ")
-                .take(2)
-                .map { it.firstOrNull()?.uppercaseChar() ?: "" }
-                .joinToString("")
+            // Generate initials from name - handle null safely
+            val initials = if (!subscriber.name.isNullOrBlank()) {
+                subscriber.name.split(" ")
+                    .take(2)
+                    .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                    .joinToString("")
+            } else {
+                ""
+            }
             initialsTextView.text = initials.ifEmpty { "?" }
 
             editButton.setOnClickListener {

@@ -30,15 +30,28 @@ class SubscriberListViewModel @Inject constructor(
 
     fun fetchSubscribers() {
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            val result = subscriberRepository.getSubscribers()
-            result.onSuccess {
-                _subscribers.value = it
-            }.onFailure {
-                _error.value = it.toUserFriendlyMessage() // Use utility
+            try {
+                _isLoading.value = true
+                _error.value = null
+
+                val result = subscriberRepository.getSubscribers()
+                result.onSuccess { subscribersList ->
+                    // Safely handle the response
+                    val safeList = subscribersList ?: emptyList()
+                    _subscribers.value = safeList
+                }.onFailure { exception ->
+                    val errorMessage = exception.toUserFriendlyMessage()
+                    _error.value = errorMessage
+
+                    // Set empty list on error to prevent crashes
+                    _subscribers.value = emptyList()
+                }
+            } catch (e: Exception) {
+                _error.value = "Unexpected error occurred: ${e.message}"
+                _subscribers.value = emptyList()
+            } finally {
+                _isLoading.value = false
             }
-            _isLoading.value = false
         }
     }
 

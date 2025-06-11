@@ -1009,8 +1009,8 @@ const EntityPage: React.FC = () => {
       >
         <Alert onClose={() => setError(null)} severity="error">
           {error}
-        </DialogActions>
-      </Dialog>
+        </Alert>
+      </Snackbar>
 
       {/* Assign Admin After Entity Creation Dialog */}
       <Dialog open={showAssignAfterCreateDialog} onClose={() => setShowAssignAfterCreateDialog(false)} maxWidth="sm" fullWidth>
@@ -1051,8 +1051,8 @@ const EntityPage: React.FC = () => {
           >
             Assign Admin Now
           </Button>
-        </Alert>
-      </Snackbar>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

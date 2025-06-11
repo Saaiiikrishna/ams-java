@@ -71,8 +71,8 @@ class AddEditSubscriberFragment : Fragment() {
     }
 
     private fun populateFields(subscriber: Subscriber) {
-        nameEditText.setText(subscriber.name)
-        emailEditText.setText(subscriber.email)
+        nameEditText.setText(subscriber.name ?: "")
+        emailEditText.setText(subscriber.email ?: "")
         nfcCardUidEditText.setText(subscriber.nfcCardUid ?: "")
     }
 

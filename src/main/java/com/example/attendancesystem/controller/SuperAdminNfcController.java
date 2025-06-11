@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -92,10 +93,10 @@ public class SuperAdminNfcController {
     public ResponseEntity<?> deleteAllCards() {
         try {
             logger.warn("Deleting ALL NFC cards from the system");
-            
+
             long cardCount = nfcCardRepository.count();
             nfcCardRepository.deleteAll();
-            
+
             logger.warn("Successfully deleted {} NFC cards", cardCount);
             return ResponseEntity.ok(Map.of(
                 "message", "All NFC cards deleted successfully",
@@ -105,6 +106,157 @@ public class SuperAdminNfcController {
             logger.error("Failed to delete all cards", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "error", "Failed to delete all cards: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Delete a specific NFC card by ID
+     */
+    @DeleteMapping("/cards/{cardId}")
+    @Transactional
+    public ResponseEntity<?> deleteCard(@PathVariable Long cardId) {
+        try {
+            logger.info("Deleting NFC card with ID: {}", cardId);
+
+            Optional<NfcCard> cardOpt = nfcCardRepository.findById(cardId);
+            if (cardOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "error", "Card not found with ID: " + cardId
+                ));
+            }
+
+            NfcCard card = cardOpt.get();
+            String cardUid = card.getCardUid();
+
+            // Check if card is assigned
+            if (card.getSubscriber() != null) {
+                logger.warn("Cannot delete assigned card: {} (assigned to subscriber: {})",
+                           cardUid, card.getSubscriber().getId());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "error", "Cannot delete assigned card. Please unassign first.",
+                    "cardUid", cardUid,
+                    "subscriberName", card.getSubscriber().getFirstName() + " " + card.getSubscriber().getLastName()
+                ));
+            }
+
+            nfcCardRepository.delete(card);
+
+            logger.info("Successfully deleted NFC card: {}", cardUid);
+            return ResponseEntity.ok(Map.of(
+                "message", "NFC card deleted successfully",
+                "cardUid", cardUid
+            ));
+        } catch (Exception e) {
+            logger.error("Failed to delete card with ID: {}", cardId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Failed to delete card: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Assign a card to a subscriber (Super Admin override)
+     */
+    @PostMapping("/cards/{cardId}/assign")
+    @Transactional
+    public ResponseEntity<?> assignCard(@PathVariable Long cardId, @RequestBody Map<String, Object> assignmentData) {
+        try {
+            Long subscriberId = Long.valueOf(assignmentData.get("subscriberId").toString());
+            logger.info("Super Admin assigning card {} to subscriber {}", cardId, subscriberId);
+
+            Optional<NfcCard> cardOpt = nfcCardRepository.findById(cardId);
+            if (cardOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "error", "Card not found with ID: " + cardId
+                ));
+            }
+
+            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(subscriberId);
+            if (subscriberOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "error", "Subscriber not found with ID: " + subscriberId
+                ));
+            }
+
+            NfcCard card = cardOpt.get();
+            Subscriber subscriber = subscriberOpt.get();
+
+            // Check if card is already assigned
+            if (card.getSubscriber() != null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "error", "Card is already assigned to another subscriber",
+                    "currentSubscriber", card.getSubscriber().getFirstName() + " " + card.getSubscriber().getLastName()
+                ));
+            }
+
+            // Check if subscriber already has a card
+            Optional<NfcCard> existingCard = nfcCardRepository.findBySubscriber(subscriber);
+            if (existingCard.isPresent()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "error", "Subscriber already has an assigned card",
+                    "existingCardUid", existingCard.get().getCardUid()
+                ));
+            }
+
+            // Assign the card
+            card.setSubscriber(subscriber);
+            nfcCardRepository.save(card);
+
+            logger.info("Successfully assigned card {} to subscriber {} {}",
+                       card.getCardUid(), subscriber.getFirstName(), subscriber.getLastName());
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Card assigned successfully",
+                "card", convertToDto(card)
+            ));
+        } catch (Exception e) {
+            logger.error("Failed to assign card {}", cardId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Failed to assign card: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Unassign a card from its subscriber (Super Admin override)
+     */
+    @PostMapping("/cards/{cardId}/unassign")
+    @Transactional
+    public ResponseEntity<?> unassignCard(@PathVariable Long cardId) {
+        try {
+            logger.info("Super Admin unassigning card {}", cardId);
+
+            Optional<NfcCard> cardOpt = nfcCardRepository.findById(cardId);
+            if (cardOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "error", "Card not found with ID: " + cardId
+                ));
+            }
+
+            NfcCard card = cardOpt.get();
+
+            if (card.getSubscriber() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "error", "Card is not assigned to any subscriber"
+                ));
+            }
+
+            String subscriberName = card.getSubscriber().getFirstName() + " " + card.getSubscriber().getLastName();
+            card.setSubscriber(null);
+            nfcCardRepository.save(card);
+
+            logger.info("Successfully unassigned card {} from subscriber {}", card.getCardUid(), subscriberName);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Card unassigned successfully",
+                "card", convertToDto(card),
+                "previousSubscriber", subscriberName
+            ));
+        } catch (Exception e) {
+            logger.error("Failed to unassign card {}", cardId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Failed to unassign card: " + e.getMessage()
             ));
         }
     }
@@ -233,25 +385,60 @@ public class SuperAdminNfcController {
     }
 
     /**
+     * Get all subscribers for a specific entity (for assignment purposes)
+     */
+    @GetMapping("/subscribers/entity/{entityId}")
+    public ResponseEntity<List<Map<String, Object>>> getSubscribersByEntity(@PathVariable String entityId) {
+        try {
+            logger.info("Fetching subscribers for entity: {}", entityId);
+
+            Optional<Organization> orgOpt = organizationRepository.findByEntityId(entityId);
+            if (orgOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(List.of());
+            }
+
+            List<Subscriber> subscribers = subscriberRepository.findAllByOrganization(orgOpt.get());
+            List<Map<String, Object>> subscriberData = subscribers.stream()
+                    .map(subscriber -> {
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("id", subscriber.getId());
+                        data.put("name", subscriber.getFirstName() + " " + subscriber.getLastName());
+                        data.put("email", subscriber.getEmail() != null ? subscriber.getEmail() : "");
+                        data.put("mobileNumber", subscriber.getMobileNumber());
+                        data.put("hasCard", subscriber.getNfcCard() != null);
+                        data.put("cardUid", subscriber.getNfcCard() != null ? subscriber.getNfcCard().getCardUid() : null);
+                        return data;
+                    })
+                    .collect(Collectors.toList());
+
+            logger.info("Found {} subscribers for entity: {}", subscriberData.size(), entityId);
+            return ResponseEntity.ok(subscriberData);
+        } catch (Exception e) {
+            logger.error("Failed to fetch subscribers for entity: {}", entityId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * Get global card statistics
      */
     @GetMapping("/cards/statistics")
     public ResponseEntity<Map<String, Object>> getGlobalCardStatistics() {
         try {
             logger.info("Fetching global card statistics");
-            
+
             long totalCards = nfcCardRepository.count();
             long assignedCards = nfcCardRepository.countBySubscriberIsNotNull();
             long unassignedCards = nfcCardRepository.countBySubscriberIsNull();
             long totalEntities = organizationRepository.count();
-            
+
             Map<String, Object> stats = Map.of(
                 "totalCards", totalCards,
                 "assignedCards", assignedCards,
                 "unassignedCards", unassignedCards,
                 "totalEntities", totalEntities
             );
-            
+
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             logger.error("Failed to fetch global card statistics", e);

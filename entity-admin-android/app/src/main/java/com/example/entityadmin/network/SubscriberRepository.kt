@@ -18,7 +18,19 @@ class SubscriberRepository @Inject constructor(
         }
         return try {
             val subscribers = apiService.getSubscribers("Bearer $token")
-            Result.success(subscribers)
+            // Handle null or empty response gracefully
+            val safeSubscribers = subscribers ?: emptyList()
+            Result.success(safeSubscribers)
+        } catch (e: retrofit2.HttpException) {
+            // Handle specific HTTP error codes
+            val errorMessage = when (e.code()) {
+                401 -> "Authentication failed. Please login again."
+                403 -> "Access denied. You don't have permission to view subscribers."
+                404 -> "Subscribers endpoint not found. Please contact support."
+                500 -> "Server error. Please try again later."
+                else -> e.toUserFriendlyMessage()
+            }
+            Result.failure(Exception(errorMessage, e))
         } catch (e: Exception) {
             Result.failure(Exception(e.toUserFriendlyMessage(), e))
         }

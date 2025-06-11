@@ -77,7 +77,7 @@ const SessionDetailsPage: React.FC = () => {
       const sessionData = sessionResponse.data;
 
       // Fetch attendance logs for this session
-      const attendanceResponse = await ApiService.get(`/api/attendance-logs/session/${id}`);
+      const attendanceResponse = await ApiService.get(`/api/sessions/${id}/attendance`);
       const attendanceData = attendanceResponse.data || [];
 
       // Combine session and attendance data

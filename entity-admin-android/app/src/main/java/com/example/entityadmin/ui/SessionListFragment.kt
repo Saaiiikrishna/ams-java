@@ -57,8 +57,8 @@ class SessionListFragment : Fragment() {
         val adapter = SessionAdapter { session ->
             // Navigate to session details
             try {
-                val action = SessionListFragmentDirections.actionSessionsToSessionDetails(session.id.toInt())
-                findNavController().navigate(action)
+                findNavController().navigate(R.id.action_sessions_to_sessionDetails,
+                    Bundle().apply { putInt("sessionId", session.id.toInt()) })
             } catch (e: Exception) {
                 Toast.makeText(requireContext(), "Session: ${session.name} (ID: ${session.id})", Toast.LENGTH_SHORT).show()
             }

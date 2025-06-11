@@ -70,7 +70,21 @@ class SubscriberListFragment : Fragment(), OnSubscriberActionListener {
             })
 
             observeViewModel()
-            viewModel.fetchSubscribers()
+
+            // Add a delay and retry mechanism for permission issues
+            try {
+                viewModel.fetchSubscribers()
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error loading subscribers. Retrying...", Toast.LENGTH_SHORT).show()
+                // Retry after a short delay
+                view.postDelayed({
+                    try {
+                        viewModel.fetchSubscribers()
+                    } catch (retryException: Exception) {
+                        Toast.makeText(requireContext(), "Unable to load subscribers: ${retryException.message}", Toast.LENGTH_LONG).show()
+                    }
+                }, 2000)
+            }
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Error initializing subscriber screen: ${e.message}", Toast.LENGTH_LONG).show()
             e.printStackTrace()
@@ -113,37 +127,67 @@ class SubscriberListFragment : Fragment(), OnSubscriberActionListener {
         val tvActiveCount = view?.findViewById<android.widget.TextView>(R.id.tvActiveSubscribersCount)
 
         viewModel.subscribers.observe(viewLifecycleOwner) { subscribers ->
-            subscriberAdapter.updateData(subscribers)
+            try {
+                // Safely handle null or empty subscribers list
+                val safeSubscribers = subscribers ?: emptyList()
+                subscriberAdapter.updateData(safeSubscribers)
 
-            // Update stats
-            tvTotalCount?.text = subscribers.size.toString()
-            tvActiveCount?.text = subscribers.size.toString() // For now, assume all are active
+                // Update stats safely
+                tvTotalCount?.text = safeSubscribers.size.toString()
+                tvActiveCount?.text = safeSubscribers.size.toString() // For now, assume all are active
 
-            // Show/hide empty state
-            if (subscribers.isEmpty()) {
+                // Show/hide empty state
+                if (safeSubscribers.isEmpty()) {
+                    recyclerView.isVisible = false
+                    emptyState?.isVisible = true
+                } else {
+                    recyclerView.isVisible = true
+                    emptyState?.isVisible = false
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error updating subscriber list: ${e.message}", Toast.LENGTH_SHORT).show()
                 recyclerView.isVisible = false
                 emptyState?.isVisible = true
-            } else {
-                recyclerView.isVisible = true
-                emptyState?.isVisible = false
             }
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            progressBar.isVisible = isLoading
-            if (isLoading) {
-                recyclerView.isVisible = false
-                emptyState?.isVisible = false
+            try {
+                progressBar.isVisible = isLoading
+                if (isLoading) {
+                    recyclerView.isVisible = false
+                    emptyState?.isVisible = false
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error updating loading state: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
 
         viewModel.error.observe(viewLifecycleOwner) { errorMsg ->
-            errorMsg?.let {
-                Toast.makeText(requireContext(), "Error loading subscribers: $it", Toast.LENGTH_LONG).show()
-                // Show empty state on error
-                recyclerView.isVisible = false
-                emptyState?.isVisible = true
-                progressBar.isVisible = false
+            try {
+                errorMsg?.let {
+                    // Handle specific error messages for better user experience
+                    val userFriendlyMessage = when {
+                        it.contains("403") || it.contains("Access denied") ->
+                            "You don't have permission to view subscribers. Please contact your administrator."
+                        it.contains("401") || it.contains("Authentication failed") ->
+                            "Your session has expired. Please login again."
+                        it.contains("404") || it.contains("not found") ->
+                            "Subscribers service is not available. Please try again later."
+                        it.contains("500") || it.contains("Server error") ->
+                            "Server is experiencing issues. Please try again later."
+                        else -> "Error loading subscribers: $it"
+                    }
+
+                    Toast.makeText(requireContext(), userFriendlyMessage, Toast.LENGTH_LONG).show()
+
+                    // Show empty state on error
+                    recyclerView.isVisible = false
+                    emptyState?.isVisible = true
+                    progressBar.isVisible = false
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error handling error message: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
 

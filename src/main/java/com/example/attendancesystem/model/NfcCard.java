@@ -18,7 +18,7 @@ public class NfcCard {
     private Subscriber subscriber;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id", nullable = true) // Temporarily nullable for migration
+    @JoinColumn(name = "entity_id", referencedColumnName = "entityId", nullable = true)
     private Organization organization;
 
     private boolean isActive;
