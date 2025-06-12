@@ -10,6 +10,8 @@ import SubscriberPage from './pages/SubscriberPage';
 import CardsPage from './pages/CardsPage';
 import SessionPage from './pages/SessionPage';
 import SessionDetailsPage from './pages/SessionDetailsPage';
+import ScheduledSessionsPage from './pages/ScheduledSessionsPage';
+import ScheduledSessionDetailsPage from './pages/ScheduledSessionDetailsPage';
 import ReportPage from './pages/ReportPage';
 import theme from './theme/theme';
 import './App.css';
@@ -30,6 +32,8 @@ function App() {
               <Route path="cards" element={<CardsPage />} />
               <Route path="sessions" element={<SessionPage />} />
               <Route path="sessions/:sessionId" element={<SessionDetailsPage />} />
+              <Route path="scheduled-sessions" element={<ScheduledSessionsPage />} />
+              <Route path="scheduled-sessions/:id" element={<ScheduledSessionDetailsPage />} />
               <Route path="reports" element={<ReportPage />} />
             </Route>
           </Route>

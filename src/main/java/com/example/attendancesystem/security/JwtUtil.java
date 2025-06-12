@@ -16,10 +16,9 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    // Fixed secret key for Entity Admin tokens - Fixed key to avoid regeneration
+    // Fixed secret key for JWT tokens
     private static final String SECRET_STRING = "EntityAdminSecretKeyForJWTTokenGenerationAndValidation2024!@#$%^&*()";
     private final SecretKey SECRET_KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
-    // private final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours - Replaced
     private final long ACCESS_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 1; // 1 hour
     private final long REFRESH_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 7; // 7 days
 
@@ -59,7 +58,7 @@ public class JwtUtil {
     }
 
     // Modified createToken to accept expiration time
-    private String createToken(Map<String, Object> claims, String subject, long expirationTime) {
+    public String createToken(Map<String, Object> claims, String subject, long expirationTime) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)

@@ -16,7 +16,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  useTheme,
+
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,9 +28,12 @@ import {
   AccountCircle,
   Business,
   Nfc,
+  Schedule,
+  Lock,
 } from '@mui/icons-material';
 import AuthService from '../services/AuthService';
 import ApiService from '../services/ApiService';
+import ChangePasswordDialog from './ChangePasswordDialog';
 
 const drawerWidth = 280;
 
@@ -39,9 +42,10 @@ const EntityLayout: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [adminName, setAdminName] = useState('Entity Admin');
   const [entityName, setEntityName] = useState('Attendance Management');
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const theme = useTheme();
+
 
   useEffect(() => {
     fetchUserAndEntityInfo();
@@ -123,6 +127,16 @@ const EntityLayout: React.FC = () => {
     handleProfileMenuClose();
   };
 
+  const handleChangePassword = () => {
+    setChangePasswordOpen(true);
+    handleProfileMenuClose();
+  };
+
+  const handlePasswordChangeSuccess = () => {
+    // You could show a success message here
+    console.log('Password changed successfully');
+  };
+
   const menuItems = [
     {
       text: 'Dashboard',
@@ -143,6 +157,11 @@ const EntityLayout: React.FC = () => {
       text: 'Sessions',
       icon: <EventNote />,
       path: '/dashboard/sessions',
+    },
+    {
+      text: 'Scheduled Sessions',
+      icon: <Schedule />,
+      path: '/dashboard/scheduled-sessions',
     },
     {
       text: 'Reports',
@@ -272,6 +291,12 @@ const EntityLayout: React.FC = () => {
               horizontal: 'right',
             }}
           >
+            <MenuItem onClick={handleChangePassword}>
+              <ListItemIcon>
+                <Lock fontSize="small" />
+              </ListItemIcon>
+              Change Password
+            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <Logout fontSize="small" />
@@ -325,6 +350,13 @@ const EntityLayout: React.FC = () => {
       >
         <Outlet />
       </Box>
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        onSuccess={handlePasswordChangeSuccess}
+      />
     </Box>
   );
 };

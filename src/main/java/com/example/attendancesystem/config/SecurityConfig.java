@@ -74,9 +74,24 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    // Super Admin Security Configuration (Order 1 - Higher Priority)
+    // Static Resources Security Configuration (Order 1 - Highest Priority)
     @Bean
     @Order(1)
+    public SecurityFilterChain staticResourcesSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/assets/**", "/*.js", "/*.css", "/*.png", "/*.ico", "/*.html") // Static resources
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll() // Allow all static resources
+            );
+
+        return http.build();
+    }
+
+    // Super Admin Security Configuration (Order 2 - High Priority)
+    @Bean
+    @Order(2)
     public SecurityFilterChain superAdminSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/super/**") // Only apply to /super/** paths
@@ -93,9 +108,28 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Entity Admin Security Configuration (Order 2 - Lower Priority)
+    // Subscriber Security Configuration (Order 3 - Medium Priority)
     @Bean
-    @Order(2)
+    @Order(3)
+    public SecurityFilterChain subscriberSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/subscriber/**") // Only apply to /subscriber/** paths
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/subscriber/send-otp", "/subscriber/verify-otp", "/subscriber/login-pin", "/subscriber/update-pin", "/subscriber/health").permitAll()
+                .requestMatchers("/subscriber/**").authenticated() // Will need custom JWT validation for subscribers
+                .anyRequest().denyAll()
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+            // Note: Subscriber JWT validation will be handled in the controllers for now
+
+        return http.build();
+    }
+
+    // Entity Admin Security Configuration (Order 4 - Lower Priority)
+    @Bean
+    @Order(4)
     public SecurityFilterChain entityAdminSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/api/**") // Only apply to /api/** paths

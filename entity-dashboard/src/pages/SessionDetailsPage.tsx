@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  Paper,
+
   Grid,
   Card,
   CardContent,
@@ -19,10 +19,7 @@ import {
   Alert,
   Button,
   Divider,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
+
 } from '@mui/material';
 import {
   ArrowBack,
@@ -33,15 +30,21 @@ import {
   Group,
   Today,
   Timer,
+  QrCode,
+  Download,
+  Refresh,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
+import QrCodeDisplay from '../components/QrCodeDisplay';
 
 interface SessionDetails {
   id: number;
   name: string;
+  description?: string;
   startTime: string;
   endTime?: string;
   status: 'active' | 'completed';
+  allowedCheckInMethods?: string[];
   attendees: Attendee[];
 }
 
@@ -51,8 +54,17 @@ interface Attendee {
   subscriberName: string;
   checkInTime: string;
   checkOutTime?: string;
+  checkInMethod?: string;
   status: 'checked_in' | 'checked_out';
 }
+
+const CHECK_IN_METHODS = [
+  { value: 'NFC', label: 'NFC Card' },
+  { value: 'QR', label: 'QR Code' },
+  { value: 'BLUETOOTH', label: 'Bluetooth' },
+  { value: 'WIFI', label: 'WiFi' },
+  { value: 'MOBILE_NFC', label: 'Mobile NFC' },
+];
 
 const SessionDetailsPage: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -60,12 +72,16 @@ const SessionDetailsPage: React.FC = () => {
   const [session, setSession] = useState<SessionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   useEffect(() => {
     if (sessionId) {
       fetchSessionDetails(parseInt(sessionId));
     }
   }, [sessionId]);
+
+  // Remove automatic polling - only update when user manually refreshes
+  // This prevents constant database queries and QR code refreshing
 
   const fetchSessionDetails = async (id: number) => {
     try {
@@ -84,15 +100,18 @@ const SessionDetailsPage: React.FC = () => {
       const sessionDetails: SessionDetails = {
         id: sessionData.id,
         name: sessionData.name,
+        description: sessionData.description,
         startTime: sessionData.startTime,
         endTime: sessionData.endTime,
         status: sessionData.endTime ? 'completed' : 'active',
+        allowedCheckInMethods: sessionData.allowedCheckInMethods || [],
         attendees: attendanceData.map((log: any) => ({
           id: log.id,
           subscriberId: log.subscriber?.id || 0,
           subscriberName: `${log.subscriber?.firstName || 'Unknown'} ${log.subscriber?.lastName || 'User'}`,
           checkInTime: log.checkInTime,
           checkOutTime: log.checkOutTime,
+          checkInMethod: log.checkinMethod,
           status: log.checkOutTime ? 'checked_out' : 'checked_in',
         })),
       };
@@ -136,6 +155,36 @@ const SessionDetailsPage: React.FC = () => {
     return `${minutes}m`;
   };
 
+  const downloadReport = async () => {
+    try {
+      setDownloadingReport(true);
+      const response = await ApiService.get(`/api/reports/sessions/${session?.id}/attendance-pdf`, {
+        responseType: 'blob',
+      });
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `session_${session?.id}_attendance_report.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Failed to download report:', err);
+      setError('Failed to download report');
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
+
+  // Memoize QR code props to prevent unnecessary re-renders
+  const qrCodeProps = useMemo(() => ({
+    sessionId: session?.id || 0,
+    sessionName: session?.name || '',
+  }), [session?.id, session?.name]);
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -152,10 +201,10 @@ const SessionDetailsPage: React.FC = () => {
         </Alert>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/dashboard/sessions')}
           variant="outlined"
         >
-          Back to Dashboard
+          Back to Sessions
         </Button>
       </Box>
     );
@@ -167,7 +216,7 @@ const SessionDetailsPage: React.FC = () => {
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/dashboard/sessions')}
           variant="outlined"
           sx={{ mr: 2 }}
         >
@@ -176,6 +225,26 @@ const SessionDetailsPage: React.FC = () => {
         <Typography variant="h4" component="h1" fontWeight="bold">
           Session Details
         </Typography>
+        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={downloadReport}
+            disabled={downloadingReport}
+            color="primary"
+          >
+            {downloadingReport ? 'Generating...' : 'Download Report'}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => fetchSessionDetails(parseInt(sessionId!))}
+            disabled={loading}
+            color="primary"
+          >
+            {loading ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
+        </Box>
       </Box>
 
       {/* Session Info Card */}
@@ -263,8 +332,48 @@ const SessionDetailsPage: React.FC = () => {
               </Box>
             </Grid>
           </Grid>
+
+          {/* Check-in Methods */}
+          {session.allowedCheckInMethods && session.allowedCheckInMethods.length > 0 && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Box>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Allowed Check-in Methods
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {session.allowedCheckInMethods.map((method) => (
+                    <Chip
+                      key={method}
+                      label={CHECK_IN_METHODS.find(m => m.value === method)?.label || method}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                    />
+                  ))}
+                </Box>
+              </Box>
+            </>
+          )}
         </CardContent>
       </Card>
+
+      {/* QR Code Display */}
+      {session.status === 'active' && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <QrCode color="primary" />
+              QR Code for Check-in
+            </Typography>
+            <QrCodeDisplay
+              sessionId={qrCodeProps.sessionId}
+              sessionName={qrCodeProps.sessionName}
+              onClose={() => {}} // No close button needed since it's always visible
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Attendees List */}
       <Card>
@@ -285,6 +394,7 @@ const SessionDetailsPage: React.FC = () => {
                     <TableCell>Attendee</TableCell>
                     <TableCell>Check-in Time</TableCell>
                     <TableCell>Check-out Time</TableCell>
+                    <TableCell>Method</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Duration</TableCell>
                   </TableRow>
@@ -311,6 +421,14 @@ const SessionDetailsPage: React.FC = () => {
                         <Typography variant="body2">
                           {attendee.checkOutTime ? formatTime(attendee.checkOutTime) : '-'}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={CHECK_IN_METHODS.find(m => m.value === attendee.checkInMethod)?.label || attendee.checkInMethod || 'Unknown'}
+                          size="small"
+                          variant="outlined"
+                          color="secondary"
+                        />
                       </TableCell>
                       <TableCell>
                         <Chip

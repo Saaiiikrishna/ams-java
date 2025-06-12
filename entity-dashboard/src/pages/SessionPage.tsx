@@ -27,6 +27,9 @@ import {
   Tooltip,
 
   Divider,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   Add,
@@ -38,9 +41,14 @@ import {
   CheckCircle,
   Cancel,
   Refresh,
-  NearMe,
+
   Delete,
   Person,
+  Nfc,
+  Bluetooth,
+  Wifi,
+  QrCode,
+  PhoneAndroid,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import ApiService from '../services/ApiService';
@@ -58,8 +66,18 @@ interface AttendanceSession {
 
 interface NewAttendanceSession {
   name: string;
+  description?: string;
   startTime?: string; // Optional, backend might default to now if not provided
+  allowedCheckInMethods?: string[];
 }
+
+const CHECK_IN_METHODS = [
+  { value: 'NFC', label: 'NFC Card', icon: Nfc },
+  { value: 'QR', label: 'QR Code', icon: QrCode },
+  { value: 'BLUETOOTH', label: 'Bluetooth', icon: Bluetooth },
+  { value: 'WIFI', label: 'WiFi', icon: Wifi },
+  { value: 'MOBILE_NFC', label: 'Mobile NFC', icon: PhoneAndroid },
+];
 
 const SessionPage: React.FC = () => {
   const navigate = useNavigate();
@@ -80,14 +98,18 @@ const SessionPage: React.FC = () => {
 
   // Form state for creating new session
   const [sessionName, setSessionName] = useState('');
+  const [sessionDescription, setSessionDescription] = useState('');
   const [sessionStartTime, setSessionStartTime] = useState(''); // Store as string for input type datetime-local
+  const [selectedCheckInMethods, setSelectedCheckInMethods] = useState<string[]>(['NFC']);
   const [formLoading, setFormLoading] = useState(false);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const resetForm = () => {
     setSessionName('');
+    setSessionDescription('');
     setSessionStartTime('');
+    setSelectedCheckInMethods(['NFC']);
     setShowCreateForm(false);
     setFormLoading(false);
     setError(null);
@@ -139,7 +161,11 @@ const SessionPage: React.FC = () => {
     setSuccessMessage(null);
     setFormLoading(true);
 
-    const newSessionData: NewAttendanceSession = { name: sessionName };
+    const newSessionData: NewAttendanceSession = {
+      name: sessionName,
+      description: sessionDescription || undefined,
+      allowedCheckInMethods: selectedCheckInMethods
+    };
     if (sessionStartTime) {
       // Send the datetime as-is without timezone conversion
       // Format: YYYY-MM-DDTHH:mm:ss (LocalDateTime format)
@@ -301,6 +327,19 @@ const SessionPage: React.FC = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
+                  label="Description (Optional)"
+                  value={sessionDescription}
+                  onChange={(e) => setSessionDescription(e.target.value)}
+                  disabled={formLoading}
+                  placeholder="e.g., Weekly team meeting to discuss project updates"
+                  multiline
+                  rows={2}
+                  helperText="Optional description for this session"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
                   type="datetime-local"
                   label="Start Time (Optional)"
                   value={sessionStartTime}
@@ -319,6 +358,42 @@ const SessionPage: React.FC = () => {
                   }}
                 />
               </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Allowed Check-in Methods *
+                </Typography>
+                <FormGroup row>
+                  {CHECK_IN_METHODS.map((method) => {
+                    const IconComponent = method.icon;
+                    return (
+                      <FormControlLabel
+                        key={method.value}
+                        control={
+                          <Checkbox
+                            checked={selectedCheckInMethods.includes(method.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCheckInMethods([...selectedCheckInMethods, method.value]);
+                              } else {
+                                setSelectedCheckInMethods(selectedCheckInMethods.filter(m => m !== method.value));
+                              }
+                            }}
+                            disabled={formLoading}
+                            icon={<IconComponent />}
+                            checkedIcon={<IconComponent />}
+                          />
+                        }
+                        label={method.label}
+                      />
+                    );
+                  })}
+                </FormGroup>
+                {selectedCheckInMethods.length === 0 && (
+                  <Typography variant="caption" color="error">
+                    Please select at least one check-in method
+                  </Typography>
+                )}
+              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions sx={{ p: 3 }}>
@@ -328,7 +403,7 @@ const SessionPage: React.FC = () => {
             <Button
               type="submit"
               variant="contained"
-              disabled={formLoading || !sessionName}
+              disabled={formLoading || !sessionName || selectedCheckInMethods.length === 0}
               startIcon={formLoading ? <CircularProgress size={20} /> : <PlayArrow />}
               sx={{
                 background: 'linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)',
@@ -494,12 +569,12 @@ const SessionPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Recent NFC Scans Section */}
+      {/* Recent Check-ins Section */}
       <Card sx={{ mt: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <NearMe color="primary" />
-            Recent NFC Scans
+            <CheckCircle color="primary" />
+            Recent Check-ins
           </Typography>
           <Divider sx={{ mb: 2 }} />
 
@@ -510,51 +585,85 @@ const SessionPage: React.FC = () => {
                   <TableRow>
                     <TableCell>Subscriber</TableCell>
                     <TableCell>Session</TableCell>
-                    <TableCell>Scan Time</TableCell>
+                    <TableCell>Check-in Time</TableCell>
+                    <TableCell>Method</TableCell>
                     <TableCell>Type</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {recentScans.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={5}>
                         <Box sx={{ textAlign: 'center', py: 4 }}>
-                          <NearMe sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                          <CheckCircle sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
                           <Typography variant="h6" color="text.secondary" gutterBottom>
-                            No Recent NFC Scans
+                            No Recent Check-ins
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            NFC scan events will appear here when subscribers check in/out
+                            Check-in events will appear here when subscribers check in/out using any method
                           </Typography>
                         </Box>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    recentScans.map((scan) => (
-                    <TableRow key={scan.id} hover>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main' }}>
-                            <Person sx={{ fontSize: 16 }} />
-                          </Avatar>
-                          {scan.subscriber}
-                        </Box>
-                      </TableCell>
-                      <TableCell>{scan.session}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {new Date(scan.time).toLocaleTimeString()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={scan.type}
-                          color={scan.type === 'Check-in' ? 'success' : 'warning'}
-                          size="small"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
+                    recentScans.map((scan) => {
+                      const getMethodIcon = (method: string) => {
+                        switch (method?.toUpperCase()) {
+                          case 'NFC': return <Nfc sx={{ fontSize: 16 }} />;
+                          case 'QR': return <QrCode sx={{ fontSize: 16 }} />;
+                          case 'BLUETOOTH': return <Bluetooth sx={{ fontSize: 16 }} />;
+                          case 'WIFI': return <Wifi sx={{ fontSize: 16 }} />;
+                          case 'MOBILE_NFC': return <PhoneAndroid sx={{ fontSize: 16 }} />;
+                          default: return <CheckCircle sx={{ fontSize: 16 }} />;
+                        }
+                      };
+
+                      const getMethodColor = (method: string) => {
+                        switch (method?.toUpperCase()) {
+                          case 'NFC': return 'primary';
+                          case 'QR': return 'secondary';
+                          case 'BLUETOOTH': return 'info';
+                          case 'WIFI': return 'success';
+                          case 'MOBILE_NFC': return 'warning';
+                          default: return 'default';
+                        }
+                      };
+
+                      return (
+                        <TableRow key={scan.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main' }}>
+                                <Person sx={{ fontSize: 16 }} />
+                              </Avatar>
+                              {scan.subscriber}
+                            </Box>
+                          </TableCell>
+                          <TableCell>{scan.session}</TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(scan.time).toLocaleTimeString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              icon={getMethodIcon(scan.method || 'NFC')}
+                              label={scan.method || 'NFC'}
+                              color={getMethodColor(scan.method || 'NFC') as any}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={scan.type}
+                              color={scan.type === 'Check-in' ? 'success' : 'warning'}
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

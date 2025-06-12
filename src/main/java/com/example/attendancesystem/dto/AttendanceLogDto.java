@@ -12,6 +12,7 @@ public class AttendanceLogDto {
     private String sessionName;
     private LocalDateTime checkInTime;
     private LocalDateTime checkOutTime;
+    private String checkinMethod;
 
     // Default constructor
     public AttendanceLogDto() {
@@ -19,7 +20,7 @@ public class AttendanceLogDto {
 
     // Full constructor
     public AttendanceLogDto(Long id, Long subscriberId, String subscriberFirstName, String subscriberLastName, String subscriberEmail,
-                            Long sessionId, String sessionName, LocalDateTime checkInTime, LocalDateTime checkOutTime) {
+                            Long sessionId, String sessionName, LocalDateTime checkInTime, LocalDateTime checkOutTime, String checkinMethod) {
         this.id = id;
         this.subscriberId = subscriberId;
         this.subscriberFirstName = subscriberFirstName;
@@ -29,6 +30,7 @@ public class AttendanceLogDto {
         this.sessionName = sessionName;
         this.checkInTime = checkInTime;
         this.checkOutTime = checkOutTime;
+        this.checkinMethod = checkinMethod;
     }
 
     // Getters and Setters
@@ -102,5 +104,13 @@ public class AttendanceLogDto {
 
     public void setCheckOutTime(LocalDateTime checkOutTime) {
         this.checkOutTime = checkOutTime;
+    }
+
+    public String getCheckinMethod() {
+        return checkinMethod;
+    }
+
+    public void setCheckinMethod(String checkinMethod) {
+        this.checkinMethod = checkinMethod;
     }
 }

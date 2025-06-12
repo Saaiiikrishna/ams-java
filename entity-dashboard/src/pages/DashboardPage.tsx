@@ -12,10 +12,10 @@ import {
   Chip,
   Avatar,
   List,
-  ListItem,
+
   ListItemAvatar,
   ListItemText,
-  Divider,
+
   Button,
   ListItemButton,
   Tooltip,
@@ -26,7 +26,7 @@ import {
   AccessTime,
   Assessment,
   TrendingUp,
-  Person,
+
   Schedule,
   Today,
   CheckCircle,
@@ -137,9 +137,7 @@ const DashboardPage: React.FC = () => {
     });
   };
 
-  const formatDate = (timeString: string) => {
-    return new Date(timeString).toLocaleDateString();
-  };
+
 
   const getTimeAgo = (timeString: string) => {
     const now = new Date();

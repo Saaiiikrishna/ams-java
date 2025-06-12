@@ -23,6 +23,9 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
     @Query("SELECT s FROM Subscriber s WHERE s.organization.entityId = :entityId")
     List<Subscriber> findAllByOrganizationEntityId(@Param("entityId") String entityId);
 
+    @Query("SELECT s FROM Subscriber s WHERE s.mobileNumber = :mobileNumber AND s.organization.entityId = :entityId")
+    Optional<Subscriber> findByMobileNumberAndOrganizationEntityId(@Param("mobileNumber") String mobileNumber, @Param("entityId") String entityId);
+
     @Query("SELECT s FROM Subscriber s WHERE s.id = :id AND s.organization.entityId = :entityId")
     Optional<Subscriber> findByIdAndOrganizationEntityId(@Param("id") Long id, @Param("entityId") String entityId);
 

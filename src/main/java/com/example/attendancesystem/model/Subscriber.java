@@ -32,7 +32,7 @@ public class Subscriber {
     @JsonIgnore // Prevent circular reference during serialization
     private Set<AttendanceLog> attendanceLogs;
 
-    @OneToOne(mappedBy = "subscriber", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "subscriber", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private NfcCard nfcCard;
 
     // Getters and Setters

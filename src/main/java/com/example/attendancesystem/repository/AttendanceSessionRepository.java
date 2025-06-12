@@ -31,4 +31,17 @@ public interface AttendanceSessionRepository extends JpaRepository<AttendanceSes
 
     @Query("SELECT COUNT(s) FROM AttendanceSession s WHERE s.organization.entityId = :entityId")
     long countByOrganizationEntityId(@Param("entityId") String entityId);
+
+    // Find sessions within a date range for reports
+    List<AttendanceSession> findByOrganizationAndStartTimeBetween(
+            Organization organization, LocalDateTime startTime, LocalDateTime endTime);
+
+    // Find all active sessions (endTime is null)
+    List<AttendanceSession> findByEndTimeIsNull();
+
+    // Find active sessions for an organization (endTime is null)
+    List<AttendanceSession> findByOrganizationAndEndTimeIsNull(Organization organization);
+
+    // Find session by QR code that is still active
+    Optional<AttendanceSession> findByQrCodeAndEndTimeIsNull(String qrCode);
 }

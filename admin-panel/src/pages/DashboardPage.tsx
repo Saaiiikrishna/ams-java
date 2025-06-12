@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Grid,
@@ -50,10 +50,6 @@ const DashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
   const generateRecentActivities = (entities: any[], entitiesWithoutAdmin: any[]) => {
     const activities: Array<{
       id: number;
@@ -90,7 +86,7 @@ const DashboardPage: React.FC = () => {
     return activities.slice(-5).reverse();
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
       // Fetch entities count
@@ -124,7 +120,11 @@ const DashboardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const StatCard: React.FC<{
     title: string;

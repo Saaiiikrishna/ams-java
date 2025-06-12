@@ -268,12 +268,15 @@ public class SuperAdminNfcController {
     public ResponseEntity<List<AttendanceSession>> getActiveSessionsByEntity(@PathVariable String entityId) {
         try {
             logger.info("Fetching active sessions for entity: {}", entityId);
-            
+
             Organization organization = organizationRepository.findByEntityId(entityId)
                     .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
-            
+
+            // Get all active sessions (including those from scheduled sessions)
             List<AttendanceSession> activeSessions = attendanceSessionRepository
                     .findByOrganizationAndEndTimeIsNullAndStartTimeBefore(organization, LocalDateTime.now());
+
+            logger.info("Found {} active sessions for entity {}", activeSessions.size(), entityId);
             
             logger.info("Found {} active sessions for entity: {}", activeSessions.size(), entityId);
             return ResponseEntity.ok(activeSessions);

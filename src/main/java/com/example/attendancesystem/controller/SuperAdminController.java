@@ -4,14 +4,16 @@ import com.example.attendancesystem.dto.ChangePasswordRequest;
 import com.example.attendancesystem.dto.SuperAdminDto;
 import com.example.attendancesystem.model.Role;
 import com.example.attendancesystem.model.SuperAdmin;
-import com.example.attendancesystem.repository.RoleRepository;
-import com.example.attendancesystem.repository.SuperAdminRepository;
+import com.example.attendancesystem.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 @PreAuthorize("hasRole('SUPER_ADMIN')")
 public class SuperAdminController {
 
+    private static final Logger logger = LoggerFactory.getLogger(SuperAdminController.class);
+
     @Autowired
     private SuperAdminRepository superAdminRepository;
 
@@ -33,6 +37,31 @@ public class SuperAdminController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    // Repositories for cleanup functionality
+    @Autowired
+    private AttendanceLogRepository attendanceLogRepository;
+
+    @Autowired
+    private NfcCardRepository nfcCardRepository;
+
+    @Autowired
+    private SubscriberRepository subscriberRepository;
+
+    @Autowired
+    private AttendanceSessionRepository attendanceSessionRepository;
+
+    @Autowired
+    private ScheduledSessionRepository scheduledSessionRepository;
+
+    @Autowired
+    private EntityAdminRepository entityAdminRepository;
+
+    @Autowired
+    private OrganizationRepository organizationRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @GetMapping("/super-admins")
     public ResponseEntity<List<Map<String, Object>>> getAllSuperAdmins() {
@@ -170,6 +199,86 @@ public class SuperAdminController {
             System.err.println("ERROR: Failed to deactivate super admin: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to deactivate super admin"));
+        }
+    }
+
+    /**
+     * Delete all data except super admins (for development/testing purposes)
+     */
+    @DeleteMapping("/cleanup-all-data")
+    @Transactional
+    public ResponseEntity<?> cleanupAllData() {
+        try {
+            logger.warn("CLEANUP: Starting complete database cleanup (keeping only super admins)");
+
+            // Count records before deletion for logging
+            long attendanceLogsCount = attendanceLogRepository.count();
+            long nfcCardsCount = nfcCardRepository.count();
+            long subscribersCount = subscriberRepository.count();
+            long attendanceSessionsCount = attendanceSessionRepository.count();
+            long scheduledSessionsCount = scheduledSessionRepository.count();
+            long entityAdminsCount = entityAdminRepository.count();
+            long organizationsCount = organizationRepository.count();
+            long refreshTokensCount = refreshTokenRepository.count();
+
+            // Delete in order to respect foreign key constraints
+            // 1. Delete attendance logs first
+            attendanceLogRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} attendance logs", attendanceLogsCount);
+
+            // 2. Delete NFC cards
+            nfcCardRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} NFC cards", nfcCardsCount);
+
+            // 3. Delete subscribers
+            subscriberRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} subscribers", subscribersCount);
+
+            // 4. Delete attendance sessions
+            attendanceSessionRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} attendance sessions", attendanceSessionsCount);
+
+            // 5. Delete scheduled sessions
+            scheduledSessionRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} scheduled sessions", scheduledSessionsCount);
+
+            // 6. Delete entity admins
+            entityAdminRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} entity admins", entityAdminsCount);
+
+            // 7. Delete organizations
+            organizationRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} organizations", organizationsCount);
+
+            // 8. Delete refresh tokens (except super admin tokens)
+            refreshTokenRepository.deleteAll();
+            logger.info("CLEANUP: Deleted {} refresh tokens", refreshTokensCount);
+
+            long totalDeleted = attendanceLogsCount + nfcCardsCount + subscribersCount +
+                              attendanceSessionsCount + scheduledSessionsCount +
+                              entityAdminsCount + organizationsCount + refreshTokensCount;
+
+            logger.warn("CLEANUP: Complete database cleanup finished. Total records deleted: {}", totalDeleted);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Database cleanup completed successfully",
+                "deletedRecords", Map.of(
+                    "attendanceLogs", attendanceLogsCount,
+                    "nfcCards", nfcCardsCount,
+                    "subscribers", subscribersCount,
+                    "attendanceSessions", attendanceSessionsCount,
+                    "scheduledSessions", scheduledSessionsCount,
+                    "entityAdmins", entityAdminsCount,
+                    "organizations", organizationsCount,
+                    "refreshTokens", refreshTokensCount,
+                    "total", totalDeleted
+                )
+            ));
+
+        } catch (Exception e) {
+            logger.error("CLEANUP: Failed to cleanup database", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to cleanup database: " + e.getMessage()));
         }
     }
 }

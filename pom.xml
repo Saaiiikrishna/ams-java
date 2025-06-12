@@ -78,7 +78,12 @@
                 <dependency>
                         <groupId>org.flywaydb</groupId>
                         <artifactId>flyway-core</artifactId>
-						<version>10.8.1</version> <!-- Updated Flyway version -->
+						<version>10.21.0</version> <!-- Updated Flyway version for PostgreSQL 17 support -->
+                </dependency>
+                <dependency>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-database-postgresql</artifactId>
+                        <version>10.21.0</version> <!-- PostgreSQL specific Flyway extension -->
                 </dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -94,6 +99,23 @@
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<!-- iText PDF for report generation -->
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>itext-core</artifactId>
+			<version>8.0.2</version>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>kernel</artifactId>
+			<version>8.0.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>layout</artifactId>
+			<version>8.0.2</version>
 		</dependency>
 	</dependencies>
 

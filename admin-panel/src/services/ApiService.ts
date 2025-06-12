@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import AuthService from './AuthService';
 import logger from './LoggingService';
 
@@ -97,7 +97,7 @@ ApiService.interceptors.response.use(
         try {
           // Use a separate, clean Axios instance for the refresh token request to avoid circular interceptors
           const refreshAxiosInstance = axios.create({ baseURL: API_BASE_URL });
-          const refreshResponse = await refreshAxiosInstance.post('/admin/refresh-token', { refreshToken });
+          const refreshResponse = await refreshAxiosInstance.post('/super/auth/refresh-token', { refreshToken });
 
           const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshResponse.data;
           AuthService.storeTokens(newAccessToken, newRefreshToken); // Store new tokens

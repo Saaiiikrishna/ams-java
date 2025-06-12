@@ -34,6 +34,8 @@ import {
   TrendingUp,
   BarChart,
   FileDownload,
+  PictureAsPdf,
+
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 
@@ -80,6 +82,10 @@ const ReportPage: React.FC = () => {
   const [startDate, setStartDate] = useState<string>(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Default to 30 days ago
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]); // Default to today
 
+  // PDF generation states
+  const [generatingSessionPdf, setGeneratingSessionPdf] = useState(false);
+  const [generatingSubscriberPdf, setGeneratingSubscriberPdf] = useState(false);
+
   // Fetch initial data for dropdowns
   useEffect(() => {
     fetchInitialData();
@@ -112,7 +118,7 @@ const ReportPage: React.FC = () => {
     setAbsenteesError(null);
     setAbsentees([]);
     try {
-      const response = await ApiService.get<SubscriberBasic[]>(`/reports/sessions/${selectedSessionIdForAbsentees}/absentees`);
+      const response = await ApiService.get<SubscriberBasic[]>(`/api/reports/sessions/${selectedSessionIdForAbsentees}/absentees`);
       setAbsentees(response.data || []);
     } catch (err:any) {
       console.error("Failed to fetch absentees:", err);
@@ -132,7 +138,7 @@ const ReportPage: React.FC = () => {
     setHistoryError(null);
     setAttendanceHistory([]);
     try {
-      const response = await ApiService.get<AttendanceLogFull[]>(`/reports/subscribers/${selectedSubscriberIdForHistory}/attendance`, {
+      const response = await ApiService.get<AttendanceLogFull[]>(`/api/reports/subscribers/${selectedSubscriberIdForHistory}/attendance`, {
         params: { startDate, endDate }
       });
       setAttendanceHistory(response.data || []);
@@ -192,6 +198,64 @@ const ReportPage: React.FC = () => {
         'Ongoing'
     }));
     exportToCSV(data, 'attendance_history', ['Subscriber', 'Session', 'Check In', 'Check Out', 'Duration']);
+  };
+
+  const generateSessionPdf = async () => {
+    if (!selectedSessionIdForAbsentees) return;
+
+    try {
+      setGeneratingSessionPdf(true);
+      const response = await ApiService.get(`/api/reports/sessions/${selectedSessionIdForAbsentees}/attendance-pdf`, {
+        responseType: 'blob',
+      });
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `session_${selectedSessionIdForAbsentees}_attendance_report.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Failed to generate session PDF:', err);
+      setAbsenteesError('Failed to generate PDF report');
+    } finally {
+      setGeneratingSessionPdf(false);
+    }
+  };
+
+  const generateSubscriberPdf = async () => {
+    if (!selectedSubscriberIdForHistory || !startDate || !endDate) return;
+
+    try {
+      setGeneratingSubscriberPdf(true);
+      const startDateTime = new Date(startDate).toISOString();
+      const endDateTime = new Date(endDate).toISOString();
+
+      const response = await ApiService.get(
+        `/api/reports/subscribers/${selectedSubscriberIdForHistory}/activity-pdf?startDate=${startDateTime}&endDate=${endDateTime}`,
+        {
+          responseType: 'blob',
+        }
+      );
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `subscriber_${selectedSubscriberIdForHistory}_activity_report.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Failed to generate subscriber PDF:', err);
+      setHistoryError('Failed to generate PDF report');
+    } finally {
+      setGeneratingSubscriberPdf(false);
+    }
   };
 
   if (isLoadingData) {
@@ -260,12 +324,25 @@ const ReportPage: React.FC = () => {
                   >
                     {isLoadingAbsentees ? 'Loading...' : 'Generate Report'}
                   </Button>
-                  {absentees.length > 0 && (
-                    <Tooltip title="Export to CSV">
-                      <IconButton onClick={exportAbsentees} color="primary">
-                        <FileDownload />
-                      </IconButton>
-                    </Tooltip>
+                  {selectedSessionIdForAbsentees && (
+                    <>
+                      <Tooltip title="Generate PDF Report">
+                        <IconButton
+                          onClick={generateSessionPdf}
+                          color="primary"
+                          disabled={generatingSessionPdf}
+                        >
+                          {generatingSessionPdf ? <CircularProgress size={20} /> : <PictureAsPdf />}
+                        </IconButton>
+                      </Tooltip>
+                      {absentees.length > 0 && (
+                        <Tooltip title="Export to CSV">
+                          <IconButton onClick={exportAbsentees} color="primary">
+                            <FileDownload />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </>
                   )}
                 </Box>
               </form>
@@ -385,12 +462,25 @@ const ReportPage: React.FC = () => {
                   >
                     {isLoadingHistory ? 'Loading...' : 'Get History'}
                   </Button>
-                  {attendanceHistory.length > 0 && (
-                    <Tooltip title="Export to CSV">
-                      <IconButton onClick={exportHistory} color="primary">
-                        <FileDownload />
-                      </IconButton>
-                    </Tooltip>
+                  {selectedSubscriberIdForHistory && (
+                    <>
+                      <Tooltip title="Generate PDF Report">
+                        <IconButton
+                          onClick={generateSubscriberPdf}
+                          color="primary"
+                          disabled={generatingSubscriberPdf}
+                        >
+                          {generatingSubscriberPdf ? <CircularProgress size={20} /> : <PictureAsPdf />}
+                        </IconButton>
+                      </Tooltip>
+                      {attendanceHistory.length > 0 && (
+                        <Tooltip title="Export to CSV">
+                          <IconButton onClick={exportHistory} color="primary">
+                            <FileDownload />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </>
                   )}
                 </Box>
               </form>

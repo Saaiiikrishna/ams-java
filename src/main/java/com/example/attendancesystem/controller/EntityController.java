@@ -1,11 +1,20 @@
 package com.example.attendancesystem.controller;
 
 import com.example.attendancesystem.dto.AttendanceSessionDto;
+import com.example.attendancesystem.dto.ScheduledSessionDto;
 import com.example.attendancesystem.dto.SubscriberDto;
 import com.example.attendancesystem.model.*;
 import com.example.attendancesystem.repository.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.context.SecurityContextHolder;
+import java.util.Set;
 import com.example.attendancesystem.security.CustomUserDetails;
+import com.example.attendancesystem.service.ScheduledSessionService;
+import com.example.attendancesystem.service.QrCodeService;
+import com.example.attendancesystem.service.SubscriberAuthService;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +38,8 @@ import java.util.stream.Collectors;
 @PreAuthorize("hasRole('ENTITY_ADMIN')")
 public class EntityController {
 
+    private static final Logger logger = LoggerFactory.getLogger(EntityController.class);
+
     @Autowired
     private SubscriberRepository subscriberRepository;
 
@@ -47,6 +58,21 @@ public class EntityController {
     @Autowired
     private AttendanceLogRepository attendanceLogRepository;
 
+    @Autowired
+    private ScheduledSessionService scheduledSessionService;
+
+    @Autowired
+    private QrCodeService qrCodeService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private SubscriberAuthService subscriberAuthService;
+
+    @Autowired
+    private SubscriberAuthRepository subscriberAuthRepository;
+
     // Helper to get current EntityAdmin's organization
     private Organization getCurrentOrganization() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -58,11 +84,24 @@ public class EntityController {
     @PostMapping("/subscribers")
     @Transactional
     public ResponseEntity<?> addSubscriber(@RequestBody SubscriberDto subscriberDto) {
+        logger.info("Creating new subscriber: {} {} for organization: {}",
+                   subscriberDto.getFirstName(), subscriberDto.getLastName(),
+                   getCurrentOrganization().getEntityId());
+
         Organization organization = getCurrentOrganization();
 
         // Check for mobile number uniqueness (required field)
         if (subscriberDto.getMobileNumber() == null || subscriberDto.getMobileNumber().trim().isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Mobile number is required.");
+        }
+
+        // Validate first name and last name
+        if (subscriberDto.getFirstName() == null || subscriberDto.getFirstName().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("First name is required.");
+        }
+
+        if (subscriberDto.getLastName() == null || subscriberDto.getLastName().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Last name is required.");
         }
 
         if (subscriberRepository.existsByMobileNumberAndOrganization(subscriberDto.getMobileNumber(), organization)) {
@@ -95,7 +134,23 @@ public class EntityController {
         }
 
         Subscriber savedSubscriber = subscriberRepository.save(subscriber);
-        // nfcCardRepository.save(subscriber.getNfcCard()); // if not cascaded
+        logger.info("Subscriber saved successfully with ID: {}", savedSubscriber.getId());
+
+        // Automatically create authentication credentials for the subscriber
+        // Mobile number as username, "0000" as default PIN
+        try {
+            subscriberAuthService.createSubscriberAuth(savedSubscriber.getId(), "0000");
+            logger.info("Authentication created successfully for subscriber ID: {}", savedSubscriber.getId());
+        } catch (IllegalArgumentException e) {
+            // Log the error but don't fail the subscriber creation
+            logger.warn("Failed to create authentication for subscriber ID {}: {}", savedSubscriber.getId(), e.getMessage());
+            // If auth already exists, that's fine - subscriber was created successfully
+        } catch (Exception e) {
+            // Log the error but don't fail the subscriber creation
+            logger.error("Unexpected error creating authentication for subscriber ID {}: {}", savedSubscriber.getId(), e.getMessage(), e);
+        }
+
+        logger.info("Subscriber creation completed successfully for: {} {}", savedSubscriber.getFirstName(), savedSubscriber.getLastName());
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDto(savedSubscriber));
     }
 
@@ -177,15 +232,46 @@ public class EntityController {
                 .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + id + " in your organization."));
 
         String subscriberName = subscriber.getFirstName() + " " + subscriber.getLastName();
+        String nfcCardUid = null;
+        boolean hadAuthentication = false;
 
-        // Delete the subscriber (cascade will handle AttendanceLogs and NfcCard)
+        logger.info("Deleting subscriber: {} {} (ID: {})", subscriber.getFirstName(), subscriber.getLastName(), id);
+
+        // 1. Handle NFC card unassignment (keep the card but unassign it)
+        NfcCard nfcCard = subscriber.getNfcCard();
+        if (nfcCard != null) {
+            nfcCardUid = nfcCard.getCardUid();
+            logger.info("Unassigning NFC card: {} from subscriber: {}", nfcCardUid, subscriberName);
+            // Unassign the card instead of deleting it
+            nfcCard.setSubscriber(null);
+            nfcCardRepository.save(nfcCard);
+            // Remove the card reference from subscriber to prevent cascade deletion
+            subscriber.setNfcCard(null);
+        }
+
+        // 2. Delete subscriber authentication records (this is what was missing!)
+        Optional<SubscriberAuth> subscriberAuth = subscriberAuthRepository.findBySubscriber(subscriber);
+        if (subscriberAuth.isPresent()) {
+            hadAuthentication = true;
+            logger.info("Deleting authentication record for subscriber: {}", subscriberName);
+            subscriberAuthRepository.delete(subscriberAuth.get());
+        }
+
+        // 3. Delete the subscriber (cascade will handle AttendanceLogs)
+        logger.info("Deleting subscriber record: {}", subscriberName);
         subscriberRepository.delete(subscriber);
 
-        return ResponseEntity.ok(Map.of(
+        Map<String, Object> response = Map.of(
                 "message", "Subscriber deleted successfully",
                 "subscriberId", id,
-                "subscriberName", subscriberName
-        ));
+                "subscriberName", subscriberName,
+                "nfcCardUnassigned", nfcCardUid != null,
+                "nfcCardUid", nfcCardUid != null ? nfcCardUid : "None",
+                "authenticationRemoved", hadAuthentication
+        );
+
+        logger.info("Subscriber deletion completed successfully: {}", subscriberName);
+        return ResponseEntity.ok(response);
     }
 
 
@@ -195,6 +281,7 @@ public class EntityController {
         Organization organization = getCurrentOrganization();
         AttendanceSession session = new AttendanceSession();
         session.setName(sessionDto.getName());
+        session.setDescription(sessionDto.getDescription());
 
         // If startTime is provided, use it; otherwise use current time
         if (sessionDto.getStartTime() != null) {
@@ -203,8 +290,22 @@ public class EntityController {
             session.setStartTime(LocalDateTime.now());
         }
 
+        // Set allowed check-in methods (default to NFC if not provided)
+        if (sessionDto.getAllowedCheckInMethods() != null && !sessionDto.getAllowedCheckInMethods().isEmpty()) {
+            session.setAllowedCheckInMethods(sessionDto.getAllowedCheckInMethods());
+        } else {
+            session.setAllowedCheckInMethods(Set.of(CheckInMethod.NFC));
+        }
+
         session.setOrganization(organization);
         // endTime is null initially
+
+        // Generate QR code if QR is an allowed method and set expiry to null (valid until session ends)
+        if (session.getAllowedCheckInMethods().contains(CheckInMethod.QR)) {
+            String qrCode = qrCodeService.generateQrCodeForSession(session);
+            session.setQrCode(qrCode);
+            session.setQrCodeExpiry(null); // QR code is valid until session ends
+        }
 
         AttendanceSession savedSession = attendanceSessionRepository.save(session);
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDto(savedSession));
@@ -232,6 +333,21 @@ public class EntityController {
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(sessionDtos);
+    }
+
+    @GetMapping("/sessions/{id}")
+    public ResponseEntity<?> getSessionById(@PathVariable Long id) {
+        try {
+            Organization organization = getCurrentOrganization();
+            AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
+                    .orElseThrow(() -> new EntityNotFoundException("Session not found with id: " + id + " in your organization."));
+
+            return ResponseEntity.ok(convertToDto(session));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Failed to fetch session details"));
+        }
     }
 
     @DeleteMapping("/sessions/{id}")
@@ -302,6 +418,7 @@ public class EntityController {
                     scan.put("session", log.getSession().getName());
                     scan.put("time", log.getCheckInTime());
                     scan.put("type", log.getCheckOutTime() != null ? "Check-out" : "Check-in");
+                    scan.put("method", log.getCheckInMethod() != null ? log.getCheckInMethod().name() : "NFC");
                     scan.put("checkOutTime", log.getCheckOutTime());
                     return scan;
                 })
@@ -336,7 +453,16 @@ public class EntityController {
                     attendee.put("subscriberName", log.getSubscriber().getFirstName() + " " + log.getSubscriber().getLastName());
                     attendee.put("checkInTime", log.getCheckInTime());
                     attendee.put("checkOutTime", log.getCheckOutTime());
+                    attendee.put("checkinMethod", log.getCheckInMethod() != null ? log.getCheckInMethod().toString() : null);
                     attendee.put("status", log.getCheckOutTime() != null ? "checked_out" : "checked_in");
+
+                    // Add subscriber details for better display
+                    Map<String, Object> subscriber = new HashMap<>();
+                    subscriber.put("id", log.getSubscriber().getId());
+                    subscriber.put("firstName", log.getSubscriber().getFirstName());
+                    subscriber.put("lastName", log.getSubscriber().getLastName());
+                    attendee.put("subscriber", subscriber);
+
                     return attendee;
                 })
                 .collect(Collectors.toList());
@@ -345,6 +471,137 @@ public class EntityController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(List.of(Map.of("error", "Failed to fetch session attendance")));
+        }
+    }
+
+    // Scheduled Session Mappings
+    @PostMapping("/scheduled-sessions")
+    public ResponseEntity<?> createScheduledSession(@RequestBody ScheduledSessionDto sessionDto) {
+        try {
+            Organization organization = getCurrentOrganization();
+            ScheduledSessionDto created = scheduledSessionService.createScheduledSession(sessionDto, organization.getEntityId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/scheduled-sessions")
+    public ResponseEntity<List<ScheduledSessionDto>> getScheduledSessions() {
+        Organization organization = getCurrentOrganization();
+        List<ScheduledSessionDto> sessions = scheduledSessionService.getScheduledSessions(organization.getEntityId());
+        return ResponseEntity.ok(sessions);
+    }
+
+    @GetMapping("/scheduled-sessions/active")
+    public ResponseEntity<List<ScheduledSessionDto>> getActiveScheduledSessions() {
+        Organization organization = getCurrentOrganization();
+        List<ScheduledSessionDto> sessions = scheduledSessionService.getActiveScheduledSessions(organization.getEntityId());
+        return ResponseEntity.ok(sessions);
+    }
+
+    @GetMapping("/scheduled-sessions/{id}")
+    public ResponseEntity<?> getScheduledSessionById(@PathVariable Long id) {
+        try {
+            Organization organization = getCurrentOrganization();
+            ScheduledSessionDto session = scheduledSessionService.getScheduledSessionById(id, organization.getEntityId());
+            return ResponseEntity.ok(session);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/scheduled-sessions/{id}")
+    public ResponseEntity<?> updateScheduledSession(@PathVariable Long id, @RequestBody ScheduledSessionDto sessionDto) {
+        try {
+            Organization organization = getCurrentOrganization();
+            ScheduledSessionDto updated = scheduledSessionService.updateScheduledSession(id, sessionDto, organization.getEntityId());
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/scheduled-sessions/{id}")
+    public ResponseEntity<?> deleteScheduledSession(@PathVariable Long id) {
+        try {
+            Organization organization = getCurrentOrganization();
+            scheduledSessionService.deleteScheduledSession(id, organization.getEntityId());
+            return ResponseEntity.ok(Map.of("message", "Scheduled session deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // QR Code Mappings
+    @GetMapping("/sessions/{sessionId}/qr-code")
+    public ResponseEntity<?> getSessionQrCode(@PathVariable Long sessionId) {
+        try {
+            Organization organization = getCurrentOrganization();
+            AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(sessionId, organization)
+                    .orElseThrow(() -> new EntityNotFoundException("Session not found"));
+
+            QrCodeService.QrCodeDisplayData qrData = qrCodeService.generateQrCodeDisplayData(session);
+            return ResponseEntity.ok(qrData);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/sessions/{sessionId}/refresh-qr")
+    public ResponseEntity<?> refreshSessionQrCode(@PathVariable Long sessionId) {
+        try {
+            Organization organization = getCurrentOrganization();
+            AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(sessionId, organization)
+                    .orElseThrow(() -> new EntityNotFoundException("Session not found"));
+
+            String newQrCode = qrCodeService.refreshQrCodeForSession(session);
+            session.setQrCode(newQrCode);
+            session.setQrCodeExpiry(null); // QR valid until session ends
+            attendanceSessionRepository.save(session);
+
+            QrCodeService.QrCodeDisplayData qrData = qrCodeService.generateQrCodeDisplayData(session);
+            return ResponseEntity.ok(qrData);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // Change Password Endpoint
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwordData, Authentication authentication) {
+        try {
+            String currentPassword = passwordData.get("currentPassword");
+            String newPassword = passwordData.get("newPassword");
+
+            if (currentPassword == null || newPassword == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "Current password and new password are required"));
+            }
+
+            if (newPassword.length() < 6) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "New password must be at least 6 characters long"));
+            }
+
+            String username = authentication.getName();
+            EntityAdmin entityAdmin = entityAdminRepository.findByUsername(username)
+                    .orElseThrow(() -> new EntityNotFoundException("Entity admin not found"));
+
+            // Verify current password
+            if (!passwordEncoder.matches(currentPassword, entityAdmin.getPassword())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "Current password is incorrect"));
+            }
+
+            // Update password
+            entityAdmin.setPassword(passwordEncoder.encode(newPassword));
+            entityAdminRepository.save(entityAdmin);
+
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to change password"));
         }
     }
 
@@ -372,9 +629,11 @@ public class EntityController {
         return new AttendanceSessionDto(
                 session.getId(),
                 session.getName(),
+                session.getDescription(),
                 session.getStartTime(),
                 session.getEndTime(),
-                session.getOrganization().getId()
+                session.getOrganization().getId(),
+                session.getAllowedCheckInMethods()
         );
     }
 }

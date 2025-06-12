@@ -1,13 +1,17 @@
 package com.example.attendancesystem.dto;
 
+import com.example.attendancesystem.model.CheckInMethod;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 public class AttendanceSessionDto {
     private Long id; // For responses
     private String name;
+    private String description;
     private LocalDateTime startTime; // Can be set by user or defaulted to now
     private LocalDateTime endTime;   // For ending a session
     private Long organizationId; // For context in responses
+    private Set<CheckInMethod> allowedCheckInMethods;
 
     // Default constructor
     public AttendanceSessionDto() {
@@ -20,12 +24,14 @@ public class AttendanceSessionDto {
     }
 
     // Full constructor for responses
-    public AttendanceSessionDto(Long id, String name, LocalDateTime startTime, LocalDateTime endTime, Long organizationId) {
+    public AttendanceSessionDto(Long id, String name, String description, LocalDateTime startTime, LocalDateTime endTime, Long organizationId, Set<CheckInMethod> allowedCheckInMethods) {
         this.id = id;
         this.name = name;
+        this.description = description;
         this.startTime = startTime;
         this.endTime = endTime;
         this.organizationId = organizationId;
+        this.allowedCheckInMethods = allowedCheckInMethods;
     }
 
     // Getters and Setters
@@ -67,5 +73,21 @@ public class AttendanceSessionDto {
 
     public void setOrganizationId(Long organizationId) {
         this.organizationId = organizationId;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Set<CheckInMethod> getAllowedCheckInMethods() {
+        return allowedCheckInMethods;
+    }
+
+    public void setAllowedCheckInMethods(Set<CheckInMethod> allowedCheckInMethods) {
+        this.allowedCheckInMethods = allowedCheckInMethods;
     }
 }

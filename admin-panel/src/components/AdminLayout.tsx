@@ -16,7 +16,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  useTheme,
+
   Alert,
 } from '@mui/material';
 import {
@@ -44,7 +44,7 @@ const AdminLayout: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const theme = useTheme();
+
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);

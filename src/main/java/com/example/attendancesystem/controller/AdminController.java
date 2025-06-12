@@ -216,6 +216,115 @@ public class AdminController {
         }
     }
 
+    @DeleteMapping("/entities/by-id/{id}")
+    @Transactional
+    public ResponseEntity<?> deleteOrganizationById(@PathVariable Long id) {
+        try {
+            logger.info("Attempting to delete organization with ID: {}", id);
+
+            Organization organization = organizationRepository.findById(id)
+                    .orElse(null);
+            if (organization == null) {
+                logger.warn("Organization not found with ID: {}", id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Organization not found");
+            }
+
+            // Check for related data
+            boolean hasEntityAdmins = entityAdminRepository.existsByOrganization(organization);
+            long subscriberCount = subscriberRepository.countByOrganization(organization);
+            long sessionCount = attendanceSessionRepository.countByOrganization(organization);
+
+            if (hasEntityAdmins || subscriberCount > 0 || sessionCount > 0) {
+                StringBuilder message = new StringBuilder("Cannot delete organization '");
+                message.append(organization.getName()).append("' because it has:");
+
+                if (hasEntityAdmins) {
+                    message.append("\n• Entity admins assigned");
+                }
+                if (subscriberCount > 0) {
+                    message.append("\n• ").append(subscriberCount).append(" subscriber(s)");
+                }
+                if (sessionCount > 0) {
+                    message.append("\n• ").append(sessionCount).append(" attendance session(s)");
+                }
+
+                message.append("\n\nPlease remove all related data before deleting the organization.");
+                logger.warn("Organization deletion blocked due to related data - ID: {}", id);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(message.toString());
+            }
+
+            // Safe to delete - no related data
+            String organizationName = organization.getName();
+            organizationRepository.delete(organization);
+            logger.info("Organization deleted successfully - ID: {}, Name: {}", id, organizationName);
+
+            return ResponseEntity.ok("Organization '" + organizationName + "' deleted successfully");
+
+        } catch (Exception e) {
+            logger.error("Failed to delete organization with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to delete organization: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/entities/by-id/{id}/force")
+    @Transactional
+    public ResponseEntity<?> forceDeleteOrganizationById(@PathVariable Long id) {
+        try {
+            logger.warn("Force deleting organization with ID: {}", id);
+
+            Organization organization = organizationRepository.findById(id)
+                    .orElse(null);
+            if (organization == null) {
+                logger.warn("Organization not found with ID: {}", id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Organization not found");
+            }
+
+            String organizationName = organization.getName();
+            logger.warn("Force deleting organization: {} (ID: {})", organizationName, id);
+
+            // Count related data for reporting
+            long entityAdminCount = entityAdminRepository.countByOrganization(organization);
+            long subscriberCount = subscriberRepository.countByOrganization(organization);
+            long sessionCount = attendanceSessionRepository.countByOrganization(organization);
+
+            logger.info("Deleting related data - ID: {}, Admins: {}, Subscribers: {}, Sessions: {}",
+                       id, entityAdminCount, subscriberCount, sessionCount);
+
+            // Delete all related data in correct order (to avoid foreign key constraints)
+
+            // 1. Delete entity admins and their refresh tokens
+            List<EntityAdmin> entityAdmins = entityAdminRepository.findAllByOrganization(organization);
+            for (EntityAdmin admin : entityAdmins) {
+                refreshTokenRepository.deleteByUser(admin);
+                entityAdminRepository.delete(admin);
+            }
+
+            // 2. Delete subscribers (this will cascade to attendance logs)
+            subscriberRepository.deleteAll(subscriberRepository.findAllByOrganization(organization));
+
+            // 3. Delete attendance sessions
+            attendanceSessionRepository.deleteAll(attendanceSessionRepository.findAllByOrganization(organization));
+
+            // 4. Finally delete the organization
+            organizationRepository.delete(organization);
+
+            logger.warn("Force deletion completed successfully - ID: {}, Name: {}", id, organizationName);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Organization '" + organizationName + "' and all related data deleted successfully",
+                "deletedEntityAdmins", entityAdminCount,
+                "deletedSubscribers", subscriberCount,
+                "deletedSessions", sessionCount
+            ));
+
+        } catch (Exception e) {
+            logger.error("Failed to force delete organization with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to force delete organization: " + e.getMessage());
+        }
+    }
+
     @DeleteMapping("/entities/{entityId}/force")
     @Transactional
     public ResponseEntity<?> forceDeleteOrganization(@PathVariable String entityId) {
@@ -339,6 +448,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/entities/{entityId}/remove-admin")
+    @Transactional
     public ResponseEntity<?> removeAdminFromEntity(@PathVariable String entityId) {
         try {
             logger.info("Removing admin from organization with Entity ID: {}", entityId);
@@ -359,6 +469,12 @@ public class AdminController {
             }
 
             String adminUsername = existingAdmin.get().getUsername();
+
+            // SECURITY: Delete all related refresh tokens first to prevent foreign key constraint violation
+            // This ensures the removed admin cannot access the system with existing tokens
+            refreshTokenRepository.deleteByUser(existingAdmin.get());
+            logger.info("Deleted all refresh tokens for user: {}", adminUsername);
+
             entityAdminRepository.delete(existingAdmin.get());
             logger.info("Admin removed successfully - Username: {}, Entity ID: {}, Organization: {}",
                        adminUsername, entityId, organization.getName());
@@ -493,113 +609,7 @@ public class AdminController {
         }
     }
 
-    @PostMapping("/cleanup-duplicate-admins")
-    @Transactional
-    public ResponseEntity<?> cleanupDuplicateAdmins() {
-        try {
-            List<Organization> organizations = organizationRepository.findAll();
-            int duplicatesRemoved = 0;
 
-            for (Organization org : organizations) {
-                List<EntityAdmin> admins = entityAdminRepository.findAllByOrganization(org);
-                if (admins.size() > 1) {
-                    // Keep the first admin (oldest) and remove the rest
-                    for (int i = 1; i < admins.size(); i++) {
-                        // Delete related refresh tokens first
-                        refreshTokenRepository.deleteByUser(admins.get(i));
-                        entityAdminRepository.delete(admins.get(i));
-                        duplicatesRemoved++;
-                    }
-                }
-            }
-
-            return ResponseEntity.ok(Map.of(
-                    "message", "Cleanup completed successfully",
-                    "duplicatesRemoved", duplicatesRemoved
-            ));
-        } catch (Exception e) {
-            logger.error("Failed to cleanup duplicate admins", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to cleanup duplicate admins"));
-        }
-    }
-
-    @PostMapping("/cleanup-superadmin-from-entity-admins")
-    @Transactional
-    public ResponseEntity<?> cleanupSuperAdminFromEntityAdmins() {
-        try {
-            List<EntityAdmin> allEntityAdmins = entityAdminRepository.findAll();
-            int superAdminsRemoved = 0;
-
-            for (EntityAdmin admin : allEntityAdmins) {
-                // Check if this is a SuperAdmin record in the wrong table
-                boolean isSuperAdmin = "superadmin".equals(admin.getUsername()) ||
-                                     (admin.getRole() != null && "SUPER_ADMIN".equals(admin.getRole().getName()));
-
-                if (isSuperAdmin) {
-                    logger.warn("Removing SuperAdmin record from entity_admins: {}", admin.getUsername());
-                    // Delete related refresh tokens first
-                    refreshTokenRepository.deleteByUser(admin);
-                    entityAdminRepository.delete(admin);
-                    superAdminsRemoved++;
-                }
-            }
-
-            return ResponseEntity.ok(Map.of(
-                    "message", "SuperAdmin cleanup completed successfully",
-                    "superAdminsRemoved", superAdminsRemoved
-            ));
-        } catch (Exception e) {
-            logger.error("Failed to cleanup SuperAdmin from entity admins", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to cleanup SuperAdmin records"));
-        }
-    }
-
-    @PostMapping("/migrate-entity-ids")
-    @Transactional
-    public ResponseEntity<?> migrateEntityIds() {
-        try {
-            logger.info("Starting Entity ID migration process");
-            List<Organization> organizations = organizationRepository.findAll();
-            logger.info("Found {} organizations to check for Entity ID migration", organizations.size());
-            int entitiesUpdated = 0;
-            int entitiesRemoved = 0;
-
-            for (Organization org : organizations) {
-                if (org.getEntityId() == null || org.getEntityId().trim().isEmpty()) {
-                    // Check if this organization has any entity admins or sessions
-                    boolean hasEntityAdmins = entityAdminRepository.existsByOrganization(org);
-
-                    if (hasEntityAdmins) {
-                        // Update with new Entity ID
-                        String newEntityId = entityIdService.generateUniqueEntityId();
-                        org.setEntityId(newEntityId);
-                        organizationRepository.save(org);
-                        entitiesUpdated++;
-                        logger.info("Updated organization '{}' with Entity ID: {}", org.getName(), newEntityId);
-                    } else {
-                        // Remove organizations without any associated data
-                        String orgName = org.getName();
-                        organizationRepository.delete(org);
-                        entitiesRemoved++;
-                        logger.info("Removed unused organization: {}", orgName);
-                    }
-                }
-            }
-
-            logger.info("Entity ID migration completed - Updated: {}, Removed: {}", entitiesUpdated, entitiesRemoved);
-            return ResponseEntity.ok(Map.of(
-                    "message", "Entity ID migration completed successfully",
-                    "entitiesUpdated", entitiesUpdated,
-                    "entitiesRemoved", entitiesRemoved
-            ));
-        } catch (Exception e) {
-            logger.error("Failed to migrate Entity IDs", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to migrate Entity IDs"));
-        }
-    }
 
     // Helper method to convert Organization to OrganizationDto
     private OrganizationDto convertToDto(Organization organization) {

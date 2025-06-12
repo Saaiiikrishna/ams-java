@@ -1,8 +1,13 @@
 -- Add mobile number field to subscribers table and make email optional
 -- Migration V3: Add mobile number support
 
--- Add mobile_number column as required field
-ALTER TABLE subscribers ADD COLUMN mobile_number VARCHAR(20) NOT NULL DEFAULT '';
+-- Add mobile_number column as required field (if it doesn't exist)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='subscribers' AND column_name='mobile_number') THEN
+        ALTER TABLE subscribers ADD COLUMN mobile_number VARCHAR(20) NOT NULL DEFAULT '';
+    END IF;
+END $$;
 
 -- Make email column optional (remove NOT NULL constraint)
 ALTER TABLE subscribers ALTER COLUMN email DROP NOT NULL;

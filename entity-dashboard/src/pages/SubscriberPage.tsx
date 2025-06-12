@@ -38,7 +38,7 @@ import {
   Search,
   PersonAdd,
   Assignment,
-  PersonOff,
+
   Nfc,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
@@ -185,7 +185,7 @@ const SubscriberPage: React.FC = () => {
       setConfirmationOpen(false);
     } catch (err: any) {
       console.error("Failed to delete subscriber:", err);
-      setError(err.response?.data?.message || 'Failed to delete subscriber.');
+      setError(err.response?.data?.message || err.response?.data || 'Failed to delete subscriber.');
       setConfirmationOpen(false);
     }
   };

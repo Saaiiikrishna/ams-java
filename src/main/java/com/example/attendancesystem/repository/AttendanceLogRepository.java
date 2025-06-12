@@ -32,6 +32,19 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, Lo
     @Query("SELECT al FROM AttendanceLog al WHERE al.session.organization = :organization ORDER BY al.checkInTime DESC")
     List<AttendanceLog> findTop10BySessionOrganizationOrderByCheckInTimeDesc(@Param("organization") Organization organization);
 
+    // Find logs for a subscriber within a date range (for reports)
+    List<AttendanceLog> findBySubscriberAndCheckInTimeBetween(
+            Subscriber subscriber, LocalDateTime startTime, LocalDateTime endTime);
+
+    // Find active check-in (no check-out time) for subscriber and session
+    AttendanceLog findBySubscriberAndSessionAndCheckOutTimeIsNull(Subscriber subscriber, AttendanceSession session);
+
+    // Find recent attendance for a specific subscriber
+    List<AttendanceLog> findTop10BySubscriberOrderByCheckInTimeDesc(Subscriber subscriber);
+
+    // Find all attendance for a subscriber ordered by check-in time
+    List<AttendanceLog> findBySubscriberOrderByCheckInTimeDesc(Subscriber subscriber);
+
     // Delete methods for cleanup
     void deleteBySession(AttendanceSession session);
     void deleteBySubscriber(Subscriber subscriber);

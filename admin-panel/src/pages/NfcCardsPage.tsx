@@ -151,8 +151,15 @@ const NfcCardsPage: React.FC = () => {
           allCardsArray.push(...orgCards);
 
           // Fetch active sessions for this organization
-          const sessionsResponse = await ApiService.get(`/super/sessions/entity/${org.entityId}/active`);
-          const activeSessions: AttendanceSession[] = Array.isArray(sessionsResponse.data) ? sessionsResponse.data : [];
+          let activeSessions: AttendanceSession[] = [];
+          try {
+            const sessionsResponse = await ApiService.get(`/super/sessions/entity/${org.entityId}/active`);
+            activeSessions = Array.isArray(sessionsResponse.data) ? sessionsResponse.data : [];
+            logger.info(`Fetched ${activeSessions.length} active sessions for entity ${org.entityId}`, 'NFC_ADMIN');
+          } catch (sessionErr) {
+            logger.warn(`Failed to fetch active sessions for entity ${org.entityId}`, 'NFC_ADMIN', sessionErr);
+            activeSessions = [];
+          }
 
           // Separate assigned and unassigned cards
           const assignedCards = Array.isArray(orgCards) ? orgCards.filter(card => card.subscriberId) : [];
@@ -738,12 +745,28 @@ const NfcCardsPage: React.FC = () => {
                 </Grid>
 
                 {/* Active Sessions */}
-                {(entityData.activeSessions || []).length > 0 && (
-                  <Box sx={{ mt: 3 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, color: 'info.main' }}>
+                <Box sx={{ mt: 3 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'info.main' }}>
                       Active Sessions ({(entityData.activeSessions || []).length})
                     </Typography>
+                    <Tooltip title="Refresh active sessions">
+                      <IconButton
+                        onClick={() => fetchAllData()}
+                        disabled={isLoading}
+                        size="small"
+                        color="primary"
+                      >
+                        <Refresh />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  {(entityData.activeSessions || []).length === 0 ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      No active sessions found for this entity. Sessions may have ended or none are currently running.
+                    </Alert>
+                  ) : (
                     <Grid container spacing={2}>
                       {(entityData.activeSessions || []).map((session) => (
                         <Grid item xs={12} sm={6} md={4} key={session.id}>
@@ -763,8 +786,8 @@ const NfcCardsPage: React.FC = () => {
                         </Grid>
                       ))}
                     </Grid>
-                  </Box>
-                )}
+                  )}
+                </Box>
               </AccordionDetails>
             </Accordion>
               ))}

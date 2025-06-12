@@ -56,24 +56,10 @@ class LoggingService {
       this.logs = this.logs.slice(-this.maxLogs);
     }
 
-    // Console output for development
-    if (process.env.NODE_ENV === 'development') {
+    // Console output for development (errors only)
+    if (process.env.NODE_ENV === 'development' && entry.level === LogLevel.ERROR) {
       const logMessage = `[${entry.timestamp}] [${LogLevel[entry.level]}] ${entry.context ? `[${entry.context}] ` : ''}${entry.message}`;
-      
-      switch (entry.level) {
-        case LogLevel.DEBUG:
-          console.debug(logMessage, entry.data);
-          break;
-        case LogLevel.INFO:
-          console.info(logMessage, entry.data);
-          break;
-        case LogLevel.WARN:
-          console.warn(logMessage, entry.data);
-          break;
-        case LogLevel.ERROR:
-          console.error(logMessage, entry.data, entry.error);
-          break;
-      }
+      console.error(logMessage, entry.data, entry.error);
     }
   }
 

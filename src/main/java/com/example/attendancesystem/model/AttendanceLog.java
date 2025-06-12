@@ -24,6 +24,26 @@ public class AttendanceLog {
 
     private LocalDateTime checkOutTime;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "checkin_method", nullable = false)
+    private CheckInMethod checkInMethod = CheckInMethod.NFC; // Default to NFC for backward compatibility
+
+    @Column(name = "device_info")
+    private String deviceInfo; // Store device information for mobile check-ins
+
+    @Column(name = "location_info")
+    private String locationInfo; // Store location/network info for WiFi/Bluetooth check-ins
+
+    // Constructors
+    public AttendanceLog() {}
+
+    public AttendanceLog(Subscriber subscriber, AttendanceSession session, LocalDateTime checkInTime, CheckInMethod checkInMethod) {
+        this.subscriber = subscriber;
+        this.session = session;
+        this.checkInTime = checkInTime;
+        this.checkInMethod = checkInMethod;
+    }
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -63,5 +83,29 @@ public class AttendanceLog {
 
     public void setCheckOutTime(LocalDateTime checkOutTime) {
         this.checkOutTime = checkOutTime;
+    }
+
+    public CheckInMethod getCheckInMethod() {
+        return checkInMethod;
+    }
+
+    public void setCheckInMethod(CheckInMethod checkInMethod) {
+        this.checkInMethod = checkInMethod;
+    }
+
+    public String getDeviceInfo() {
+        return deviceInfo;
+    }
+
+    public void setDeviceInfo(String deviceInfo) {
+        this.deviceInfo = deviceInfo;
+    }
+
+    public String getLocationInfo() {
+        return locationInfo;
+    }
+
+    public void setLocationInfo(String locationInfo) {
+        this.locationInfo = locationInfo;
     }
 }

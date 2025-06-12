@@ -10,7 +10,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
+
   TextField,
   InputAdornment,
   CircularProgress,
@@ -19,10 +19,7 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+
   Button,
 } from '@mui/material';
 import {
@@ -32,10 +29,11 @@ import {
   Schedule,
   AdminPanelSettings,
   Delete,
-  Warning,
+
   CleaningServices,
   Security,
   Update,
+  DeleteForever,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 import ConfirmationDialog from '../components/ConfirmationDialog';
@@ -58,6 +56,7 @@ const EntityAdminsPage: React.FC = () => {
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [isCleaningSuperAdmin, setIsCleaningSuperAdmin] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [isCleaningDatabase, setIsCleaningDatabase] = useState(false);
 
   // Confirmation dialog state
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -202,6 +201,42 @@ const EntityAdminsPage: React.FC = () => {
     }
   };
 
+  const handleCleanupDatabase = () => {
+    setConfirmationData({
+      title: '⚠️ DANGER: Complete Database Cleanup',
+      message: 'This will DELETE ALL DATA from the database except Super Admin accounts. This includes:\n\n• All Organizations\n• All Entity Admins\n• All Subscribers\n• All Sessions\n• All Attendance Logs\n• All NFC Cards\n\nThis action is IRREVERSIBLE and should only be used for development/testing purposes.\n\nAre you absolutely sure you want to proceed?',
+      onConfirm: () => performCleanupDatabase(),
+    });
+    setConfirmationOpen(true);
+  };
+
+  const performCleanupDatabase = async () => {
+    setIsCleaningDatabase(true);
+    try {
+      const response = await ApiService.delete('/super/cleanup-all-data');
+      const deletedRecords = response.data.deletedRecords;
+      setSuccessMessage(
+        `Database cleanup completed! Deleted ${deletedRecords.total} total records:\n` +
+        `• ${deletedRecords.organizations} Organizations\n` +
+        `• ${deletedRecords.entityAdmins} Entity Admins\n` +
+        `• ${deletedRecords.subscribers} Subscribers\n` +
+        `• ${deletedRecords.attendanceSessions} Sessions\n` +
+        `• ${deletedRecords.attendanceLogs} Attendance Logs\n` +
+        `• ${deletedRecords.nfcCards} NFC Cards`
+      );
+      fetchEntityAdmins(); // Refresh the list
+      setConfirmationOpen(false);
+      setTimeout(() => setSuccessMessage(null), 10000);
+    } catch (err: any) {
+      console.error('Failed to cleanup database:', err);
+      setError('Failed to cleanup database. Please try again.');
+      setConfirmationOpen(false);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsCleaningDatabase(false);
+    }
+  };
+
   const handleMigrateEntityIds = () => {
     setConfirmationData({
       title: 'Migrate Entity IDs',
@@ -276,6 +311,21 @@ const EntityAdminsPage: React.FC = () => {
             size="small"
           >
             {isCleaningUp ? 'Cleaning...' : 'Cleanup Duplicates'}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<DeleteForever />}
+            onClick={handleCleanupDatabase}
+            disabled={isCleaningDatabase}
+            size="small"
+            sx={{
+              backgroundColor: '#d32f2f',
+              '&:hover': { backgroundColor: '#b71c1c' },
+              fontWeight: 'bold'
+            }}
+          >
+            {isCleaningDatabase ? 'Cleaning...' : 'CLEANUP ALL DATA'}
           </Button>
         </Box>
       </Box>
