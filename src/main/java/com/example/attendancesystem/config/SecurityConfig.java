@@ -2,6 +2,7 @@ package com.example.attendancesystem.config;
 
 import com.example.attendancesystem.security.CustomUserDetailsService;
 import com.example.attendancesystem.security.JwtRequestFilter;
+import com.example.attendancesystem.security.SubscriberJwtRequestFilter;
 import com.example.attendancesystem.security.SuperAdminJwtRequestFilter;
 import com.example.attendancesystem.security.SuperAdminUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,9 @@ public class SecurityConfig {
 
     @Autowired
     private JwtRequestFilter jwtRequestFilter;
+
+    @Autowired
+    private SubscriberJwtRequestFilter subscriberJwtRequestFilter;
 
     @Autowired
     private SuperAdminJwtRequestFilter superAdminJwtRequestFilter;
@@ -118,11 +122,11 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/subscriber/send-otp", "/subscriber/verify-otp", "/subscriber/login-pin", "/subscriber/update-pin", "/subscriber/health").permitAll()
-                .requestMatchers("/subscriber/**").authenticated() // Will need custom JWT validation for subscribers
+                .requestMatchers("/subscriber/**").hasRole("SUBSCRIBER")
                 .anyRequest().denyAll()
             )
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-            // Note: Subscriber JWT validation will be handled in the controllers for now
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(subscriberJwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

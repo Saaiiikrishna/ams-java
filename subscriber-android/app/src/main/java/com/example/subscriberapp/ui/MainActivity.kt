@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("login") {
                             LoginScreen(
+                                authViewModel = authViewModel,
                                 onLoginSuccess = {
                                     navController.navigate("dashboard") {
                                         popUpTo("login") { inclusive = true }
@@ -54,9 +55,10 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-                        
+
                         composable("dashboard") {
                             DashboardScreen(
+                                authViewModel = authViewModel,
                                 onLogout = {
                                     authViewModel.logout()
                                     navController.navigate("login") {

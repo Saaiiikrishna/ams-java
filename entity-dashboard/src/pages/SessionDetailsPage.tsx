@@ -55,6 +55,7 @@ interface Attendee {
   checkInTime: string;
   checkOutTime?: string;
   checkInMethod?: string;
+  checkOutMethod?: string;
   status: 'checked_in' | 'checked_out';
 }
 
@@ -73,6 +74,7 @@ const SessionDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingReport, setDownloadingReport] = useState(false);
+  const [checkingOut, setCheckingOut] = useState<number | null>(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -112,6 +114,7 @@ const SessionDetailsPage: React.FC = () => {
           checkInTime: log.checkInTime,
           checkOutTime: log.checkOutTime,
           checkInMethod: log.checkinMethod,
+          checkOutMethod: log.checkoutMethod,
           status: log.checkOutTime ? 'checked_out' : 'checked_in',
         })),
       };
@@ -176,6 +179,30 @@ const SessionDetailsPage: React.FC = () => {
       setError('Failed to download report');
     } finally {
       setDownloadingReport(false);
+    }
+  };
+
+  const handleManualCheckOut = async (attendanceId: number, subscriberName: string) => {
+    try {
+      setCheckingOut(attendanceId);
+      setError(null);
+
+      // Call API to manually check out the subscriber
+      await ApiService.put(`/api/attendance/${attendanceId}/checkout`);
+
+      // Refresh session details to show updated data
+      if (sessionId) {
+        await fetchSessionDetails(parseInt(sessionId));
+      }
+
+      // Show success message (you could add a success state if needed)
+      console.log(`Successfully checked out ${subscriberName}`);
+
+    } catch (err: any) {
+      console.error('Failed to check out subscriber:', err);
+      setError(`Failed to check out ${subscriberName}. Please try again.`);
+    } finally {
+      setCheckingOut(null);
     }
   };
 
@@ -393,10 +420,12 @@ const SessionDetailsPage: React.FC = () => {
                   <TableRow>
                     <TableCell>Attendee</TableCell>
                     <TableCell>Check-in Time</TableCell>
+                    <TableCell>Check-in Method</TableCell>
                     <TableCell>Check-out Time</TableCell>
-                    <TableCell>Method</TableCell>
+                    <TableCell>Check-out Method</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Duration</TableCell>
+                    <TableCell align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -418,17 +447,29 @@ const SessionDetailsPage: React.FC = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
+                        <Chip
+                          label={CHECK_IN_METHODS.find(m => m.value === attendee.checkInMethod)?.label || attendee.checkInMethod || 'Unknown'}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                        />
+                      </TableCell>
+                      <TableCell>
                         <Typography variant="body2">
                           {attendee.checkOutTime ? formatTime(attendee.checkOutTime) : '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={CHECK_IN_METHODS.find(m => m.value === attendee.checkInMethod)?.label || attendee.checkInMethod || 'Unknown'}
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                        />
+                        {attendee.checkOutMethod ? (
+                          <Chip
+                            label={CHECK_IN_METHODS.find(m => m.value === attendee.checkOutMethod)?.label || attendee.checkOutMethod}
+                            size="small"
+                            variant="outlined"
+                            color="secondary"
+                          />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">-</Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -440,11 +481,30 @@ const SessionDetailsPage: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {attendee.checkOutTime 
+                          {attendee.checkOutTime
                             ? calculateDuration(attendee.checkInTime, attendee.checkOutTime)
                             : calculateDuration(attendee.checkInTime)
                           }
                         </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        {attendee.status === 'checked_in' && session.status === 'active' ? (
+                          <Button
+                            variant="outlined"
+                            color="warning"
+                            size="small"
+                            startIcon={checkingOut === attendee.id ? <CircularProgress size={16} /> : <CheckCircle />}
+                            onClick={() => handleManualCheckOut(attendee.id, attendee.subscriberName)}
+                            disabled={checkingOut === attendee.id}
+                            sx={{ minWidth: 'auto' }}
+                          >
+                            {checkingOut === attendee.id ? 'Checking Out...' : 'Check Out'}
+                          </Button>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

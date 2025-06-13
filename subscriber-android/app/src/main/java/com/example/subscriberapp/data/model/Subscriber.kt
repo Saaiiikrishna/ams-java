@@ -26,7 +26,8 @@ data class Session(
     val name: String,
     val description: String?,
     val startTime: String,
-    val allowedMethods: List<String>
+    val allowedMethods: List<String>,
+    val isActive: Boolean = true
 ) : Parcelable
 
 data class LoginRequest(

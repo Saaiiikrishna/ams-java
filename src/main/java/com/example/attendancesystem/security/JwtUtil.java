@@ -92,4 +92,22 @@ public class JwtUtil {
             return false;
         }
     }
+
+    public Boolean isSubscriberToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            String tokenType = (String) claims.get("tokenType");
+            return "SUBSCRIBER_ACCESS".equals(tokenType);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Boolean isTokenValid(String token) {
+        try {
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

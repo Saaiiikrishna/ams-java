@@ -123,6 +123,7 @@ public class NfcController {
             if (existingLog.getCheckOutTime() == null) {
                 // Already checked in, so check out
                 existingLog.setCheckOutTime(LocalDateTime.now());
+                existingLog.setCheckOutMethod(CheckInMethod.NFC);
                 AttendanceLog updatedLog = attendanceLogRepository.save(existingLog);
                 logger.info("Check-out successful - Subscriber: {} {}, Session: {}",
                            subscriber.getFirstName(), subscriber.getLastName(), targetSession.getName());
@@ -131,7 +132,9 @@ public class NfcController {
                     "action", "CHECK_OUT",
                     "time", updatedLog.getCheckOutTime(),
                     "subscriber", subscriber.getFirstName() + " " + subscriber.getLastName(),
-                    "session", targetSession.getName()
+                    "session", targetSession.getName(),
+                    "checkInMethod", updatedLog.getCheckInMethod().toString(),
+                    "checkOutMethod", "NFC"
                 ));
             } else {
                 // Already checked in and out, prevent re-check-in to same log.
@@ -148,6 +151,7 @@ public class NfcController {
             newLog.setSubscriber(subscriber);
             newLog.setSession(targetSession);
             newLog.setCheckInTime(LocalDateTime.now());
+            newLog.setCheckInMethod(CheckInMethod.NFC);
             // checkOutTime is null initially
             AttendanceLog savedLog = attendanceLogRepository.save(newLog);
             logger.info("Check-in successful - Subscriber: {} {}, Session: {}",
@@ -157,7 +161,9 @@ public class NfcController {
                 "action", "CHECK_IN",
                 "time", savedLog.getCheckInTime(),
                 "subscriber", subscriber.getFirstName() + " " + subscriber.getLastName(),
-                "session", targetSession.getName()
+                "session", targetSession.getName(),
+                "checkInMethod", "NFC",
+                "checkOutMethod", (String) null
             ));
         }
     }

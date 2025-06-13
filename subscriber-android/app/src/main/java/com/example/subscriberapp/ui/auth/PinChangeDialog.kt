@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun PinChangeDialog(
     onDismiss: () -> Unit,
     onPinChanged: () -> Unit,
+    mobileNumber: String? = null,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     var currentPin by remember { mutableStateOf("") }
@@ -162,7 +163,11 @@ fun PinChangeDialog(
             Button(
                 onClick = {
                     if (newPin == confirmPin && currentPin.length == 4 && newPin.length == 4) {
-                        viewModel.updatePin(currentPin, newPin)
+                        if (mobileNumber != null) {
+                            viewModel.updatePinWithUserInfo(mobileNumber, currentPin, newPin)
+                        } else {
+                            viewModel.updatePin(currentPin, newPin)
+                        }
                     }
                 },
                 enabled = currentPin.length == 4 && 

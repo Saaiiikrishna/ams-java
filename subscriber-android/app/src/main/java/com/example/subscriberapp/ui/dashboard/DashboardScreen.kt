@@ -1,14 +1,24 @@
 package com.example.subscriberapp.ui.dashboard
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -20,8 +30,8 @@ import com.example.subscriberapp.ui.auth.AuthViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    authViewModel: AuthViewModel,
     onLogout: () -> Unit,
-    authViewModel: AuthViewModel = hiltViewModel(),
     dashboardViewModel: DashboardViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -54,6 +64,7 @@ fun DashboardScreen(
                 onNavigateToSessions = { navController.navigate("sessions") },
                 onNavigateToHistory = { navController.navigate("history") },
                 onNavigateToQrScanner = { navController.navigate("qr_scanner") },
+                onNavigateToWifiCheckIn = { navController.navigate("wifi_checkin") },
                 onLogout = onLogout,
                 onRefresh = {
                     currentUser?.let { user ->
@@ -83,12 +94,25 @@ fun DashboardScreen(
         composable("history") {
             AttendanceHistoryScreen(
                 dashboardViewModel = dashboardViewModel,
+                currentUser = currentUser,
+                currentOrganization = currentOrganization,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
         
         composable("qr_scanner") {
-            QrScannerScreen(
+            EnhancedQrScannerScreen(
+                currentUser = currentUser,
+                currentOrganization = currentOrganization,
+                dashboardViewModel = dashboardViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("wifi_checkin") {
+            WifiCheckInScreen(
+                currentUser = currentUser,
+                currentOrganization = currentOrganization,
                 dashboardViewModel = dashboardViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -106,6 +130,7 @@ fun MainDashboardContent(
     onNavigateToSessions: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToQrScanner: () -> Unit,
+    onNavigateToWifiCheckIn: () -> Unit,
     onLogout: () -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -144,13 +169,37 @@ fun MainDashboardContent(
                 )
             }
 
+            // Current Check-In Status Card
+            dashboardState.currentCheckInStatus?.let { checkInStatus ->
+                item {
+                    CurrentCheckInStatusCard(
+                        checkInStatus = checkInStatus,
+                        onCheckOut = { method ->
+                            currentUser?.let { user ->
+                                currentOrganization?.let { org ->
+                                    when (method) {
+                                        "QR" -> onNavigateToQrScanner()
+                                        "WiFi" -> onNavigateToWifiCheckIn()
+                                        else -> {
+                                            // For NFC and other methods, show info
+                                            // Could implement specific check-out flows
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+
             // Quick Actions
             item {
                 QuickActionsCard(
                     onNavigateToProfile = onNavigateToProfile,
                     onNavigateToSessions = onNavigateToSessions,
                     onNavigateToHistory = onNavigateToHistory,
-                    onNavigateToQrScanner = onNavigateToQrScanner
+                    onNavigateToQrScanner = onNavigateToQrScanner,
+                    onNavigateToWifiCheckIn = onNavigateToWifiCheckIn
                 )
             }
 
@@ -236,26 +285,80 @@ fun WelcomeCard(
     userName: String,
     organizationName: String
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+    // Animation for welcome card
+    val scale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
         )
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.secondary
+                        )
+                    )
+                )
         ) {
-            Text(
-                text = "Welcome back, $userName!",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Text(
-                text = organizationName,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Welcome back,",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                    Text(
+                        text = userName,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = organizationName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = Color.White
+                    )
+                }
+            }
         }
     }
 }
@@ -265,7 +368,8 @@ fun QuickActionsCard(
     onNavigateToProfile: () -> Unit,
     onNavigateToSessions: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onNavigateToQrScanner: () -> Unit
+    onNavigateToQrScanner: () -> Unit,
+    onNavigateToWifiCheckIn: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -280,6 +384,7 @@ fun QuickActionsCard(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
             
+            // First row of actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -290,10 +395,24 @@ fun QuickActionsCard(
                     onClick = onNavigateToQrScanner
                 )
                 QuickActionButton(
+                    icon = Icons.Default.Wifi,
+                    label = "WiFi Check-In",
+                    onClick = onNavigateToWifiCheckIn
+                )
+                QuickActionButton(
                     icon = Icons.Default.EventAvailable,
                     label = "Sessions",
                     onClick = onNavigateToSessions
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Second row of actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 QuickActionButton(
                     icon = Icons.Default.History,
                     label = "History",
@@ -304,6 +423,8 @@ fun QuickActionsCard(
                     label = "Profile",
                     onClick = onNavigateToProfile
                 )
+                // Empty space for symmetry
+                Spacer(modifier = Modifier.width(56.dp))
             }
         }
     }
@@ -315,23 +436,162 @@ fun QuickActionButton(
     label: String,
     onClick: () -> Unit
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) {
+                onClick()
+            }
     ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(48.dp)
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
         }
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
         )
+    }
+
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            kotlinx.coroutines.delay(100)
+            isPressed = false
+        }
+    }
+}
+
+@Composable
+fun CurrentCheckInStatusCard(
+    checkInStatus: CheckInStatus,
+    onCheckOut: (String) -> Unit
+) {
+    val timeAgo = remember(checkInStatus.checkInTime) {
+        // Simple time ago calculation - you can enhance this
+        "Active now"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.tertiary,
+                            MaterialTheme.colorScheme.primary
+                        )
+                    )
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Currently Checked In",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = checkInStatus.sessionName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = when (checkInStatus.checkInMethod) {
+                                    "QR" -> Icons.Default.QrCodeScanner
+                                    "WiFi" -> Icons.Default.Wifi
+                                    "NFC" -> Icons.Default.Nfc
+                                    else -> Icons.Default.CheckCircle
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.White.copy(alpha = 0.9f)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "${checkInStatus.checkInMethod} • $timeAgo",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
+
+                    // Check-out button
+                    Button(
+                        onClick = { onCheckOut(checkInStatus.checkInMethod) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.2f),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Check Out",
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -408,7 +668,7 @@ fun AttendanceCard(attendance: AttendanceRecord) {
                 horizontalAlignment = Alignment.End
             ) {
                 Text(
-                    text = attendance.method,
+                    text = attendance.checkInMethod,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium
                 )

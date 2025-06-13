@@ -39,6 +39,7 @@ import {
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+
 import ApiService from '../services/ApiService';
 
 interface ScheduledSession {
@@ -141,7 +142,7 @@ const ScheduledSessionsPage: React.FC = () => {
 
       const sessionData = {
         ...formData,
-        startTime: formData.startTime.toTimeString().slice(0, 5), // HH:mm format
+        startTime: formData.startTime?.toTimeString().slice(0, 5), // HH:mm format
         active: editingSession ? editingSession.active : true, // Preserve active status for updates, default to true for new sessions
       };
 
@@ -415,7 +416,7 @@ const ScheduledSessionsPage: React.FC = () => {
                   <TimePicker
                     label="Start Time"
                     value={formData.startTime}
-                    onChange={(newValue) => setFormData({ ...formData, startTime: newValue })}
+                    onChange={(newValue: Date | null) => setFormData({ ...formData, startTime: newValue })}
                     slotProps={{
                       textField: {
                         fullWidth: true,

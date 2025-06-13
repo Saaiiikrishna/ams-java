@@ -4,7 +4,11 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "attendance_logs")
+@Table(name = "attendance_logs",
+       uniqueConstraints = @UniqueConstraint(
+           columnNames = {"subscriber_id", "session_id"},
+           name = "uk_subscriber_session"
+       ))
 public class AttendanceLog {
 
     @Id
@@ -27,6 +31,10 @@ public class AttendanceLog {
     @Enumerated(EnumType.STRING)
     @Column(name = "checkin_method", nullable = false)
     private CheckInMethod checkInMethod = CheckInMethod.NFC; // Default to NFC for backward compatibility
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "checkout_method")
+    private CheckInMethod checkOutMethod; // Track check-out method separately
 
     @Column(name = "device_info")
     private String deviceInfo; // Store device information for mobile check-ins
@@ -91,6 +99,14 @@ public class AttendanceLog {
 
     public void setCheckInMethod(CheckInMethod checkInMethod) {
         this.checkInMethod = checkInMethod;
+    }
+
+    public CheckInMethod getCheckOutMethod() {
+        return checkOutMethod;
+    }
+
+    public void setCheckOutMethod(CheckInMethod checkOutMethod) {
+        this.checkOutMethod = checkOutMethod;
     }
 
     public String getDeviceInfo() {

@@ -186,6 +186,9 @@ fun QrCodeCameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+
+    // Debug logging
+    android.util.Log.d("QrScanner", "QrCodeCameraPreview initialized")
     var lastScannedCode by remember { mutableStateOf<String?>(null) }
     var lastScanTime by remember { mutableStateOf(0L) }
 
@@ -195,19 +198,24 @@ fun QrCodeCameraPreview(
             val executor = ContextCompat.getMainExecutor(ctx)
             
             cameraProviderFuture.addListener({
+                android.util.Log.d("QrScanner", "Camera provider listener triggered")
                 val cameraProvider = cameraProviderFuture.get()
-                
+                android.util.Log.d("QrScanner", "Camera provider obtained")
+
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
+                android.util.Log.d("QrScanner", "Preview configured")
 
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
 
                 val barcodeScanner = BarcodeScanning.getClient()
+                android.util.Log.d("QrScanner", "Barcode scanner initialized")
 
                 imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                    android.util.Log.d("QrScanner", "Image analysis frame received")
                     val mediaImage = imageProxy.image
                     if (mediaImage != null) {
                         val image = InputImage.fromMediaImage(
@@ -217,17 +225,33 @@ fun QrCodeCameraPreview(
                         
                         barcodeScanner.process(image)
                             .addOnSuccessListener { barcodes ->
+                                android.util.Log.d("QrScanner", "Barcodes detected: ${barcodes.size}")
                                 for (barcode in barcodes) {
-                                    barcode.rawValue?.let { qrCode ->
+                                    android.util.Log.d("QrScanner", "Barcode format: ${barcode.format}")
+                                    android.util.Log.d("QrScanner", "Barcode raw value: ${barcode.rawValue}")
+                                    barcode.rawValue?.let { rawQrCode ->
                                         val currentTime = System.currentTimeMillis()
+                                        android.util.Log.d("QrScanner", "QR Code detected: $rawQrCode")
+
+                                        // Extract QR parameter from URL if it's in the expected format
+                                        val qrCode = extractQrParameter(rawQrCode)
+                                        android.util.Log.d("QrScanner", "Extracted QR parameter: $qrCode")
+
                                         // Prevent duplicate scans within 2 seconds
                                         if (qrCode != lastScannedCode || currentTime - lastScanTime > 2000) {
                                             lastScannedCode = qrCode
                                             lastScanTime = currentTime
+                                            android.util.Log.d("QrScanner", "Processing QR Code: $qrCode")
                                             onQrCodeScanned(qrCode)
+                                        } else {
+                                            android.util.Log.d("QrScanner", "Duplicate QR Code ignored")
                                         }
                                     }
                                 }
+                            }
+                            .addOnFailureListener { exception ->
+                                android.util.Log.e("QrScanner", "Barcode scanning failed", exception)
+                                imageProxy.close()
                             }
                             .addOnCompleteListener {
                                 imageProxy.close()
@@ -241,14 +265,16 @@ fun QrCodeCameraPreview(
 
                 try {
                     cameraProvider.unbindAll()
+                    android.util.Log.d("QrScanner", "Binding camera to lifecycle")
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
                         preview,
                         imageAnalysis
                     )
+                    android.util.Log.d("QrScanner", "Camera bound successfully")
                 } catch (exc: Exception) {
-                    // Handle camera binding errors
+                    android.util.Log.e("QrScanner", "Camera binding failed", exc)
                 }
             }, executor)
             
@@ -256,6 +282,28 @@ fun QrCodeCameraPreview(
         },
         modifier = modifier
     )
+}
+
+/**
+ * Extract QR parameter from URL format: ams://checkin?qr=<encoded_data>
+ * Returns the encoded_data part, or the original string if not in expected format
+ */
+private fun extractQrParameter(rawQrCode: String): String {
+    return try {
+        if (rawQrCode.startsWith("ams://checkin?qr=")) {
+            // Extract the parameter after "qr="
+            val qrParam = rawQrCode.substringAfter("qr=")
+            android.util.Log.d("QrScanner", "Extracted QR parameter from URL: $qrParam")
+            qrParam
+        } else {
+            // If not in expected URL format, return as-is (might be direct encoded data)
+            android.util.Log.d("QrScanner", "QR code not in URL format, using as-is: $rawQrCode")
+            rawQrCode
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("QrScanner", "Error extracting QR parameter: ${e.message}")
+        rawQrCode // Return original on error
+    }
 }
 
 @Composable

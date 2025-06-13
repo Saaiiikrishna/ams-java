@@ -20,14 +20,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel,
+    onLoginSuccess: () -> Unit
 ) {
     var mobileNumber by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
     
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by authViewModel.uiState.collectAsState()
     
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
@@ -105,7 +105,7 @@ fun LoginScreen(
         // Login Button
         Button(
             onClick = {
-                viewModel.loginWithPin(mobileNumber, pin)
+                authViewModel.loginWithPin(mobileNumber, pin)
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = mobileNumber.isNotBlank() && pin.length == 4 && !uiState.isLoading

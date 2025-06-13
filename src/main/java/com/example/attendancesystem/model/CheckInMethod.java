@@ -8,7 +8,8 @@ public enum CheckInMethod {
     QR("QR Code Scan"),
     BLUETOOTH("Bluetooth Proximity"),
     WIFI("WiFi Network"),
-    MOBILE_NFC("Mobile NFC Scan");
+    MOBILE_NFC("Mobile NFC Scan"),
+    MANUAL("Manual Check-out");
 
     private final String displayName;
 

@@ -3,6 +3,7 @@ package com.example.subscriberapp.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.subscriberapp.data.api.ApiService
+import com.example.subscriberapp.data.TokenManager
 import com.example.subscriberapp.data.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -131,6 +133,9 @@ class AuthViewModel @Inject constructor(
         android.util.Log.d("AuthViewModel", "Response - User: ${loginResponse.subscriber.firstName} ${loginResponse.subscriber.lastName}")
         android.util.Log.d("AuthViewModel", "Response - Organization: ${loginResponse.organization.name}")
 
+        // Save token to TokenManager for API requests
+        tokenManager.saveToken(loginResponse.token)
+
         _authToken.value = loginResponse.token
         _currentUser.value = loginResponse.subscriber
         _currentOrganization.value = loginResponse.organization
@@ -151,10 +156,13 @@ class AuthViewModel @Inject constructor(
     fun updatePin(currentPin: String, newPin: String) {
         viewModelScope.launch {
             try {
+                android.util.Log.d("AuthViewModel", "updatePin called")
                 _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
                 val currentUserValue = _currentUser.value
+                android.util.Log.d("AuthViewModel", "Current user in updatePin: $currentUserValue")
                 if (currentUserValue == null) {
+                    android.util.Log.e("AuthViewModel", "User not logged in - currentUser is null")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "User not logged in"
@@ -168,20 +176,68 @@ class AuthViewModel @Inject constructor(
                     "newPin" to newPin
                 )
 
+                android.util.Log.d("AuthViewModel", "Sending PIN update request: $request")
                 val response = apiService.updatePin(request)
+                android.util.Log.d("AuthViewModel", "PIN update response code: ${response.code()}")
 
                 if (response.isSuccessful) {
+                    android.util.Log.d("AuthViewModel", "PIN updated successfully")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         successMessage = "PIN updated successfully"
                     )
                 } else {
+                    val errorBody = response.errorBody()?.string()
+                    android.util.Log.e("AuthViewModel", "PIN update failed: ${response.code()} - ${response.message()}")
+                    android.util.Log.e("AuthViewModel", "Error body: $errorBody")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "Failed to update PIN: ${response.message()}"
                     )
                 }
             } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "PIN update exception", e)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Network error: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun updatePinWithUserInfo(mobileNumber: String, currentPin: String, newPin: String) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("AuthViewModel", "updatePinWithUserInfo called for mobile: $mobileNumber")
+                _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+                val request = mapOf(
+                    "mobileNumber" to mobileNumber,
+                    "currentPin" to currentPin,
+                    "newPin" to newPin
+                )
+
+                android.util.Log.d("AuthViewModel", "Sending PIN update request: $request")
+                val response = apiService.updatePin(request)
+                android.util.Log.d("AuthViewModel", "PIN update response code: ${response.code()}")
+
+                if (response.isSuccessful) {
+                    android.util.Log.d("AuthViewModel", "PIN updated successfully")
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        successMessage = "PIN updated successfully"
+                    )
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    android.util.Log.e("AuthViewModel", "PIN update failed: ${response.code()} - ${response.message()}")
+                    android.util.Log.e("AuthViewModel", "Error body: $errorBody")
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Failed to update PIN: ${response.message()}"
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "PIN update exception", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Network error: ${e.message}"
@@ -191,6 +247,9 @@ class AuthViewModel @Inject constructor(
     }
 
     fun logout() {
+        // Clear token from TokenManager
+        tokenManager.clearToken()
+
         _authToken.value = null
         _currentUser.value = null
         _currentOrganization.value = null

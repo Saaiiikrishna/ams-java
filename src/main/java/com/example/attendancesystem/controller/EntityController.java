@@ -454,6 +454,7 @@ public class EntityController {
                     attendee.put("checkInTime", log.getCheckInTime());
                     attendee.put("checkOutTime", log.getCheckOutTime());
                     attendee.put("checkinMethod", log.getCheckInMethod() != null ? log.getCheckInMethod().toString() : null);
+                    attendee.put("checkoutMethod", log.getCheckOutMethod() != null ? log.getCheckOutMethod().toString() : null);
                     attendee.put("status", log.getCheckOutTime() != null ? "checked_out" : "checked_in");
 
                     // Add subscriber details for better display
@@ -471,6 +472,64 @@ public class EntityController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(List.of(Map.of("error", "Failed to fetch session attendance")));
+        }
+    }
+
+    /**
+     * Manual check-out for entity admins
+     */
+    @PutMapping("/attendance/{attendanceId}/checkout")
+    public ResponseEntity<?> manualCheckOut(@PathVariable Long attendanceId) {
+        try {
+            logger.info("Manual check-out request for attendance ID: {}", attendanceId);
+
+            Organization organization = getCurrentOrganization();
+
+            Optional<AttendanceLog> attendanceOpt = attendanceLogRepository.findById(attendanceId);
+            if (attendanceOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Attendance record not found"));
+            }
+
+            AttendanceLog attendance = attendanceOpt.get();
+
+            // Verify the attendance belongs to this organization
+            if (!attendance.getSession().getOrganization().getEntityId().equals(organization.getEntityId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access denied to this attendance record"));
+            }
+
+            // Check if already checked out
+            if (attendance.getCheckOutTime() != null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "Subscriber is already checked out"));
+            }
+
+            // Perform check-out
+            attendance.setCheckOutTime(LocalDateTime.now());
+            attendance.setCheckOutMethod(CheckInMethod.MANUAL); // Add MANUAL to CheckInMethod enum
+            attendanceLogRepository.save(attendance);
+
+            logger.info("Manual check-out successful - Subscriber: {} {}, Session: {}, Attendance ID: {}",
+                    attendance.getSubscriber().getFirstName(),
+                    attendance.getSubscriber().getLastName(),
+                    attendance.getSession().getName(),
+                    attendanceId);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Successfully checked out subscriber",
+                    "subscriberName", attendance.getSubscriber().getFirstName() + " " + attendance.getSubscriber().getLastName(),
+                    "sessionName", attendance.getSession().getName(),
+                    "checkOutTime", attendance.getCheckOutTime(),
+                    "checkInMethod", attendance.getCheckInMethod().toString(),
+                    "checkOutMethod", "MANUAL",
+                    "action", "MANUAL_CHECK_OUT"
+            ));
+
+        } catch (Exception e) {
+            logger.error("Manual check-out failed for attendance ID {}: {}", attendanceId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to check out subscriber: " + e.getMessage()));
         }
     }
 

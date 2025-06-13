@@ -14,9 +14,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -202,30 +204,52 @@ public class SubscriberController {
             Subscriber subscriber = subscriberRepository.findByMobileNumberAndOrganizationEntityId(mobileNumber, entityId)
                     .orElseThrow(() -> new RuntimeException("Subscriber not found"));
 
-            // Find session by QR code
-            AttendanceSession session = attendanceSessionRepository.findByQrCodeAndEndTimeIsNull(qrCode)
+            logger.info("QR Check-in attempt - Mobile: {}, EntityId: {}, QR: {}", mobileNumber, entityId, qrCode);
+            logger.info("Subscriber found - ID: {}, Name: {} {}, Org EntityId: {}",
+                    subscriber.getId(), subscriber.getFirstName(), subscriber.getLastName(),
+                    subscriber.getOrganization().getEntityId());
+
+            // Find session by QR code using flexible matching
+            AttendanceSession session = findSessionByQrCode(qrCode)
                     .orElseThrow(() -> new RuntimeException("Invalid or expired QR code"));
+
+            logger.info("Session found - ID: {}, Name: {}, Org EntityId: {}",
+                    session.getId(), session.getName(), session.getOrganization().getEntityId());
 
             // Check if session belongs to subscriber's organization
             if (!session.getOrganization().getEntityId().equals(entityId)) {
+                logger.error("Entity ID mismatch - Subscriber EntityId: {}, Session EntityId: {}, Request EntityId: {}",
+                        subscriber.getOrganization().getEntityId(), session.getOrganization().getEntityId(), entityId);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "QR code does not belong to your organization"));
             }
 
-            // Check if already checked in
+            // Check if already checked in to this session
             AttendanceLog existingLog = attendanceLogRepository
                     .findBySubscriberAndSessionAndCheckOutTimeIsNull(subscriber, session);
+
+            // Also check if there's any attendance record for this subscriber-session combination
+            List<AttendanceLog> allLogsForSession = attendanceLogRepository
+                    .findBySubscriberAndSession(subscriber, session);
+
+            if (!allLogsForSession.isEmpty() && existingLog == null) {
+                // Subscriber already has a completed attendance record for this session
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "You have already completed attendance for this session"));
+            }
 
             if (existingLog != null) {
                 // Check out
                 existingLog.setCheckOutTime(LocalDateTime.now());
+                existingLog.setCheckOutMethod(CheckInMethod.QR);
                 attendanceLogRepository.save(existingLog);
                 return ResponseEntity.ok(Map.of(
                         "action", "CHECK_OUT",
                         "message", "Successfully checked out",
                         "session", session.getName(),
                         "time", existingLog.getCheckOutTime(),
-                        "method", "QR"
+                        "checkInMethod", existingLog.getCheckInMethod().toString(),
+                        "checkOutMethod", "QR"
                 ));
             } else {
                 // Check in
@@ -241,7 +265,8 @@ public class SubscriberController {
                         "message", "Successfully checked in",
                         "session", session.getName(),
                         "time", newLog.getCheckInTime(),
-                        "method", "QR"
+                        "checkInMethod", "QR",
+                        "checkOutMethod", (String) null
                 ));
             }
 
@@ -317,7 +342,8 @@ public class SubscriberController {
         info.put("sessionName", log.getSession().getName());
         info.put("checkInTime", log.getCheckInTime());
         info.put("checkOutTime", log.getCheckOutTime());
-        info.put("method", log.getCheckInMethod() != null ? log.getCheckInMethod().toString() : "NFC");
+        info.put("checkInMethod", log.getCheckInMethod() != null ? log.getCheckInMethod().toString() : "NFC");
+        info.put("checkOutMethod", log.getCheckOutMethod() != null ? log.getCheckOutMethod().toString() : null);
         info.put("status", log.getCheckOutTime() != null ? "completed" : "active");
         return info;
     }
@@ -333,6 +359,179 @@ public class SubscriberController {
         info.put("allowedMethods", session.getAllowedCheckInMethods());
         info.put("isActive", session.getActive());
         return info;
+    }
+
+    /**
+     * Helper method to find session by QR code with flexible matching
+     * Handles both Base64 encoded QR codes and raw decoded strings
+     */
+    private Optional<AttendanceSession> findSessionByQrCode(String qrCode) {
+        // First try direct match (for raw QR codes)
+        Optional<AttendanceSession> session = attendanceSessionRepository.findByQrCodeAndEndTimeIsNull(qrCode);
+
+        if (session.isPresent()) {
+            return session;
+        }
+
+        // If not found, try Base64 encoding the input (in case DB stores encoded version)
+        try {
+            String encodedQrCode = Base64.getEncoder().encodeToString(qrCode.getBytes());
+            session = attendanceSessionRepository.findByQrCodeAndEndTimeIsNull(encodedQrCode);
+
+            if (session.isPresent()) {
+                return session;
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to encode QR code: {}", e.getMessage());
+        }
+
+        // If still not found, try Base64 decoding the input (in case input is encoded)
+        try {
+            String decodedQrCode = new String(Base64.getDecoder().decode(qrCode));
+            session = attendanceSessionRepository.findByQrCodeAndEndTimeIsNull(decodedQrCode);
+
+            if (session.isPresent()) {
+                return session;
+            }
+        } catch (Exception e) {
+            logger.debug("Failed to decode QR code: {}", e.getMessage());
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * WiFi check-in for mobile app
+     */
+    @PostMapping("/mobile/checkin/wifi")
+    public ResponseEntity<?> wifiCheckIn(@RequestBody Map<String, Object> request) {
+        try {
+            String mobileNumber = (String) request.get("mobileNumber");
+            String entityId = (String) request.get("entityId");
+            String wifiNetworkName = (String) request.get("wifiNetworkName");
+            String deviceInfo = (String) request.get("deviceInfo");
+
+            if (mobileNumber == null || entityId == null || wifiNetworkName == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "Mobile number, entity ID, and WiFi network name are required"));
+            }
+
+            Subscriber subscriber = subscriberRepository.findByMobileNumberAndOrganizationEntityId(mobileNumber, entityId)
+                    .orElseThrow(() -> new RuntimeException("Subscriber not found"));
+
+            logger.info("WiFi Check-in attempt - Mobile: {}, EntityId: {}, Network: {}",
+                       mobileNumber, entityId, wifiNetworkName);
+            logger.info("Subscriber found - ID: {}, Name: {} {}, Org EntityId: {}",
+                    subscriber.getId(), subscriber.getFirstName(), subscriber.getLastName(),
+                    subscriber.getOrganization().getEntityId());
+
+            // Find active session for the organization
+            List<AttendanceSession> activeSessions = attendanceSessionRepository
+                    .findByOrganizationAndEndTimeIsNull(subscriber.getOrganization());
+
+            if (activeSessions.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "No active session found for WiFi check-in"));
+            }
+
+            AttendanceSession session = activeSessions.get(0); // Get the first active session
+            logger.info("Active session found - ID: {}, Name: {}, Org EntityId: {}",
+                    session.getId(), session.getName(), session.getOrganization().getEntityId());
+
+            // Check if WiFi is allowed for this session
+            if (!session.getAllowedCheckInMethods().contains(CheckInMethod.WIFI)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "WiFi check-in not allowed for this session"));
+            }
+
+            // Validate WiFi network
+            if (!isAuthorizedWifiNetwork(wifiNetworkName)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                            "error", "Not connected to authorized WiFi network",
+                            "message", "Please connect to an authorized WiFi network to check in",
+                            "networkName", wifiNetworkName
+                        ));
+            }
+
+            // Check if already checked in to this session
+            AttendanceLog existingLog = attendanceLogRepository
+                    .findBySubscriberAndSessionAndCheckOutTimeIsNull(subscriber, session);
+
+            // Also check if there's any attendance record for this subscriber-session combination
+            List<AttendanceLog> allLogsForSession = attendanceLogRepository
+                    .findBySubscriberAndSession(subscriber, session);
+
+            if (!allLogsForSession.isEmpty() && existingLog == null) {
+                // Subscriber already has a completed attendance record for this session
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "You have already completed attendance for this session"));
+            }
+
+            if (existingLog != null) {
+                // Check out
+                existingLog.setCheckOutTime(LocalDateTime.now());
+                existingLog.setCheckOutMethod(CheckInMethod.WIFI);
+                attendanceLogRepository.save(existingLog);
+                return ResponseEntity.ok(Map.of(
+                        "action", "CHECK_OUT",
+                        "message", "Successfully checked out via WiFi",
+                        "session", session.getName(),
+                        "time", existingLog.getCheckOutTime(),
+                        "checkInMethod", existingLog.getCheckInMethod().toString(),
+                        "checkOutMethod", "WiFi",
+                        "networkName", wifiNetworkName
+                ));
+            } else {
+                // Check in
+                AttendanceLog newLog = new AttendanceLog();
+                newLog.setSubscriber(subscriber);
+                newLog.setSession(session);
+                newLog.setCheckInTime(LocalDateTime.now());
+                newLog.setCheckInMethod(CheckInMethod.WIFI);
+                newLog.setDeviceInfo(deviceInfo);
+                newLog.setLocationInfo("WIFI:" + wifiNetworkName);
+                attendanceLogRepository.save(newLog);
+
+                return ResponseEntity.ok(Map.of(
+                        "action", "CHECK_IN",
+                        "message", "Successfully checked in via WiFi",
+                        "session", session.getName(),
+                        "time", newLog.getCheckInTime(),
+                        "checkInMethod", "WiFi",
+                        "checkOutMethod", (String) null,
+                        "networkName", wifiNetworkName
+                ));
+            }
+
+        } catch (Exception e) {
+            logger.error("WiFi check-in failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Check-in failed: " + e.getMessage()));
+        }
+    }
+
+    private boolean isAuthorizedWifiNetwork(String networkName) {
+        if (networkName == null || networkName.trim().isEmpty()) {
+            return false;
+        }
+
+        // List of authorized network patterns for demo
+        String[] authorizedPatterns = {
+            "office", "company", "work", "corporate", "admin",
+            "church", "school", "organization", "entity", "wifi"
+        };
+
+        String lowerNetworkName = networkName.toLowerCase();
+
+        for (String pattern : authorizedPatterns) {
+            if (lowerNetworkName.contains(pattern)) {
+                return true;
+            }
+        }
+
+        // Also allow networks that are reasonably named (not random)
+        return lowerNetworkName.length() > 3 && !lowerNetworkName.matches(".*\\d{4,}.*");
     }
 
     /**
