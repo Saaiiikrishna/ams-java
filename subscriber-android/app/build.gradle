@@ -118,3 +118,27 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
+
+// Custom task to run the app after installation
+task runApp(type: Exec, dependsOn: 'installDebug') {
+    description 'Install and run the debug version of the app'
+    group 'application'
+
+    def adbPath = android.adbExecutable.absolutePath
+    commandLine adbPath, 'shell', 'am', 'start', '-n', 'com.example.subscriberapp/.ui.MainActivity'
+
+    doFirst {
+        println "Installing and starting the app..."
+    }
+
+    doLast {
+        println "App started successfully!"
+        println "You can now test the Wi-Fi functionality in the emulator."
+    }
+}
+
+// Task to build, install and run the app
+task buildAndRun(dependsOn: ['assembleDebug', 'runApp']) {
+    description 'Build, install and run the debug version of the app'
+    group 'application'
+}

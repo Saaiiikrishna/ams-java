@@ -24,10 +24,12 @@ public class QrCodeService {
     public String generateQrCodeForSession(AttendanceSession session) {
         try {
             // Create a unique identifier for this session
+            // Use a custom timestamp format without colons to avoid splitting issues
+            String timestamp = session.getStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ss.SSSSSS"));
             String sessionData = String.format("%d:%s:%s:%s",
                 session.getId(),
                 session.getOrganization().getEntityId(),
-                session.getStartTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                timestamp,
                 UUID.randomUUID().toString().substring(0, 8)
             );
 
@@ -53,12 +55,17 @@ public class QrCodeService {
      */
     public boolean validateQrCode(String qrCode, AttendanceSession session) {
         try {
+            logger.info("Validating QR code: '{}'", qrCode);
+
             // Decode the QR code
             String decodedData = new String(Base64.getDecoder().decode(qrCode));
+            logger.info("Decoded QR data: '{}'", decodedData);
+
             String[] parts = decodedData.split(":");
-            
+            logger.info("QR parts count: {}, Parts: {}", parts.length, String.join(" | ", parts));
+
             if (parts.length != 5) {
-                logger.warn("Invalid QR code format");
+                logger.warn("Invalid QR code format - expected 5 parts, got {}", parts.length);
                 return false;
             }
 
@@ -68,17 +75,23 @@ public class QrCodeService {
             String uuid = parts[3];
             String providedHash = parts[4];
 
+            logger.info("Parsed QR - SessionId: {}, EntityId: {}, Timestamp: {}, UUID: {}, Hash: {}",
+                       sessionId, entityId, timestamp, uuid, providedHash);
+            logger.info("Session details - ID: {}, EntityId: {}", session.getId(), session.getOrganization().getEntityId());
+
             // Verify session ID and entity ID match
-            if (!sessionId.equals(session.getId()) || 
+            if (!sessionId.equals(session.getId()) ||
                 !entityId.equals(session.getOrganization().getEntityId())) {
-                logger.warn("QR code session/entity mismatch");
+                logger.warn("QR code session/entity mismatch - QR SessionId: {}, Actual: {}, QR EntityId: {}, Actual: {}",
+                           sessionId, session.getId(), entityId, session.getOrganization().getEntityId());
                 return false;
             }
 
             // Verify hash
             String expectedHash = createSecureHash(parts[0] + ":" + parts[1] + ":" + parts[2] + ":" + parts[3]);
+            logger.info("Hash validation - Provided: {}, Expected: {}", providedHash, expectedHash);
             if (!expectedHash.equals(providedHash)) {
-                logger.warn("QR code hash validation failed");
+                logger.warn("QR code hash validation failed - Provided: {}, Expected: {}", providedHash, expectedHash);
                 return false;
             }
 

@@ -244,8 +244,9 @@ public class CheckInController {
             if (log.getCheckOutTime() == null) {
                 // Check out
                 log.setCheckOutTime(LocalDateTime.now());
+                log.setCheckOutMethod(method); // Set the checkout method
                 attendanceLogRepository.save(log);
-                
+
                 return ResponseEntity.ok(Map.of(
                         "action", "CHECK_OUT",
                         "message", "Checked out successfully",

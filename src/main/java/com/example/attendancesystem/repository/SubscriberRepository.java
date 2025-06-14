@@ -40,4 +40,34 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
 
     @Query("SELECT COUNT(s) FROM Subscriber s WHERE s.organization.entityId = :entityId")
     long countByOrganizationEntityId(@Param("entityId") String entityId);
+
+    // Face recognition related methods
+
+    /**
+     * Find subscribers with face encoding registered for an organization
+     */
+    List<Subscriber> findByOrganizationAndFaceEncodingIsNotNull(Organization organization);
+
+    /**
+     * Find subscribers with face encoding by entity ID
+     */
+    @Query("SELECT s FROM Subscriber s WHERE s.organization.entityId = :entityId AND s.faceEncoding IS NOT NULL")
+    List<Subscriber> findByOrganizationEntityIdAndFaceEncodingIsNotNull(@Param("entityId") String entityId);
+
+    /**
+     * Count subscribers with face recognition enabled for an organization
+     */
+    @Query("SELECT COUNT(s) FROM Subscriber s WHERE s.organization.entityId = :entityId AND s.faceEncoding IS NOT NULL")
+    long countByOrganizationEntityIdAndFaceEncodingIsNotNull(@Param("entityId") String entityId);
+
+    /**
+     * Find subscribers without face encoding for an organization
+     */
+    List<Subscriber> findByOrganizationAndFaceEncodingIsNull(Organization organization);
+
+    /**
+     * Check if subscriber has face recognition enabled
+     */
+    @Query("SELECT CASE WHEN s.faceEncoding IS NOT NULL THEN true ELSE false END FROM Subscriber s WHERE s.id = :subscriberId")
+    boolean hasFaceRecognitionEnabled(@Param("subscriberId") Long subscriberId);
 }

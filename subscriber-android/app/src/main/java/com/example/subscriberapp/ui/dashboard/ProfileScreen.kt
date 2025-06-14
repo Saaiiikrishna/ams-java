@@ -75,40 +75,7 @@ fun ProfileScreen(
             )
         }
     ) { paddingValues ->
-
-        // Success message overlay
-        AnimatedVisibility(
-            visible = showSuccessMessage,
-            enter = slideInVertically() + fadeIn(),
-            exit = slideOutVertically() + fadeOut()
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = successMessage,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
+        Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -346,6 +313,53 @@ fun ProfileScreen(
                                 textAlign = TextAlign.Center
                             )
                         }
+                    }
+                }
+            }
+        }
+
+            // Success message overlay positioned at the bottom
+            AnimatedVisibility(
+                visible = showSuccessMessage,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(500, easing = EaseOutBack)
+                ) + fadeIn(),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(300)
+                ) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = successMessage,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 }
             }

@@ -22,9 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.subscriberapp.ui.auth.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,7 +89,15 @@ fun DashboardScreen(
         composable("sessions") {
             SessionsScreen(
                 dashboardViewModel = dashboardViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToQrScanner = { sessionId ->
+                    navController.navigate("qr_scanner?sessionId=$sessionId")
+                },
+                onNavigateToWifiCheckIn = { sessionId ->
+                    navController.navigate("wifi_checkin?sessionId=$sessionId")
+                },
+                currentUser = currentUser,
+                currentOrganization = currentOrganization
             )
         }
         
@@ -100,21 +110,85 @@ fun DashboardScreen(
             )
         }
         
-        composable("qr_scanner") {
-            EnhancedQrScannerScreen(
+        composable(
+            "qr_scanner?sessionId={sessionId}",
+            arguments = listOf(navArgument("sessionId") {
+                type = NavType.StringType
+                defaultValue = ""
+            })
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId")?.toLongOrNull()
+
+            // Clear any previous messages when entering QR scanner
+            LaunchedEffect(Unit) {
+                dashboardViewModel.clearMessages()
+            }
+
+            CleanQrScannerScreen(
                 currentUser = currentUser,
                 currentOrganization = currentOrganization,
                 dashboardViewModel = dashboardViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                selectedSessionId = sessionId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToResult = { isSuccess, sessionName, message, method ->
+                    navController.navigate("check_in_result/$isSuccess/$sessionName/$message/$method") {
+                        popUpTo("qr_scanner") { inclusive = true }
+                    }
+                }
             )
         }
 
-        composable("wifi_checkin") {
+        composable(
+            "wifi_checkin?sessionId={sessionId}",
+            arguments = listOf(navArgument("sessionId") {
+                type = NavType.StringType
+                defaultValue = ""
+            })
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId")?.toLongOrNull()
+
+            // Clear any previous messages when entering WiFi check-in
+            LaunchedEffect(Unit) {
+                dashboardViewModel.clearMessages()
+            }
+
             WifiCheckInScreen(
                 currentUser = currentUser,
                 currentOrganization = currentOrganization,
                 dashboardViewModel = dashboardViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                selectedSessionId = sessionId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToResult = { isSuccess, sessionName, message, method ->
+                    navController.navigate("check_in_result/$isSuccess/$sessionName/$message/$method") {
+                        popUpTo("wifi_checkin") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable("check_in_result/{isSuccess}/{sessionName}/{message}/{method}") { backStackEntry ->
+            val isSuccess = backStackEntry.arguments?.getString("isSuccess")?.toBoolean() ?: false
+            val sessionName = backStackEntry.arguments?.getString("sessionName") ?: "Session"
+            val message = backStackEntry.arguments?.getString("message") ?: ""
+            val method = backStackEntry.arguments?.getString("method") ?: "Unknown"
+
+            CheckInResultScreen(
+                isSuccess = isSuccess,
+                sessionName = sessionName,
+                message = message,
+                checkInMethod = method,
+                onDone = {
+                    // Clear messages and refresh dashboard when returning
+                    dashboardViewModel.clearMessages()
+                    currentUser?.let { user ->
+                        currentOrganization?.let { org ->
+                            dashboardViewModel.loadDashboard(user.mobileNumber, org.entityId)
+                        }
+                    }
+                    navController.navigate("main_dashboard") {
+                        popUpTo("main_dashboard") { inclusive = true }
+                    }
+                }
             )
         }
     }
@@ -169,26 +243,28 @@ fun MainDashboardContent(
                 )
             }
 
-            // Current Check-In Status Card
+            // Current Check-In Status Card - Only show if user is actually checked in
             dashboardState.currentCheckInStatus?.let { checkInStatus ->
-                item {
-                    CurrentCheckInStatusCard(
-                        checkInStatus = checkInStatus,
-                        onCheckOut = { method ->
-                            currentUser?.let { user ->
-                                currentOrganization?.let { org ->
-                                    when (method) {
-                                        "QR" -> onNavigateToQrScanner()
-                                        "WiFi" -> onNavigateToWifiCheckIn()
-                                        else -> {
-                                            // For NFC and other methods, show info
-                                            // Could implement specific check-out flows
+                if (checkInStatus.isCheckedIn) {
+                    item {
+                        CurrentCheckInStatusCard(
+                            checkInStatus = checkInStatus,
+                            onCheckOut = { method ->
+                                currentUser?.let { user ->
+                                    currentOrganization?.let { org ->
+                                        when (method) {
+                                            "QR" -> onNavigateToQrScanner()
+                                            "WiFi" -> onNavigateToWifiCheckIn()
+                                            else -> {
+                                                // For NFC and other methods, show info
+                                                // Could implement specific check-out flows
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
 
@@ -203,22 +279,7 @@ fun MainDashboardContent(
                 )
             }
 
-            // Active Sessions
-            if (dashboardState.activeSessions.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Active Sessions",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                
-                items(dashboardState.activeSessions) { session ->
-                    ActiveSessionCard(session = session)
-                }
-            }
-
-            // Recent Attendance
+            // Recent Attendance (moved up to replace active sessions)
             if (dashboardState.recentAttendance.isNotEmpty()) {
                 item {
                     Text(
@@ -227,11 +288,13 @@ fun MainDashboardContent(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                
-                items(dashboardState.recentAttendance.take(5)) { attendance ->
+
+                items(dashboardState.recentAttendance.take(3)) { attendance ->
                     AttendanceCard(attendance = attendance)
                 }
             }
+
+
 
             // Upcoming Sessions
             if (dashboardState.upcomingSessions.isNotEmpty()) {
@@ -550,19 +613,14 @@ fun CurrentCheckInStatusCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = when (checkInStatus.checkInMethod) {
-                                    "QR" -> Icons.Default.QrCodeScanner
-                                    "WiFi" -> Icons.Default.Wifi
-                                    "NFC" -> Icons.Default.Nfc
-                                    else -> Icons.Default.CheckCircle
-                                },
+                                imageVector = getMethodIcon(checkInStatus.checkInMethod),
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = Color.White.copy(alpha = 0.9f)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "${checkInStatus.checkInMethod} • $timeAgo",
+                                text = "${getMethodDisplayName(checkInStatus.checkInMethod)} • $timeAgo",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color.White.copy(alpha = 0.9f)
                             )
@@ -633,53 +691,104 @@ fun ActiveSessionCard(session: ActiveSession) {
 @Composable
 fun AttendanceCard(attendance: AttendanceRecord) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
+            // Session name and status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = attendance.sessionName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = "Check-in: ${attendance.checkInTime}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                attendance.checkOutTime?.let { checkOut ->
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (attendance.status == "completed")
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Text(
-                        text = "Check-out: $checkOut",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = attendance.status.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (attendance.status == "completed")
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        else
+                            MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            Column(
-                horizontalAlignment = Alignment.End
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Check-in information
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = attendance.checkInMethod,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium
+                Icon(
+                    imageVector = getMethodIcon(attendance.checkInMethod),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
-                Text(
-                    text = attendance.status.uppercase(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (attendance.status == "completed")
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.secondary
-                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Column {
+                    Text(
+                        text = "Check-in: ${attendance.checkInTime}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Method: ${getMethodDisplayName(attendance.checkInMethod)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Check-out information (if available)
+            attendance.checkOutTime?.let { checkOut ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = getMethodIcon(attendance.checkOutMethod ?: attendance.checkInMethod),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Column {
+                        Text(
+                            text = "Check-out: $checkOut",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Method: ${getMethodDisplayName(attendance.checkOutMethod ?: attendance.checkInMethod)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
             }
         }
     }
@@ -722,5 +831,38 @@ fun UpcomingSessionCard(session: UpcomingSession) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+// Helper functions for method display
+fun getMethodIcon(method: String?): androidx.compose.ui.graphics.vector.ImageVector {
+    return when {
+        method == null -> Icons.Default.CheckCircle
+        method.contains("NFC", ignoreCase = true) -> Icons.Default.Nfc
+        method.contains("QR", ignoreCase = true) -> Icons.Default.QrCodeScanner
+        method.contains("WiFi", ignoreCase = true) || method.contains("WIFI", ignoreCase = true) -> Icons.Default.Wifi
+        method.contains("Bluetooth", ignoreCase = true) || method.contains("BLUETOOTH", ignoreCase = true) -> Icons.Default.Bluetooth
+        method.contains("Manual", ignoreCase = true) || method.contains("MANUAL", ignoreCase = true) -> Icons.Default.TouchApp
+        else -> Icons.Default.CheckCircle
+    }
+}
+
+fun getMethodDisplayName(method: String?): String {
+    return when {
+        method == null -> "Unknown"
+        method.contains("NFC Card", ignoreCase = true) -> "NFC Card"
+        method.contains("QR Code", ignoreCase = true) -> "QR Code"
+        method.contains("WiFi", ignoreCase = true) -> "WiFi"
+        method.contains("Bluetooth", ignoreCase = true) -> "Bluetooth"
+        method.contains("Mobile NFC", ignoreCase = true) -> "Mobile NFC"
+        method.contains("Manual", ignoreCase = true) -> "Manual"
+        // Handle enum names as fallback
+        method.equals("NFC", ignoreCase = true) -> "NFC Card"
+        method.equals("QR", ignoreCase = true) -> "QR Code"
+        method.equals("WIFI", ignoreCase = true) -> "WiFi"
+        method.equals("BLUETOOTH", ignoreCase = true) -> "Bluetooth"
+        method.equals("MOBILE_NFC", ignoreCase = true) -> "Mobile NFC"
+        method.equals("MANUAL", ignoreCase = true) -> "Manual"
+        else -> method
     }
 }

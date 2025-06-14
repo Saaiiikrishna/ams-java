@@ -2,6 +2,7 @@ package com.example.attendancesystem.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
@@ -34,6 +35,21 @@ public class Subscriber {
 
     @OneToOne(mappedBy = "subscriber", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private NfcCard nfcCard;
+
+    @Column(name = "profile_photo_path", length = 500)
+    private String profilePhotoPath;
+
+    @Column(name = "face_encoding")
+    private byte[] faceEncoding;
+
+    @Column(name = "face_encoding_version", length = 20)
+    private String faceEncodingVersion = "1.0";
+
+    @Column(name = "face_registered_at")
+    private LocalDateTime faceRegisteredAt;
+
+    @Column(name = "face_updated_at")
+    private LocalDateTime faceUpdatedAt;
 
     // Getters and Setters
     public Long getId() {
@@ -98,5 +114,52 @@ public class Subscriber {
 
     public void setNfcCard(NfcCard nfcCard) {
         this.nfcCard = nfcCard;
+    }
+
+    public String getProfilePhotoPath() {
+        return profilePhotoPath;
+    }
+
+    public void setProfilePhotoPath(String profilePhotoPath) {
+        this.profilePhotoPath = profilePhotoPath;
+    }
+
+    public byte[] getFaceEncoding() {
+        return faceEncoding;
+    }
+
+    public void setFaceEncoding(byte[] faceEncoding) {
+        this.faceEncoding = faceEncoding;
+    }
+
+    public String getFaceEncodingVersion() {
+        return faceEncodingVersion;
+    }
+
+    public void setFaceEncodingVersion(String faceEncodingVersion) {
+        this.faceEncodingVersion = faceEncodingVersion;
+    }
+
+    public LocalDateTime getFaceRegisteredAt() {
+        return faceRegisteredAt;
+    }
+
+    public void setFaceRegisteredAt(LocalDateTime faceRegisteredAt) {
+        this.faceRegisteredAt = faceRegisteredAt;
+    }
+
+    public LocalDateTime getFaceUpdatedAt() {
+        return faceUpdatedAt;
+    }
+
+    public void setFaceUpdatedAt(LocalDateTime faceUpdatedAt) {
+        this.faceUpdatedAt = faceUpdatedAt;
+    }
+
+    /**
+     * Check if subscriber has face recognition enabled
+     */
+    public boolean hasFaceRecognition() {
+        return faceEncoding != null && faceEncoding.length > 0;
     }
 }

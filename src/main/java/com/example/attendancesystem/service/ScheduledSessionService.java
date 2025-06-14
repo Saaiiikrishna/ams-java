@@ -219,14 +219,16 @@ public class ScheduledSessionService {
         session.setScheduledSession(scheduledSession);
         session.setAllowedCheckInMethods(new HashSet<>(scheduledSession.getAllowedCheckInMethods()));
 
+        // Save session first to get an ID
+        AttendanceSession saved = attendanceSessionRepository.save(session);
+
         // Generate QR code if QR is an allowed method
         if (scheduledSession.getAllowedCheckInMethods().contains(CheckInMethod.QR)) {
-            String qrCode = qrCodeService.generateQrCodeForSession(session);
-            session.setQrCode(qrCode);
-            session.setQrCodeExpiry(endTime); // QR code expires when session ends
+            String qrCode = qrCodeService.generateQrCodeForSession(saved);
+            saved.setQrCode(qrCode);
+            saved.setQrCodeExpiry(endTime); // QR code expires when session ends
+            saved = attendanceSessionRepository.save(saved); // Save again with QR code
         }
-
-        AttendanceSession saved = attendanceSessionRepository.save(session);
         logger.info("Created attendance session {} from scheduled session {}", 
                    saved.getId(), scheduledSession.getId());
 

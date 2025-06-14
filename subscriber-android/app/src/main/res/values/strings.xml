@@ -55,4 +55,18 @@
     <string name="success_login">Login successful</string>
     <string name="success_checkin">Check-in successful</string>
     <string name="success_checkout">Check-out successful</string>
+    <string name="done">DONE</string>
+    <string name="attendance_recorded">Attendance Recorded</string>
+    <string name="check_in_success_message">You have successfully checked in to the session</string>
+    <string name="check_out_success_message">You have successfully checked out from the session</string>
+    <string name="check_in_failed">Check-in Failed</string>
+    <string name="check_out_failed">Check-out Failed</string>
+    <string name="try_again">Try Again</string>
+    <string name="return_to_dashboard">Return to Dashboard</string>
+    <string name="wifi_check_in_title">WiFi Check-In</string>
+    <string name="select_network">Select Network</string>
+    <string name="connect_to_network">Connect to Network</string>
+    <string name="scanning_qr_code">Scanning QR Code...</string>
+    <string name="qr_code_detected">QR Code Detected!</string>
+    <string name="processing_attendance">Processing Attendance...</string>
 </resources>

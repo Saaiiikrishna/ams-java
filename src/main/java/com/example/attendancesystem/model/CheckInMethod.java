@@ -9,6 +9,7 @@ public enum CheckInMethod {
     BLUETOOTH("Bluetooth Proximity"),
     WIFI("WiFi Network"),
     MOBILE_NFC("Mobile NFC Scan"),
+    FACE_RECOGNITION("Face Recognition"),
     MANUAL("Manual Check-out");
 
     private final String displayName;

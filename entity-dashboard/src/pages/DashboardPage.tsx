@@ -12,26 +12,31 @@ import {
   Chip,
   Avatar,
   List,
-
   ListItemAvatar,
   ListItemText,
-
   Button,
   ListItemButton,
   Tooltip,
   IconButton,
+  Divider,
 } from '@mui/material';
 import {
   People,
   AccessTime,
   Assessment,
   TrendingUp,
-
   Schedule,
   Today,
   CheckCircle,
   ArrowForward,
   Group,
+  Nfc,
+  QrCode,
+  Bluetooth,
+  Wifi,
+  PhoneAndroid,
+  Add,
+  PlayArrow,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 
@@ -48,6 +53,26 @@ interface RecentSession {
   startTime: string;
   endTime?: string;
   status: 'active' | 'completed';
+  allowedCheckInMethods?: string[];
+}
+
+interface ActiveSession {
+  id: number;
+  name: string;
+  description?: string;
+  startTime: string;
+  allowedCheckInMethods: string[];
+  attendeeCount: number;
+}
+
+interface RecentAttendance {
+  id: number;
+  subscriber: string;
+  session: string;
+  time: string;
+  type: 'Check-in' | 'Check-out';
+  method: string;
+  checkOutTime?: string;
 }
 
 const DashboardPage: React.FC = () => {
@@ -59,6 +84,8 @@ const DashboardPage: React.FC = () => {
     activeSessions: 0,
   });
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
+  const [recentAttendance, setRecentAttendance] = useState<RecentAttendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,9 +146,31 @@ const DashboardPage: React.FC = () => {
           startTime: session.startTime,
           endTime: session.endTime,
           status: (session.endTime ? 'completed' : 'active') as 'active' | 'completed',
+          allowedCheckInMethods: session.allowedCheckInMethods || [],
         }));
 
       setRecentSessions(recent);
+
+      // Set active sessions with attendance count
+      const activeSessionsData = activeSessions.map((session: any) => ({
+        id: session.id,
+        name: session.name,
+        description: session.description,
+        startTime: session.startTime,
+        allowedCheckInMethods: session.allowedCheckInMethods || [],
+        attendeeCount: 0, // Will be updated with real data
+      }));
+
+      setActiveSessions(activeSessionsData);
+
+      // Fetch recent attendance data
+      try {
+        const attendanceResponse = await ApiService.get('/api/attendance/recent?limit=10');
+        const attendanceData = attendanceResponse.data || [];
+        setRecentAttendance(attendanceData);
+      } catch (err) {
+        console.warn('Failed to fetch recent attendance:', err);
+      }
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to load dashboard data. Some features may not be available.');
@@ -157,6 +206,53 @@ const DashboardPage: React.FC = () => {
     navigate(`/dashboard/sessions/${sessionId}`);
   };
 
+  const getCheckInMethodIcon = (method: string) => {
+    switch (method) {
+      case 'NFC': return <Nfc />;
+      case 'QR': return <QrCode />;
+      case 'BLUETOOTH': return <Bluetooth />;
+      case 'WIFI': return <Wifi />;
+      case 'MOBILE_NFC': return <PhoneAndroid />;
+      default: return <Nfc />;
+    }
+  };
+
+  const getCheckInMethodLabel = (method: string) => {
+    switch (method) {
+      case 'NFC': return 'NFC Card';
+      case 'QR': return 'QR Code';
+      case 'BLUETOOTH': return 'Bluetooth';
+      case 'WIFI': return 'WiFi';
+      case 'MOBILE_NFC': return 'Mobile NFC';
+      default: return method;
+    }
+  };
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'nfc':
+        // Handle NFC check-in
+        break;
+      case 'qr':
+        navigate('/dashboard/sessions');
+        break;
+      case 'wifi':
+        // Handle WiFi check-in
+        break;
+      case 'bluetooth':
+        // Handle Bluetooth check-in
+        break;
+      case 'mobile_nfc':
+        // Handle Mobile NFC check-in
+        break;
+      case 'create_session':
+        navigate('/dashboard/sessions');
+        break;
+      default:
+        break;
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -176,6 +272,193 @@ const DashboardPage: React.FC = () => {
           {error}
         </Alert>
       )}
+
+      {/* Quick Actions */}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PlayArrow color="primary" />
+          Quick Actions
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Start attendance tracking with your preferred method
+        </Typography>
+
+        <Grid container spacing={2}>
+          <Grid item xs={6} sm={4} md={2}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                  borderColor: 'primary.main'
+                },
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                p: 2
+              }}
+              onClick={() => handleQuickAction('nfc')}
+            >
+              <Avatar sx={{ bgcolor: 'primary.main', mx: 'auto', mb: 1, width: 48, height: 48 }}>
+                <Nfc />
+              </Avatar>
+              <Typography variant="subtitle2" fontWeight="bold">
+                NFC Scan
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Tap NFC card
+              </Typography>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6} sm={4} md={2}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                  borderColor: 'success.main'
+                },
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                p: 2
+              }}
+              onClick={() => handleQuickAction('qr')}
+            >
+              <Avatar sx={{ bgcolor: 'success.main', mx: 'auto', mb: 1, width: 48, height: 48 }}>
+                <QrCode />
+              </Avatar>
+              <Typography variant="subtitle2" fontWeight="bold">
+                QR Code
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Show QR code
+              </Typography>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6} sm={4} md={2}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                  borderColor: 'info.main'
+                },
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                p: 2
+              }}
+              onClick={() => handleQuickAction('wifi')}
+            >
+              <Avatar sx={{ bgcolor: 'info.main', mx: 'auto', mb: 1, width: 48, height: 48 }}>
+                <Wifi />
+              </Avatar>
+              <Typography variant="subtitle2" fontWeight="bold">
+                WiFi Check-in
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Network based
+              </Typography>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6} sm={4} md={2}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                  borderColor: 'warning.main'
+                },
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                p: 2
+              }}
+              onClick={() => handleQuickAction('bluetooth')}
+            >
+              <Avatar sx={{ bgcolor: 'warning.main', mx: 'auto', mb: 1, width: 48, height: 48 }}>
+                <Bluetooth />
+              </Avatar>
+              <Typography variant="subtitle2" fontWeight="bold">
+                Bluetooth
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Proximity based
+              </Typography>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6} sm={4} md={2}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                  borderColor: 'secondary.main'
+                },
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                p: 2
+              }}
+              onClick={() => handleQuickAction('mobile_nfc')}
+            >
+              <Avatar sx={{ bgcolor: 'secondary.main', mx: 'auto', mb: 1, width: 48, height: 48 }}>
+                <PhoneAndroid />
+              </Avatar>
+              <Typography variant="subtitle2" fontWeight="bold">
+                Mobile NFC
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Phone based
+              </Typography>
+            </Card>
+          </Grid>
+
+          <Grid item xs={6} sm={4} md={2}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                  borderColor: 'error.main'
+                },
+                border: '1px solid',
+                borderColor: 'divider',
+                textAlign: 'center',
+                p: 2
+              }}
+              onClick={() => handleQuickAction('create_session')}
+            >
+              <Avatar sx={{ bgcolor: 'error.main', mx: 'auto', mb: 1, width: 48, height: 48 }}>
+                <Add />
+              </Avatar>
+              <Typography variant="subtitle2" fontWeight="bold">
+                New Session
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Start session
+              </Typography>
+            </Card>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -260,9 +543,86 @@ const DashboardPage: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* Recent Sessions */}
+      {/* Active Sessions */}
+      {activeSessions.length > 0 && (
+        <Paper sx={{ p: 3, mb: 4 }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Schedule color="warning" />
+            Active Sessions
+          </Typography>
+          <Grid container spacing={2}>
+            {activeSessions.map((session) => (
+              <Grid item xs={12} sm={6} md={4} key={session.id}>
+                <Card
+                  sx={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: 3
+                    },
+                    border: '1px solid',
+                    borderColor: 'warning.main',
+                    borderRadius: 2
+                  }}
+                  onClick={() => handleSessionClick(session.id)}
+                >
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Avatar sx={{ bgcolor: 'warning.main', mr: 2 }}>
+                        <Schedule />
+                      </Avatar>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {session.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Started {getTimeAgo(session.startTime)}
+                        </Typography>
+                      </Box>
+                      <Chip label="ACTIVE" color="warning" size="small" />
+                    </Box>
+
+                    {session.description && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        {session.description}
+                      </Typography>
+                    )}
+
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+                      {session.allowedCheckInMethods.slice(0, 3).map((method) => (
+                        <Chip
+                          key={method}
+                          icon={getCheckInMethodIcon(method)}
+                          label={getCheckInMethodLabel(method)}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                      {session.allowedCheckInMethods.length > 3 && (
+                        <Chip
+                          label={`+${session.allowedCheckInMethods.length - 3} more`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+
+                    <Typography variant="body2" color="text.secondary">
+                      <Group fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                      {session.attendeeCount} attendees
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
+
+      {/* Recent Sessions and Recent Attendance */}
       <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Recent Sessions
@@ -343,41 +703,83 @@ const DashboardPage: React.FC = () => {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Quick Actions
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TrendingUp color="primary" />
+              Recent Attendance
             </Typography>
-            <Typography variant="body2" color="textSecondary" paragraph>
-              Manage your attendance system:
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Button
-                variant="outlined"
-                startIcon={<People />}
-                onClick={() => navigate('/dashboard/subscribers')}
-                fullWidth
-                sx={{ justifyContent: 'flex-start' }}
-              >
-                Manage Subscribers
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<AccessTime />}
-                onClick={() => navigate('/dashboard/sessions')}
-                fullWidth
-                sx={{ justifyContent: 'flex-start' }}
-              >
-                View Sessions
-              </Button>
+            {recentAttendance.length === 0 ? (
+              <Typography color="textSecondary">
+                No recent attendance activity
+              </Typography>
+            ) : (
+              <List sx={{ p: 0 }}>
+                {recentAttendance.slice(0, 8).map((attendance, index) => (
+                  <React.Fragment key={attendance.id}>
+                    <ListItemButton
+                      sx={{
+                        borderRadius: 1,
+                        mb: 0.5,
+                        '&:hover': {
+                          backgroundColor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar
+                          sx={{
+                            bgcolor: attendance.type === 'Check-in' ? 'success.main' : 'warning.main',
+                            width: 40,
+                            height: 40,
+                          }}
+                        >
+                          {attendance.type === 'Check-in' ?
+                            getCheckInMethodIcon(attendance.method) :
+                            <CheckCircle />
+                          }
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="subtitle2" fontWeight="bold">
+                              {attendance.subscriber}
+                            </Typography>
+                            <Chip
+                              label={attendance.type}
+                              color={attendance.type === 'Check-in' ? 'success' : 'warning'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Box>
+                        }
+                        secondary={
+                          <Box>
+                            <Typography variant="body2" color="textSecondary">
+                              {attendance.session} • {getTimeAgo(attendance.time)}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              via {getCheckInMethodLabel(attendance.method)}
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                    </ListItemButton>
+                    {index < recentAttendance.length - 1 && <Divider />}
+                  </React.Fragment>
+                ))}
+              </List>
+            )}
+
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
               <Button
                 variant="outlined"
                 startIcon={<Assessment />}
                 onClick={() => navigate('/dashboard/reports')}
-                fullWidth
-                sx={{ justifyContent: 'flex-start' }}
+                size="small"
               >
-                Generate Reports
+                View All Reports
               </Button>
             </Box>
           </Paper>

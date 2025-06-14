@@ -300,14 +300,16 @@ public class EntityController {
         session.setOrganization(organization);
         // endTime is null initially
 
-        // Generate QR code if QR is an allowed method and set expiry to null (valid until session ends)
-        if (session.getAllowedCheckInMethods().contains(CheckInMethod.QR)) {
-            String qrCode = qrCodeService.generateQrCodeForSession(session);
-            session.setQrCode(qrCode);
-            session.setQrCodeExpiry(null); // QR code is valid until session ends
-        }
-
+        // Save session first to get an ID
         AttendanceSession savedSession = attendanceSessionRepository.save(session);
+
+        // Generate QR code if QR is an allowed method and set expiry to null (valid until session ends)
+        if (savedSession.getAllowedCheckInMethods().contains(CheckInMethod.QR)) {
+            String qrCode = qrCodeService.generateQrCodeForSession(savedSession);
+            savedSession.setQrCode(qrCode);
+            savedSession.setQrCodeExpiry(null); // QR code is valid until session ends
+            savedSession = attendanceSessionRepository.save(savedSession); // Save again with QR code
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(convertToDto(savedSession));
     }
 

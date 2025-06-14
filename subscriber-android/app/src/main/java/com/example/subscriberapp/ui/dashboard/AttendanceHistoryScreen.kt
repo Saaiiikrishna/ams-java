@@ -296,7 +296,7 @@ fun EnhancedAttendanceHistoryCard(attendance: AttendanceRecord) {
                     onClick = { },
                     label = {
                         Text(
-                            text = attendance.checkInMethod,
+                            text = getMethodDisplayName(attendance.checkInMethod),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium
                         )
@@ -359,7 +359,7 @@ fun EnhancedAttendanceHistoryCard(attendance: AttendanceRecord) {
                             onClick = { },
                             label = {
                                 Text(
-                                    text = checkOutMethod,
+                                    text = getMethodDisplayName(checkOutMethod),
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -450,14 +450,5 @@ private fun calculateDuration(checkIn: String, checkOut: String): String {
     }
 }
 
-@Composable
-fun getMethodIcon(method: String): androidx.compose.ui.graphics.vector.ImageVector {
-    return when (method.uppercase()) {
-        "QR" -> Icons.Default.QrCode
-        "NFC" -> Icons.Default.CreditCard
-        "BLUETOOTH" -> Icons.Default.Bluetooth
-        "WIFI" -> Icons.Default.Wifi
-        "MOBILE_NFC" -> Icons.Default.Nfc
-        else -> Icons.Default.CheckCircle
-    }
-}
+// Note: Using the same helper functions from DashboardScreen.kt
+// These should be moved to a common utility file in a real project

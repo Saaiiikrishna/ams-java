@@ -293,6 +293,135 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun performWifiCheckInForSession(mobileNumber: String, entityId: String, wifiNetworkName: String, sessionId: Long) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("DashboardViewModel", "Starting WiFi check-in for session: $sessionId, mobile: $mobileNumber, entity: $entityId, network: $wifiNetworkName")
+                _dashboardState.value = _dashboardState.value.copy(isLoading = true)
+
+                val request = mapOf(
+                    "mobileNumber" to mobileNumber,
+                    "entityId" to entityId,
+                    "wifiNetworkName" to wifiNetworkName,
+                    "sessionId" to sessionId.toString(),
+                    "deviceInfo" to "Android Mobile App"
+                )
+
+                android.util.Log.d("DashboardViewModel", "Sending WiFi check-in request for session: $request")
+                val response = apiService.wifiCheckIn(request)
+                android.util.Log.d("DashboardViewModel", "WiFi check-in response code: ${response.code()}")
+
+                if (response.isSuccessful) {
+                    val checkInResponse = response.body() as? Map<String, Any> ?: emptyMap()
+                    val action = checkInResponse["action"] as? String ?: "CHECK_IN"
+                    val message = checkInResponse["message"] as? String ?: "Operation successful"
+
+                    android.util.Log.d("DashboardViewModel", "WiFi operation successful: $action - $message")
+                    _dashboardState.value = _dashboardState.value.copy(
+                        isLoading = false,
+                        successMessage = message
+                    )
+                    // Refresh dashboard after successful operation
+                    loadDashboard(mobileNumber, entityId)
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    android.util.Log.e("DashboardViewModel", "WiFi check-in failed: ${response.code()} - ${response.message()}")
+                    android.util.Log.e("DashboardViewModel", "Error body: $errorBody")
+
+                    // Parse error message for better user feedback
+                    val errorMessage = try {
+                        val errorJson = com.google.gson.Gson().fromJson(errorBody, Map::class.java)
+                        errorJson["error"] as? String ?: "WiFi check-in failed"
+                    } catch (e: Exception) {
+                        "WiFi check-in failed: ${response.message()}"
+                    }
+
+                    _dashboardState.value = _dashboardState.value.copy(
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "WiFi check-in exception", e)
+                _dashboardState.value = _dashboardState.value.copy(
+                    isLoading = false,
+                    errorMessage = "WiFi check-in failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun performQrCheckInForSession(mobileNumber: String, entityId: String, qrCode: String, sessionId: Long) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("DashboardViewModel", "Starting QR check-in for session: $sessionId, mobile: $mobileNumber, entity: $entityId, qr: $qrCode")
+                _dashboardState.value = _dashboardState.value.copy(isLoading = true)
+
+                val request = mapOf(
+                    "mobileNumber" to mobileNumber,
+                    "entityId" to entityId,
+                    "qrCode" to qrCode,
+                    "sessionId" to sessionId.toString(),
+                    "deviceInfo" to "Android Mobile App"
+                )
+
+                android.util.Log.d("DashboardViewModel", "Sending QR check-in request for session: $request")
+                val response = apiService.qrCheckIn(request)
+                android.util.Log.d("DashboardViewModel", "QR check-in response code: ${response.code()}")
+
+                if (response.isSuccessful) {
+                    val checkInResponse = response.body() as? Map<String, Any> ?: emptyMap()
+                    val action = checkInResponse["action"] as? String ?: "CHECK_IN"
+                    val message = checkInResponse["message"] as? String ?: "Operation successful"
+
+                    android.util.Log.d("DashboardViewModel", "QR operation successful: $action - $message")
+                    _dashboardState.value = _dashboardState.value.copy(
+                        isLoading = false,
+                        successMessage = message
+                    )
+                    // Refresh dashboard after successful operation
+                    loadDashboard(mobileNumber, entityId)
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    android.util.Log.e("DashboardViewModel", "QR check-in failed: ${response.code()} - ${response.message()}")
+                    android.util.Log.e("DashboardViewModel", "Error body: $errorBody")
+
+                    // Parse error message for better user feedback
+                    val errorMessage = try {
+                        val errorJson = com.google.gson.Gson().fromJson(errorBody, Map::class.java)
+                        errorJson["error"] as? String ?: "QR check-in failed"
+                    } catch (e: Exception) {
+                        "QR check-in failed: ${response.message()}"
+                    }
+
+                    _dashboardState.value = _dashboardState.value.copy(
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "QR check-in exception", e)
+                _dashboardState.value = _dashboardState.value.copy(
+                    isLoading = false,
+                    errorMessage = "QR check-in failed: ${e.message}"
+                )
+            }
+        }
+    }
+
+    suspend fun checkServerConnectivity(): Boolean {
+        return try {
+            android.util.Log.d("DashboardViewModel", "Checking server connectivity...")
+            val response = apiService.healthCheck()
+            val isHealthy = response.isSuccessful && response.body()?.get("status") == "healthy"
+            android.util.Log.d("DashboardViewModel", "Server connectivity check result: $isHealthy")
+            isHealthy
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardViewModel", "Server connectivity check failed", e)
+            false
+        }
+    }
+
     fun clearMessages() {
         _dashboardState.value = _dashboardState.value.copy(
             errorMessage = null,

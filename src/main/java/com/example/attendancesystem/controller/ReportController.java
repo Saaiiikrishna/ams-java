@@ -171,7 +171,8 @@ public class ReportController {
                 log.getSession().getName(),
                 log.getCheckInTime(),
                 log.getCheckOutTime(),
-                log.getCheckInMethod() != null ? log.getCheckInMethod().toString() : null
+                log.getCheckInMethod() != null ? log.getCheckInMethod().toString() : null,
+                log.getCheckOutMethod() != null ? log.getCheckOutMethod().toString() : null
         );
     }
 }

@@ -1,0 +1,10 @@
+# Mock SeetaFace.dll for testing
+# This is a placeholder file created for testing the SeetaFace6 integration
+# Replace with actual SeetaFace6 library files for production use
+
+Platform: windows
+Created: 2025-06-13 20:17:14
+Purpose: Testing integration without real SeetaFace6 components
+
+Note: This file should be replaced with the actual SeetaFace6 library
+downloaded from the official sources.

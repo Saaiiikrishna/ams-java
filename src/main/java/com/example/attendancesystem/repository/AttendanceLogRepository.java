@@ -2,6 +2,7 @@ package com.example.attendancesystem.repository;
 
 import com.example.attendancesystem.model.AttendanceLog;
 import com.example.attendancesystem.model.AttendanceSession;
+import com.example.attendancesystem.model.CheckInMethod;
 import com.example.attendancesystem.model.Organization;
 import com.example.attendancesystem.model.Subscriber;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,6 +40,9 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, Lo
     // Find active check-in (no check-out time) for subscriber and session
     AttendanceLog findBySubscriberAndSessionAndCheckOutTimeIsNull(Subscriber subscriber, AttendanceSession session);
 
+    // Find active check-in (no check-out time) for subscriber across all sessions - get the most recent one
+    Optional<AttendanceLog> findFirstBySubscriberAndCheckOutTimeIsNullOrderByCheckInTimeDesc(Subscriber subscriber);
+
     // Find recent attendance for a specific subscriber
     List<AttendanceLog> findTop10BySubscriberOrderByCheckInTimeDesc(Subscriber subscriber);
 
@@ -48,4 +52,16 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, Lo
     // Delete methods for cleanup
     void deleteBySession(AttendanceSession session);
     void deleteBySubscriber(Subscriber subscriber);
+
+    // Face recognition specific methods
+
+    /**
+     * Find attendance logs by session and check-in method
+     */
+    List<AttendanceLog> findBySessionAndCheckInMethod(AttendanceSession session, CheckInMethod checkInMethod);
+
+    /**
+     * Find attendance logs by session and check-out method
+     */
+    List<AttendanceLog> findBySessionAndCheckOutMethod(AttendanceSession session, CheckInMethod checkOutMethod);
 }
