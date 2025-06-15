@@ -18,6 +18,7 @@ public interface AttendanceSessionRepository extends JpaRepository<AttendanceSes
     // Find active sessions for an organization (ended time is null and current time is after start time)
     List<AttendanceSession> findByOrganizationAndEndTimeIsNullAndStartTimeBefore(Organization organization, LocalDateTime currentTime);
     long countByOrganization(Organization organization);
+    void deleteByOrganization(Organization organization);
 
     // Entity ID based methods
     @Query("SELECT s FROM AttendanceSession s WHERE s.organization.entityId = :entityId")

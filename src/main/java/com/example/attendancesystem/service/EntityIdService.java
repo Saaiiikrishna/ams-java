@@ -1,6 +1,8 @@
 package com.example.attendancesystem.service;
 
 import com.example.attendancesystem.repository.OrganizationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -8,6 +10,8 @@ import java.util.Random;
 
 @Service
 public class EntityIdService {
+
+    private static final Logger logger = LoggerFactory.getLogger(EntityIdService.class);
 
     @Autowired
     private OrganizationRepository organizationRepository;
@@ -23,17 +27,30 @@ public class EntityIdService {
     public String generateUniqueEntityId() {
         String entityId;
         int attempts = 0;
-        final int maxAttempts = 1000; // Prevent infinite loop
+        final int maxAttempts = 100; // Reduced attempts since we're using random generation
+
+        logger.info("Starting entity ID generation. Current organization count: {}", organizationRepository.count());
+
+        // Log existing entity IDs for debugging
+        organizationRepository.findAll().forEach(org ->
+            logger.info("Existing entity ID: {}", org.getEntityId()));
 
         do {
             entityId = generateEntityId();
             attempts++;
-            
+
+            logger.info("Generated entity ID attempt {}: {}", attempts, entityId);
+            boolean exists = organizationRepository.existsByEntityId(entityId);
+            logger.info("Entity ID {} exists: {}", entityId, exists);
+
             if (attempts > maxAttempts) {
+                logger.error("Failed to generate unique Entity ID after {} attempts. Current organization count: {}",
+                           maxAttempts, organizationRepository.count());
                 throw new RuntimeException("Unable to generate unique Entity ID after " + maxAttempts + " attempts");
             }
         } while (organizationRepository.existsByEntityId(entityId));
 
+        logger.info("Successfully generated unique entity ID: {} after {} attempts", entityId, attempts);
         return entityId;
     }
 
@@ -41,18 +58,13 @@ public class EntityIdService {
      * Generates an Entity ID with MSD prefix and 5 sequential/random digits
      */
     private String generateEntityId() {
-        // Get the count of existing organizations to create sequential IDs
-        long count = organizationRepository.count();
-        
-        // Start from 10001 to ensure 5-digit numbers
-        long nextNumber = 10001 + count;
-        
-        // If we exceed 99999, use random numbers
-        if (nextNumber > 99999) {
-            nextNumber = 10000 + random.nextInt(90000); // Random 5-digit number
-        }
-        
-        return PREFIX + String.format("%05d", nextNumber);
+        // Use a completely different approach: random generation with collision detection
+        Random random = new Random();
+
+        // Generate a random 5-digit number between 10000 and 99999
+        int randomNumber = 10000 + random.nextInt(90000);
+
+        return PREFIX + String.format("%05d", randomNumber);
     }
 
     /**

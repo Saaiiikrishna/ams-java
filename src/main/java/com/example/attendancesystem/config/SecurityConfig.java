@@ -121,7 +121,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/subscriber/send-otp", "/subscriber/verify-otp", "/subscriber/login-pin", "/subscriber/update-pin", "/subscriber/health").permitAll()
+                .requestMatchers("/subscriber/send-otp", "/subscriber/verify-otp", "/subscriber/login-pin", "/subscriber/update-pin", "/subscriber/health", "/subscriber/discovery", "/subscriber/test-hostname", "/subscriber/mdns-troubleshoot", "/subscriber/hosts-config").permitAll()
+                .requestMatchers("/menu/**").permitAll() // Allow public access to menu endpoints
                 .requestMatchers("/subscriber/**").hasRole("SUBSCRIBER")
                 .anyRequest().denyAll()
             )
@@ -131,16 +132,32 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Entity Admin Security Configuration (Order 4 - Lower Priority)
+    // Public API Security Configuration (Order 4 - Public endpoints)
     @Bean
     @Order(4)
+    public SecurityFilterChain publicApiSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/api/public/**") // Only apply to /api/public/** paths
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll() // Allow all public API requests
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        return http.build();
+    }
+
+    // Entity Admin Security Configuration (Order 5 - Lower Priority)
+    @Bean
+    @Order(5)
     public SecurityFilterChain entityAdminSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/api/**") // Only apply to /api/** paths
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/api/auth/refresh-token").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/refresh-token", "/api/test/**").permitAll()
                 .requestMatchers("/api/**").hasRole("ENTITY_ADMIN")
                 .anyRequest().denyAll() // Deny all other requests for this matcher
             )

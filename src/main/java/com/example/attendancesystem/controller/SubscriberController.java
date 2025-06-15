@@ -3,6 +3,7 @@ package com.example.attendancesystem.controller;
 import com.example.attendancesystem.dto.SubscriberLoginDto;
 import com.example.attendancesystem.service.SubscriberAuthService;
 import com.example.attendancesystem.service.QrCodeService;
+import com.example.attendancesystem.service.MDnsService;
 import com.example.attendancesystem.model.*;
 import com.example.attendancesystem.repository.*;
 import org.slf4j.Logger;
@@ -45,6 +46,9 @@ public class SubscriberController {
 
     @Autowired
     private QrCodeService qrCodeService;
+
+    @Autowired
+    private MDnsService mdnsService;
 
 
 
@@ -718,5 +722,109 @@ public class SubscriberController {
                 "service", "subscriber-service",
                 "timestamp", System.currentTimeMillis()
         ));
+    }
+
+    /**
+     * mDNS service discovery information endpoint
+     */
+    @GetMapping("/discovery")
+    public ResponseEntity<?> discoveryInfo() {
+        try {
+            Map<String, Object> discoveryInfo = mdnsService.getServiceInfo();
+            discoveryInfo.put("timestamp", System.currentTimeMillis());
+            discoveryInfo.put("serviceType", "_attendanceapi._tcp.local.");
+
+            return ResponseEntity.ok(discoveryInfo);
+        } catch (Exception e) {
+            logger.error("Failed to get discovery info: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Test hostname resolution endpoint
+     */
+    @GetMapping("/test-hostname")
+    public ResponseEntity<?> testHostname() {
+        try {
+            Map<String, Object> testResult = mdnsService.testHostnameResolution();
+            testResult.put("timestamp", System.currentTimeMillis());
+
+            return ResponseEntity.ok(testResult);
+        } catch (Exception e) {
+            logger.error("Failed to test hostname: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get mDNS troubleshooting information
+     */
+    @GetMapping("/mdns-troubleshoot")
+    public ResponseEntity<?> mdnsTroubleshoot() {
+        try {
+            Map<String, Object> troubleshootInfo = mdnsService.getTroubleshootingInfo();
+            troubleshootInfo.put("timestamp", System.currentTimeMillis());
+
+            return ResponseEntity.ok(troubleshootInfo);
+        } catch (Exception e) {
+            logger.error("Failed to get troubleshooting info: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get manual hosts file configuration
+     */
+    @GetMapping("/hosts-config")
+    public ResponseEntity<?> hostsConfig() {
+        try {
+            Map<String, Object> hostsInfo = mdnsService.addToHostsFile();
+            hostsInfo.put("timestamp", System.currentTimeMillis());
+
+            return ResponseEntity.ok(hostsInfo);
+        } catch (Exception e) {
+            logger.error("Failed to get hosts config: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Restart mDNS services (useful after network changes)
+     */
+    @PostMapping("/restart-mdns")
+    public ResponseEntity<?> restartMdns() {
+        try {
+            logger.info("Manual mDNS restart requested");
+            Map<String, Object> result = mdnsService.restartService();
+            result.put("timestamp", System.currentTimeMillis());
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Failed to restart mDNS: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get current network status and mDNS information
+     */
+    @GetMapping("/network-status")
+    public ResponseEntity<?> networkStatus() {
+        try {
+            Map<String, Object> status = mdnsService.getNetworkStatus();
+            status.put("timestamp", System.currentTimeMillis());
+
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            logger.error("Failed to get network status: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 }

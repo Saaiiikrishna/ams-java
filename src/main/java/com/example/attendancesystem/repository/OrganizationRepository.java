@@ -13,4 +13,6 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
 
     // Additional methods for entity ID based operations
     void deleteByEntityId(String entityId);
+
+    // Methods for dashboard statistics - removed due to missing createdAt field
 }

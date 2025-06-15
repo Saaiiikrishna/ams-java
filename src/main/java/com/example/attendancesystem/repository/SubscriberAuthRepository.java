@@ -1,8 +1,10 @@
 package com.example.attendancesystem.repository;
 
+import com.example.attendancesystem.model.Organization;
 import com.example.attendancesystem.model.Subscriber;
 import com.example.attendancesystem.model.SubscriberAuth;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -51,4 +53,15 @@ public interface SubscriberAuthRepository extends JpaRepository<SubscriberAuth, 
     // Count active auth records for organization
     @Query("SELECT COUNT(sa) FROM SubscriberAuth sa WHERE sa.subscriber.organization.entityId = :entityId AND sa.isActive = true")
     long countActiveByOrganizationEntityId(@Param("entityId") String entityId);
+
+    // Count and delete methods for organization cleanup
+    @Query("SELECT COUNT(sa) FROM SubscriberAuth sa WHERE sa.subscriber.organization = :organization")
+    long countByOrganization(@Param("organization") Organization organization);
+
+    @Modifying
+    @Query("DELETE FROM SubscriberAuth sa WHERE sa.subscriber.organization = :organization")
+    void deleteByOrganization(@Param("organization") Organization organization);
+
+    // Delete by subscriber for cascade cleanup
+    void deleteBySubscriber(Subscriber subscriber);
 }

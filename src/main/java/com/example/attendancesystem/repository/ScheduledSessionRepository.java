@@ -56,6 +56,7 @@ public interface ScheduledSessionRepository extends JpaRepository<ScheduledSessi
     
     // Count scheduled sessions for an organization
     long countByOrganization(Organization organization);
+    void deleteByOrganization(Organization organization);
     
     @Query("SELECT COUNT(s) FROM ScheduledSession s WHERE s.organization.entityId = :entityId")
     long countByOrganizationEntityId(@Param("entityId") String entityId);

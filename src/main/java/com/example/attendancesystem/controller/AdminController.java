@@ -105,6 +105,8 @@ public class AdminController {
     @GetMapping("/entities")
     public ResponseEntity<List<OrganizationDto>> getAllOrganizations() {
         List<Organization> organizations = organizationRepository.findAll();
+        logger.info("Current entities in database:");
+        organizations.forEach(org -> logger.info("Entity ID: {}, Name: {}", org.getEntityId(), org.getName()));
         List<OrganizationDto> organizationDtos = organizations.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());

@@ -30,6 +30,9 @@ import {
   Nfc,
   Schedule,
   Lock,
+  Restaurant,
+  ShoppingCart,
+  TableRestaurant,
 } from '@mui/icons-material';
 import AuthService from '../services/AuthService';
 import ApiService from '../services/ApiService';
@@ -43,13 +46,29 @@ const EntityLayout: React.FC = () => {
   const [adminName, setAdminName] = useState('Entity Admin');
   const [entityName, setEntityName] = useState('Attendance Management');
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [permissions, setPermissions] = useState<{[key: string]: boolean}>({});
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
 
   useEffect(() => {
     fetchUserAndEntityInfo();
+    fetchPermissions();
   }, []);
+
+  const fetchPermissions = async () => {
+    try {
+      const response = await ApiService.get('/api/entity/permissions/status');
+      const permissionData = response.data.permissions || {};
+      setPermissions(permissionData);
+      setPermissionsLoaded(true);
+    } catch (error) {
+      console.error('Failed to fetch permissions:', error);
+      setPermissions({});
+      setPermissionsLoaded(true);
+    }
+  };
 
   const fetchUserAndEntityInfo = async () => {
     try {
@@ -137,38 +156,85 @@ const EntityLayout: React.FC = () => {
     console.log('Password changed successfully');
   };
 
-  const menuItems = [
-    {
-      text: 'Dashboard',
-      icon: <Dashboard />,
-      path: '/dashboard',
-    },
-    {
-      text: 'Subscribers',
-      icon: <People />,
-      path: '/dashboard/subscribers',
-    },
-    {
-      text: 'NFC Cards',
-      icon: <Nfc />,
-      path: '/dashboard/cards',
-    },
-    {
-      text: 'Sessions',
-      icon: <EventNote />,
-      path: '/dashboard/sessions',
-    },
-    {
-      text: 'Scheduled Sessions',
-      icon: <Schedule />,
-      path: '/dashboard/scheduled-sessions',
-    },
-    {
-      text: 'Reports',
-      icon: <Assessment />,
-      path: '/dashboard/reports',
-    },
-  ];
+  const getMenuItems = () => {
+    const baseItems = [
+      {
+        text: 'Dashboard',
+        icon: <Dashboard />,
+        path: '/dashboard',
+        requiresPermission: false,
+      },
+      {
+        text: 'Members',
+        icon: <People />,
+        path: '/dashboard/subscribers',
+        requiresPermission: true,
+        permission: 'MEMBER_MANAGEMENT',
+      },
+      {
+        text: 'NFC Cards',
+        icon: <Nfc />,
+        path: '/dashboard/cards',
+        requiresPermission: true,
+        permission: 'MEMBER_MANAGEMENT',
+      },
+      {
+        text: 'Sessions',
+        icon: <EventNote />,
+        path: '/dashboard/sessions',
+        requiresPermission: true,
+        permission: 'ATTENDANCE_TRACKING',
+      },
+      {
+        text: 'Scheduled Sessions',
+        icon: <Schedule />,
+        path: '/dashboard/scheduled-sessions',
+        requiresPermission: true,
+        permission: 'ATTENDANCE_TRACKING',
+      },
+      {
+        text: 'Reports',
+        icon: <Assessment />,
+        path: '/dashboard/reports',
+        requiresPermission: true,
+        permission: 'ATTENDANCE_REPORTS',
+      },
+    ];
+
+    // Add menu/ordering items if user has permissions
+    if (permissions.MENU_MANAGEMENT || permissions.ORDER_MANAGEMENT || permissions.TABLE_MANAGEMENT) {
+      baseItems.push(
+        {
+          text: 'Menu Management',
+          icon: <Restaurant />,
+          path: '/dashboard/menu',
+          requiresPermission: true,
+          permission: 'MENU_MANAGEMENT',
+        },
+        {
+          text: 'Order Management',
+          icon: <ShoppingCart />,
+          path: '/dashboard/orders',
+          requiresPermission: true,
+          permission: 'ORDER_MANAGEMENT',
+        },
+        {
+          text: 'Table Management',
+          icon: <TableRestaurant />,
+          path: '/dashboard/tables',
+          requiresPermission: true,
+          permission: 'TABLE_MANAGEMENT',
+        }
+      );
+    }
+
+    return baseItems.filter(item =>
+      !item.requiresPermission ||
+      (item.permission && permissions[item.permission])
+    );
+  };
+
+  const menuItems = getMenuItems();
 
   const drawer = (
     <Box>

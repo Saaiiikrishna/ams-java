@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Set;
 import com.example.attendancesystem.security.CustomUserDetails;
+import com.example.attendancesystem.service.PermissionService;
 import com.example.attendancesystem.service.ScheduledSessionService;
 import com.example.attendancesystem.service.QrCodeService;
 import com.example.attendancesystem.service.SubscriberAuthService;
@@ -73,6 +74,9 @@ public class EntityController {
     @Autowired
     private SubscriberAuthRepository subscriberAuthRepository;
 
+    @Autowired
+    private PermissionService permissionService;
+
     // Helper to get current EntityAdmin's organization
     private Organization getCurrentOrganization() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -80,10 +84,34 @@ public class EntityController {
         return userDetails.getEntityAdmin().getOrganization();
     }
 
+    // Helper to check member management permission
+    private ResponseEntity<?> checkMemberPermission() {
+        Organization organization = getCurrentOrganization();
+        if (!permissionService.hasPermission(organization.getEntityId(), FeaturePermission.MEMBER_MANAGEMENT)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access denied. Member management permission required."));
+        }
+        return null;
+    }
+
+    // Helper to check attendance tracking permission
+    private ResponseEntity<?> checkAttendancePermission() {
+        Organization organization = getCurrentOrganization();
+        if (!permissionService.hasPermission(organization.getEntityId(), FeaturePermission.ATTENDANCE_TRACKING)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access denied. Attendance tracking permission required."));
+        }
+        return null;
+    }
+
     // Subscriber Mappings
     @PostMapping("/subscribers")
     @Transactional
     public ResponseEntity<?> addSubscriber(@RequestBody SubscriberDto subscriberDto) {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkMemberPermission();
+        if (permissionCheck != null) return permissionCheck;
+
         logger.info("Creating new subscriber: {} {} for organization: {}",
                    subscriberDto.getFirstName(), subscriberDto.getLastName(),
                    getCurrentOrganization().getEntityId());
@@ -155,7 +183,11 @@ public class EntityController {
     }
 
     @GetMapping("/subscribers")
-    public ResponseEntity<List<SubscriberDto>> getSubscribers() {
+    public ResponseEntity<?> getSubscribers() {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkMemberPermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         List<Subscriber> subscribers = subscriberRepository.findAllByOrganization(organization);
         return ResponseEntity.ok(subscribers.stream().map(this::convertToDto).collect(Collectors.toList()));
@@ -164,6 +196,10 @@ public class EntityController {
     @PutMapping("/subscribers/{id}")
     @Transactional
     public ResponseEntity<?> updateSubscriber(@PathVariable Long id, @RequestBody SubscriberDto subscriberDto) {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkMemberPermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         Subscriber subscriber = subscriberRepository.findByIdAndOrganization(id, organization)
                 .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + id + " in your organization."));
@@ -227,6 +263,10 @@ public class EntityController {
     @DeleteMapping("/subscribers/{id}")
     @Transactional
     public ResponseEntity<?> deleteSubscriber(@PathVariable Long id) {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkMemberPermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         Subscriber subscriber = subscriberRepository.findByIdAndOrganization(id, organization)
                 .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + id + " in your organization."));
@@ -278,6 +318,10 @@ public class EntityController {
     // Attendance Session Mappings
     @PostMapping("/sessions")
     public ResponseEntity<?> createSession(@RequestBody AttendanceSessionDto sessionDto) {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkAttendancePermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         AttendanceSession session = new AttendanceSession();
         session.setName(sessionDto.getName());
@@ -315,6 +359,10 @@ public class EntityController {
 
     @PutMapping("/sessions/{id}/end")
     public ResponseEntity<?> endSession(@PathVariable Long id) {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkAttendancePermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
                 .orElseThrow(() -> new EntityNotFoundException("Attendance session not found with id: " + id + " in your organization."));
@@ -328,7 +376,11 @@ public class EntityController {
     }
 
     @GetMapping("/sessions")
-    public ResponseEntity<List<AttendanceSessionDto>> getSessions() {
+    public ResponseEntity<?> getSessions() {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkAttendancePermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         List<AttendanceSession> sessions = attendanceSessionRepository.findAllByOrganization(organization);
         List<AttendanceSessionDto> sessionDtos = sessions.stream()
@@ -340,6 +392,10 @@ public class EntityController {
     @GetMapping("/sessions/{id}")
     public ResponseEntity<?> getSessionById(@PathVariable Long id) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
             AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
                     .orElseThrow(() -> new EntityNotFoundException("Session not found with id: " + id + " in your organization."));
@@ -355,6 +411,10 @@ public class EntityController {
     @DeleteMapping("/sessions/{id}")
     @Transactional
     public ResponseEntity<?> deleteSession(@PathVariable Long id) {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkAttendancePermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(id, organization)
                 .orElseThrow(() -> new EntityNotFoundException("Attendance session not found with id: " + id + " in your organization."));
@@ -402,9 +462,13 @@ public class EntityController {
      * Get recent attendance logs/NFC scans for real-time dashboard updates
      */
     @GetMapping("/attendance/recent")
-    public ResponseEntity<List<Map<String, Object>>> getRecentAttendanceLogs(
+    public ResponseEntity<?> getRecentAttendanceLogs(
             @RequestParam(value = "limit", defaultValue = "10") int limit) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
 
             // Get recent attendance logs for this organization
@@ -437,8 +501,12 @@ public class EntityController {
      * Get attendance logs for a specific session
      */
     @GetMapping("/sessions/{sessionId}/attendance")
-    public ResponseEntity<List<Map<String, Object>>> getSessionAttendance(@PathVariable Long sessionId) {
+    public ResponseEntity<?> getSessionAttendance(@PathVariable Long sessionId) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
 
             // Verify session belongs to this organization
@@ -483,6 +551,10 @@ public class EntityController {
     @PutMapping("/attendance/{attendanceId}/checkout")
     public ResponseEntity<?> manualCheckOut(@PathVariable Long attendanceId) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             logger.info("Manual check-out request for attendance ID: {}", attendanceId);
 
             Organization organization = getCurrentOrganization();
@@ -539,6 +611,10 @@ public class EntityController {
     @PostMapping("/scheduled-sessions")
     public ResponseEntity<?> createScheduledSession(@RequestBody ScheduledSessionDto sessionDto) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
             ScheduledSessionDto created = scheduledSessionService.createScheduledSession(sessionDto, organization.getEntityId());
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -548,14 +624,22 @@ public class EntityController {
     }
 
     @GetMapping("/scheduled-sessions")
-    public ResponseEntity<List<ScheduledSessionDto>> getScheduledSessions() {
+    public ResponseEntity<?> getScheduledSessions() {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkAttendancePermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         List<ScheduledSessionDto> sessions = scheduledSessionService.getScheduledSessions(organization.getEntityId());
         return ResponseEntity.ok(sessions);
     }
 
     @GetMapping("/scheduled-sessions/active")
-    public ResponseEntity<List<ScheduledSessionDto>> getActiveScheduledSessions() {
+    public ResponseEntity<?> getActiveScheduledSessions() {
+        // Check permission
+        ResponseEntity<?> permissionCheck = checkAttendancePermission();
+        if (permissionCheck != null) return permissionCheck;
+
         Organization organization = getCurrentOrganization();
         List<ScheduledSessionDto> sessions = scheduledSessionService.getActiveScheduledSessions(organization.getEntityId());
         return ResponseEntity.ok(sessions);
@@ -564,6 +648,10 @@ public class EntityController {
     @GetMapping("/scheduled-sessions/{id}")
     public ResponseEntity<?> getScheduledSessionById(@PathVariable Long id) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
             ScheduledSessionDto session = scheduledSessionService.getScheduledSessionById(id, organization.getEntityId());
             return ResponseEntity.ok(session);
@@ -575,6 +663,10 @@ public class EntityController {
     @PutMapping("/scheduled-sessions/{id}")
     public ResponseEntity<?> updateScheduledSession(@PathVariable Long id, @RequestBody ScheduledSessionDto sessionDto) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
             ScheduledSessionDto updated = scheduledSessionService.updateScheduledSession(id, sessionDto, organization.getEntityId());
             return ResponseEntity.ok(updated);
@@ -586,6 +678,10 @@ public class EntityController {
     @DeleteMapping("/scheduled-sessions/{id}")
     public ResponseEntity<?> deleteScheduledSession(@PathVariable Long id) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
             scheduledSessionService.deleteScheduledSession(id, organization.getEntityId());
             return ResponseEntity.ok(Map.of("message", "Scheduled session deleted successfully"));
@@ -598,6 +694,10 @@ public class EntityController {
     @GetMapping("/sessions/{sessionId}/qr-code")
     public ResponseEntity<?> getSessionQrCode(@PathVariable Long sessionId) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
             AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(sessionId, organization)
                     .orElseThrow(() -> new EntityNotFoundException("Session not found"));
@@ -612,6 +712,10 @@ public class EntityController {
     @PostMapping("/sessions/{sessionId}/refresh-qr")
     public ResponseEntity<?> refreshSessionQrCode(@PathVariable Long sessionId) {
         try {
+            // Check permission
+            ResponseEntity<?> permissionCheck = checkAttendancePermission();
+            if (permissionCheck != null) return permissionCheck;
+
             Organization organization = getCurrentOrganization();
             AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(sessionId, organization)
                     .orElseThrow(() -> new EntityNotFoundException("Session not found"));

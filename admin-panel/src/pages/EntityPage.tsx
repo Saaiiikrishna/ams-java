@@ -37,9 +37,11 @@ import {
   PersonAdd,
   Warning,
   CheckCircle,
+  Security,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 import logger from '../services/LoggingService';
+import EntityPermissionManager from '../components/EntityPermissionManager';
 
 interface Organization {
   id: number; // Keep for internal use, but use entityId for API calls
@@ -85,6 +87,12 @@ const EntityPage: React.FC = () => {
   const [deletingEntity, setDeletingEntity] = useState<Organization | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showForceDelete, setShowForceDelete] = useState(false);
+  const [deletionPreview, setDeletionPreview] = useState<any>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  // Permission management states
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [selectedEntityForPermissions, setSelectedEntityForPermissions] = useState<Organization | null>(null);
 
   // Form state for creating new entity
   const [newName, setNewName] = useState('');
@@ -230,6 +238,11 @@ const EntityPage: React.FC = () => {
     setShowAssignDialog(true);
   };
 
+  const handleManagePermissionsClick = (entity: Organization) => {
+    setSelectedEntityForPermissions(entity);
+    setShowPermissionDialog(true);
+  };
+
   const handleEditClick = (entity: Organization) => {
     setEditingEntity(entity);
     setNewName(entity.name);
@@ -283,11 +296,26 @@ const EntityPage: React.FC = () => {
     }
   };
 
-  const handleDeleteClick = (entity: Organization) => {
+  const handleDeleteClick = async (entity: Organization) => {
     setDeletingEntity(entity);
     setDeleteError(null);
     setShowForceDelete(false);
+    setDeletionPreview(null);
+    setLoadingPreview(true);
     setShowDeleteDialog(true);
+
+    // Fetch deletion preview
+    try {
+      const response = await ApiService.get(`/super/organizations/${entity.id}/deletion-preview`);
+      setDeletionPreview(response.data);
+      setShowForceDelete(true); // Always show force delete option for super admin
+    } catch (err: any) {
+      logger.error("Failed to fetch deletion preview", 'DELETE', err);
+      setDeleteError('Failed to load deletion preview. You can still proceed with deletion.');
+      setShowForceDelete(true);
+    } finally {
+      setLoadingPreview(false);
+    }
   };
 
   const handleDeleteConfirm = async (force: boolean = false) => {
@@ -300,15 +328,18 @@ const EntityPage: React.FC = () => {
 
     try {
       const endpoint = force
-        ? `/super/entities/${deletingEntity.entityId}/force`
+        ? `/super/organizations/${deletingEntity.id}/force-delete`
         : `/super/entities/${deletingEntity.entityId}`;
 
       const response = await ApiService.delete(endpoint);
 
       if (force && response.data) {
+        const deletedRecords = response.data.deletedRecords;
         setSuccessMessage(
           `Entity '${deletingEntity.name}' and all related data deleted successfully! ` +
-          `(${response.data.deletedEntityAdmins} admins, ${response.data.deletedSubscribers} subscribers, ${response.data.deletedSessions} sessions removed)`
+          `Total records deleted: ${deletedRecords.total} ` +
+          `(${deletedRecords.subscribers || 0} members, ${deletedRecords.attendanceSessions || 0} sessions, ` +
+          `${deletedRecords.orders || 0} orders, ${deletedRecords.entityAdmins || 0} admins)`
         );
       } else {
         setSuccessMessage(`Entity '${deletingEntity.name}' deleted successfully!`);
@@ -317,6 +348,7 @@ const EntityPage: React.FC = () => {
       setShowDeleteDialog(false);
       setDeletingEntity(null);
       setShowForceDelete(false);
+      setDeletionPreview(null);
       fetchEntities();
     } catch (err: any) {
       logger.error("Failed to delete entity", 'ENTITY', err);
@@ -324,11 +356,8 @@ const EntityPage: React.FC = () => {
         if (typeof err.response.data === 'string') {
           const errorMessage = err.response.data;
           setDeleteError(errorMessage);
-
-          // Show force delete option if there are related records
-          if (errorMessage.includes('because it has:')) {
-            setShowForceDelete(true);
-          }
+        } else if (err.response.data.error) {
+          setDeleteError(err.response.data.error);
         } else if (err.response.data.message) {
           setDeleteError(err.response.data.message);
         } else {
@@ -748,20 +777,85 @@ const EntityPage: React.FC = () => {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} maxWidth="sm">
+      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Delete color="error" />
-            Delete Entity
+            Delete Entity - {deletingEntity?.name}
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body1">
+          <Typography variant="body1" sx={{ mb: 2 }}>
             Are you sure you want to delete the entity "{deletingEntity?.name}"?
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This action cannot be undone. All associated data will be permanently removed.
-          </Typography>
+
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography variant="body2" fontWeight="bold">
+              ⚠️ PERMANENT DELETION WARNING
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              This action cannot be undone. As a super admin, you have complete control over the database.
+              All associated data will be permanently removed.
+            </Typography>
+          </Alert>
+
+          {loadingPreview ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 3 }}>
+              <CircularProgress />
+              <Typography variant="body2" sx={{ ml: 2 }}>
+                Loading deletion preview...
+              </Typography>
+            </Box>
+          ) : deletionPreview ? (
+            <Card sx={{ mb: 2, border: '2px solid', borderColor: 'warning.main' }}>
+              <CardContent>
+                <Typography variant="h6" color="warning.main" fontWeight="bold" sx={{ mb: 2 }}>
+                  📊 Data That Will Be Deleted
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" fontWeight="bold" color="primary">
+                      👥 Attendance & Members
+                    </Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.subscribers} Members/Subscribers</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.subscriberAuth || 0} Member Auth Records</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.nfcCards} NFC Cards</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.attendanceSessions} Attendance Sessions</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.scheduledSessions} Scheduled Sessions</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.attendanceLogs} Attendance Logs</Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" fontWeight="bold" color="primary">
+                      🍽️ Menu & Orders
+                    </Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.orders} Orders</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.items} Menu Items</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.categories} Categories</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.restaurantTables} Restaurant Tables</Typography>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" fontWeight="bold" color="primary">
+                      🔐 Admin & Permissions
+                    </Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.entityAdmins} Entity Admins</Typography>
+                    <Typography variant="body2">• {deletionPreview.relatedData.organizationPermissions} Permission Records</Typography>
+                  </Grid>
+                </Grid>
+
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold" color="error.contrastText">
+                    🗑️ Total Records to Delete: {deletionPreview.relatedData.totalRelatedRecords + 1}
+                  </Typography>
+                  <Typography variant="caption" color="error.contrastText">
+                    (+1 for the organization itself)
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          ) : null}
 
           {deleteError && (
             <Alert severity="error" sx={{ mt: 2 }}>
@@ -771,16 +865,15 @@ const EntityPage: React.FC = () => {
             </Alert>
           )}
 
-          {showForceDelete && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              <Typography variant="body2" fontWeight="bold">
-                Force Delete Option Available
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                You can force delete this entity, which will automatically remove all related data including entity admins, subscribers, and attendance sessions.
-              </Typography>
-            </Alert>
-          )}
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <Typography variant="body2" fontWeight="bold">
+              💡 Super Admin Privileges
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              As a super admin, you can force delete this entity regardless of active sessions,
+              existing members, or any other dependencies. The system will handle all cascade deletions automatically.
+            </Typography>
+          </Alert>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
           <Button
@@ -788,33 +881,28 @@ const EntityPage: React.FC = () => {
               setShowDeleteDialog(false);
               setDeleteError(null);
               setShowForceDelete(false);
+              setDeletionPreview(null);
             }}
             disabled={formLoading}
+            variant="outlined"
           >
             Cancel
           </Button>
 
-          {showForceDelete && (
-            <Button
-              onClick={() => handleDeleteConfirm(true)}
-              variant="contained"
-              color="warning"
-              disabled={formLoading}
-              startIcon={formLoading ? <CircularProgress size={20} /> : <Delete />}
-              sx={{ mr: 1 }}
-            >
-              {formLoading ? 'Force Deleting...' : 'Force Delete'}
-            </Button>
-          )}
-
           <Button
-            onClick={() => handleDeleteConfirm(false)}
+            onClick={() => handleDeleteConfirm(true)}
             variant="contained"
             color="error"
-            disabled={formLoading}
+            disabled={formLoading || loadingPreview}
             startIcon={formLoading ? <CircularProgress size={20} /> : <Delete />}
+            sx={{
+              background: 'linear-gradient(45deg, #f44336 30%, #d32f2f 90%)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #d32f2f 30%, #b71c1c 90%)',
+              },
+            }}
           >
-            {formLoading ? 'Deleting...' : 'Delete Entity'}
+            {formLoading ? 'Force Deleting...' : 'Force Delete Everything'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -962,6 +1050,20 @@ const EntityPage: React.FC = () => {
                             </Button>
                           </Tooltip>
                         )}
+                        {hasAdmin && (
+                          <Tooltip title="Manage permissions">
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<Security />}
+                              onClick={() => handleManagePermissionsClick(entity)}
+                              sx={{ mr: 1 }}
+                              color="secondary"
+                            >
+                              Permissions
+                            </Button>
+                          </Tooltip>
+                        )}
                         <Tooltip title="Edit entity">
                           <IconButton
                             color="primary"
@@ -996,6 +1098,8 @@ const EntityPage: React.FC = () => {
         open={!!successMessage}
         autoHideDuration={6000}
         onClose={() => setSuccessMessage(null)}
+        sx={{ zIndex: 1400 }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert onClose={() => setSuccessMessage(null)} severity="success">
           {successMessage}
@@ -1006,6 +1110,8 @@ const EntityPage: React.FC = () => {
         open={!!error}
         autoHideDuration={6000}
         onClose={() => setError(null)}
+        sx={{ zIndex: 1400 }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert onClose={() => setError(null)} severity="error">
           {error}
@@ -1050,6 +1156,39 @@ const EntityPage: React.FC = () => {
             color="primary"
           >
             Assign Admin Now
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Permission Management Dialog */}
+      <Dialog
+        open={showPermissionDialog}
+        onClose={() => setShowPermissionDialog(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Security color="primary" />
+            Manage Permissions - {selectedEntityForPermissions?.name}
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedEntityForPermissions && (
+            <EntityPermissionManager
+              key={`${selectedEntityForPermissions.entityId}-${showPermissionDialog}`}
+              entityId={selectedEntityForPermissions.entityId}
+              entityName={selectedEntityForPermissions.name}
+              onPermissionsUpdated={() => {
+                // Optionally refresh data or show success message
+                setSuccessMessage('Permissions updated successfully!');
+              }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowPermissionDialog(false)}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>

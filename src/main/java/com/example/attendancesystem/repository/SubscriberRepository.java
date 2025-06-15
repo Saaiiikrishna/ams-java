@@ -18,6 +18,7 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
     boolean existsByEmailAndOrganization(String email, Organization organization);
     boolean existsByMobileNumberAndOrganization(String mobileNumber, Organization organization);
     long countByOrganization(Organization organization);
+    void deleteByOrganization(Organization organization);
 
     // Entity ID based methods
     @Query("SELECT s FROM Subscriber s WHERE s.organization.entityId = :entityId")

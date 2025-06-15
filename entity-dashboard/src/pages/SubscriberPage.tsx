@@ -38,13 +38,13 @@ import {
   Search,
   PersonAdd,
   Assignment,
-
+  Security,
   Nfc,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
-interface Subscriber {
+interface Member {
   id: number;
   firstName: string;
   lastName: string;
@@ -56,7 +56,7 @@ interface Subscriber {
   entityId?: string;
 }
 
-interface NewSubscriber {
+interface NewMember {
   firstName: string;
   lastName: string;
   email?: string; // Now optional
@@ -66,10 +66,12 @@ interface NewSubscriber {
 }
 
 const SubscriberPage: React.FC = () => {
-  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permissionLoading, setPermissionLoading] = useState(true);
 
   // Confirmation dialog state
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -80,7 +82,7 @@ const SubscriberPage: React.FC = () => {
   } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Form state for creating/editing subscriber
+  // Form state for creating/editing member
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [firstName, setFirstName] = useState('');
@@ -107,24 +109,44 @@ const SubscriberPage: React.FC = () => {
     setSuccessMessage(null);
   };
 
-  const fetchSubscribers = async () => {
+  const checkPermission = async () => {
+    setPermissionLoading(true);
+    try {
+      const response = await ApiService.get('/api/entity/permissions/check/MEMBER_MANAGEMENT');
+      setHasPermission(response.data.hasPermission);
+    } catch (err: any) {
+      console.error('Failed to check permission:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      setHasPermission(false);
+    } finally {
+      setPermissionLoading(false);
+    }
+  };
+
+  const fetchMembers = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await ApiService.get<Subscriber[]>('/api/subscribers');
-      setSubscribers(response.data || []);
+      const response = await ApiService.get<Member[]>('/api/subscribers');
+      setMembers(response.data || []);
     } catch (err: any) {
-      console.error("Failed to fetch subscribers:", err);
-      setError(err.response?.data?.message || 'Failed to fetch subscribers.');
-      setSubscribers([]);
+      console.error("Failed to fetch members:", err);
+      setError(err.response?.data?.message || 'Failed to fetch members.');
+      setMembers([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSubscribers();
+    checkPermission();
   }, []);
+
+  useEffect(() => {
+    if (hasPermission) {
+      fetchMembers();
+    }
+  }, [hasPermission]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -132,44 +154,44 @@ const SubscriberPage: React.FC = () => {
     setSuccessMessage(null);
     setFormLoading(true);
 
-    const subscriberData: NewSubscriber = { firstName, lastName, email, mobileNumber, nfcCardUid, photoUrl };
+    const memberData: NewMember = { firstName, lastName, email, mobileNumber, nfcCardUid, photoUrl };
 
     try {
       if (isEditing && editingId) {
-        const response = await ApiService.put<Subscriber>(`/api/subscribers/${editingId}`, subscriberData);
-        setSuccessMessage(`Subscriber '${response.data.firstName}' updated successfully!`);
+        const response = await ApiService.put<Member>(`/api/subscribers/${editingId}`, memberData);
+        setSuccessMessage(`Member '${response.data.firstName}' updated successfully!`);
       } else {
-        const response = await ApiService.post<Subscriber>('/api/subscribers', subscriberData);
-        setSuccessMessage(`Subscriber '${response.data.firstName}' created successfully!`);
+        const response = await ApiService.post<Member>('/api/subscribers', memberData);
+        setSuccessMessage(`Member '${response.data.firstName}' created successfully!`);
       }
       resetForm();
-      fetchSubscribers();
+      fetchMembers();
     } catch (err: any) {
-      console.error("Failed to save subscriber:", err);
-      setError(err.response?.data?.message || err.response?.data || 'Failed to save subscriber.');
+      console.error("Failed to save member:", err);
+      setError(err.response?.data?.message || err.response?.data || 'Failed to save member.');
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleEdit = (subscriber: Subscriber) => {
+  const handleEdit = (member: Member) => {
     setIsEditing(true);
-    setEditingId(subscriber.id);
-    setFirstName(subscriber.firstName);
-    setLastName(subscriber.lastName);
-    setEmail(subscriber.email || '');
-    setMobileNumber(subscriber.mobileNumber);
-    setNfcCardUid(subscriber.nfcCardUid || '');
-    // setPhotoUrl(subscriber.photoUrl || ''); // If photoUrl was part of Subscriber interface
+    setEditingId(member.id);
+    setFirstName(member.firstName);
+    setLastName(member.lastName);
+    setEmail(member.email || '');
+    setMobileNumber(member.mobileNumber);
+    setNfcCardUid(member.nfcCardUid || '');
+    // setPhotoUrl(member.photoUrl || ''); // If photoUrl was part of Member interface
     setShowForm(true);
     setSuccessMessage(null);
   };
 
   const handleDelete = (id: number) => {
-    const subscriber = subscribers.find(s => s.id === id);
+    const member = members.find(s => s.id === id);
     setConfirmationData({
-      title: 'Delete Subscriber',
-      message: `Are you sure you want to delete subscriber "${subscriber?.firstName} ${subscriber?.lastName}"? This action cannot be undone and will remove all their attendance records.`,
+      title: 'Delete Member',
+      message: `Are you sure you want to delete member "${member?.firstName} ${member?.lastName}"? This action cannot be undone and will remove all their attendance records.`,
       onConfirm: () => performDelete(id),
     });
     setConfirmationOpen(true);
@@ -180,31 +202,79 @@ const SubscriberPage: React.FC = () => {
     setSuccessMessage(null);
     try {
       await ApiService.delete(`/api/subscribers/${id}`);
-      setSuccessMessage('Subscriber deleted successfully!');
-      fetchSubscribers(); // Refresh list
+      setSuccessMessage('Member deleted successfully!');
+      fetchMembers(); // Refresh list
       setConfirmationOpen(false);
     } catch (err: any) {
-      console.error("Failed to delete subscriber:", err);
-      setError(err.response?.data?.message || err.response?.data || 'Failed to delete subscriber.');
+      console.error("Failed to delete member:", err);
+      setError(err.response?.data?.message || err.response?.data || 'Failed to delete member.');
       setConfirmationOpen(false);
     }
   };
 
 
-  // Filter subscribers based on search term
-  const filteredSubscribers = subscribers.filter(subscriber =>
-    `${subscriber.firstName} ${subscriber.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (subscriber.email && subscriber.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    subscriber.mobileNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (subscriber.nfcCardUid && subscriber.nfcCardUid.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Filter members based on search term
+  const filteredMembers = members.filter(member =>
+    `${member.firstName} ${member.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (member.email && member.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    member.mobileNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (member.nfcCardUid && member.nfcCardUid.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Permission loading state
+  if (permissionLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+        <Typography variant="h6" sx={{ ml: 2 }}>
+          Checking permissions...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // No permission state
+  if (!hasPermission) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Member Management Access Restricted
+          </Typography>
+          <Typography variant="body1">
+            You don't have permission to access the Member Management system.
+            Please contact your super administrator to request access to member management features.
+          </Typography>
+        </Alert>
+
+        <Card sx={{ mt: 3 }}>
+          <CardContent sx={{ textAlign: 'center', py: 6 }}>
+            <Security sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h5" color="text.secondary" gutterBottom>
+              Member Management Unavailable
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              Contact your administrator to enable member management features for your organization.
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={checkPermission}
+              startIcon={<Security />}
+            >
+              Check Permissions Again
+            </Button>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  }
 
   return (
     <Box>
       {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h4" component="h1" fontWeight="bold" color="primary">
-          Subscriber Management
+          Member Management
         </Typography>
         <Button
           variant="contained"
@@ -212,7 +282,7 @@ const SubscriberPage: React.FC = () => {
           onClick={() => { resetForm(); setShowForm(true); }}
           size="large"
         >
-          Add New Subscriber
+          Add New Member
         </Button>
       </Box>
 
@@ -221,7 +291,7 @@ const SubscriberPage: React.FC = () => {
         <CardContent>
           <TextField
             fullWidth
-            placeholder="Search subscribers by name, email, mobile, or NFC card..."
+            placeholder="Search members by name, email, mobile, or NFC card..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -240,7 +310,7 @@ const SubscriberPage: React.FC = () => {
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <PersonAdd color="primary" />
-            {isEditing ? 'Edit Subscriber' : 'Add New Subscriber'}
+            {isEditing ? 'Edit Member' : 'Add New Member'}
           </Box>
         </DialogTitle>
         <form onSubmit={handleSubmit}>
@@ -339,18 +409,18 @@ const SubscriberPage: React.FC = () => {
               disabled={formLoading || !firstName || !lastName || !mobileNumber}
               startIcon={formLoading ? <CircularProgress size={20} /> : null}
             >
-              {isEditing ? 'Update' : 'Create'} Subscriber
+              {isEditing ? 'Update' : 'Create'} Member
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* Subscribers Table */}
+      {/* Members Table */}
       <Card>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" fontWeight="bold">
-              Subscribers ({filteredSubscribers.length})
+              Members ({filteredMembers.length})
             </Typography>
             {isLoading && <CircularProgress size={24} />}
           </Box>
@@ -359,14 +429,14 @@ const SubscriberPage: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress />
             </Box>
-          ) : filteredSubscribers.length === 0 ? (
+          ) : filteredMembers.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Person sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
-                {searchTerm ? 'No subscribers match your search' : 'No subscribers found'}
+                {searchTerm ? 'No members match your search' : 'No members found'}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first subscriber'}
+                {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first member'}
               </Typography>
               {!searchTerm && (
                 <Button
@@ -374,7 +444,7 @@ const SubscriberPage: React.FC = () => {
                   startIcon={<PersonAdd />}
                   onClick={() => { resetForm(); setShowForm(true); }}
                 >
-                  Add First Subscriber
+                  Add First Member
                 </Button>
               )}
             </Box>
@@ -383,7 +453,7 @@ const SubscriberPage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Subscriber</TableCell>
+                    <TableCell>Member</TableCell>
                     <TableCell>Email</TableCell>
                     <TableCell>Mobile</TableCell>
                     <TableCell>NFC Card</TableCell>
@@ -391,35 +461,35 @@ const SubscriberPage: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredSubscribers.map((subscriber) => (
-                    <TableRow key={subscriber.id} hover>
+                  {filteredMembers.map((member) => (
+                    <TableRow key={member.id} hover>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Avatar sx={{ bgcolor: 'primary.main' }}>
-                            {subscriber.firstName.charAt(0)}{subscriber.lastName.charAt(0)}
+                            {member.firstName.charAt(0)}{member.lastName.charAt(0)}
                           </Avatar>
                           <Box>
                             <Typography variant="subtitle2" fontWeight="bold">
-                              {subscriber.firstName} {subscriber.lastName}
+                              {member.firstName} {member.lastName}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              ID: {subscriber.id}
+                              ID: {member.id}
                             </Typography>
                           </Box>
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">{subscriber.email || 'Not provided'}</Typography>
+                        <Typography variant="body2">{member.email || 'Not provided'}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">{subscriber.mobileNumber}</Typography>
+                        <Typography variant="body2">{member.mobileNumber}</Typography>
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {subscriber.hasNfcCard && subscriber.nfcCardUid ? (
+                          {member.hasNfcCard && member.nfcCardUid ? (
                             <Chip
                               icon={<Nfc />}
-                              label={subscriber.nfcCardUid}
+                              label={member.nfcCardUid}
                               size="small"
                               color="success"
                               variant="outlined"
@@ -436,7 +506,7 @@ const SubscriberPage: React.FC = () => {
                         </Box>
                       </TableCell>
                       <TableCell align="right">
-                        {!subscriber.hasNfcCard && (
+                        {!member.hasNfcCard && (
                           <Tooltip title="Assign NFC Card">
                             <IconButton
                               onClick={() => window.open('/dashboard/cards', '_blank')}
@@ -447,18 +517,18 @@ const SubscriberPage: React.FC = () => {
                             </IconButton>
                           </Tooltip>
                         )}
-                        <Tooltip title="Edit subscriber">
+                        <Tooltip title="Edit member">
                           <IconButton
-                            onClick={() => handleEdit(subscriber)}
+                            onClick={() => handleEdit(member)}
                             color="primary"
                             size="small"
                           >
                             <Edit />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete subscriber">
+                        <Tooltip title="Delete member">
                           <IconButton
-                            onClick={() => handleDelete(subscriber.id)}
+                            onClick={() => handleDelete(member.id)}
                             color="error"
                             size="small"
                           >

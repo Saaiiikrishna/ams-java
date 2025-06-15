@@ -29,11 +29,6 @@ import {
   Schedule,
   AdminPanelSettings,
   Delete,
-
-  CleaningServices,
-  Security,
-  Update,
-  DeleteForever,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 import ConfirmationDialog from '../components/ConfirmationDialog';
@@ -53,10 +48,6 @@ const EntityAdminsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isCleaningUp, setIsCleaningUp] = useState(false);
-  const [isCleaningSuperAdmin, setIsCleaningSuperAdmin] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [isCleaningDatabase, setIsCleaningDatabase] = useState(false);
 
   // Confirmation dialog state
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -147,121 +138,13 @@ const EntityAdminsPage: React.FC = () => {
     }
   };
 
-  const handleCleanupDuplicates = () => {
-    setConfirmationData({
-      title: 'Cleanup Duplicate Admins',
-      message: 'This will remove duplicate entity admins, keeping only the oldest admin for each organization. This action cannot be undone. Are you sure you want to proceed?',
-      onConfirm: () => performCleanupDuplicates(),
-    });
-    setConfirmationOpen(true);
-  };
 
-  const performCleanupDuplicates = async () => {
-    setIsCleaningUp(true);
-    try {
-      const response = await ApiService.post('/super/cleanup-duplicate-admins');
-      setSuccessMessage(`Cleanup completed! Removed ${response.data.duplicatesRemoved} duplicate admin(s).`);
-      fetchEntityAdmins(); // Refresh the list
-      setConfirmationOpen(false);
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (err: any) {
-      console.error('Failed to cleanup duplicates:', err);
-      setError('Failed to cleanup duplicate admins. Please try again.');
-      setConfirmationOpen(false);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setIsCleaningUp(false);
-    }
-  };
 
-  const handleCleanupSuperAdmin = () => {
-    setConfirmationData({
-      title: 'Cleanup SuperAdmin Records',
-      message: 'This will remove any SuperAdmin records that are incorrectly stored in the Entity Admins table. This should fix the issue of SuperAdmin appearing in the Entity Admins list. Are you sure you want to proceed?',
-      onConfirm: () => performCleanupSuperAdmin(),
-    });
-    setConfirmationOpen(true);
-  };
 
-  const performCleanupSuperAdmin = async () => {
-    setIsCleaningSuperAdmin(true);
-    try {
-      const response = await ApiService.post('/super/cleanup-superadmin-from-entity-admins');
-      setSuccessMessage(`SuperAdmin cleanup completed! Removed ${response.data.superAdminsRemoved} SuperAdmin record(s) from Entity Admins table.`);
-      fetchEntityAdmins(); // Refresh the list
-      setConfirmationOpen(false);
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (err: any) {
-      console.error('Failed to cleanup SuperAdmin records:', err);
-      setError('Failed to cleanup SuperAdmin records. Please try again.');
-      setConfirmationOpen(false);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setIsCleaningSuperAdmin(false);
-    }
-  };
 
-  const handleCleanupDatabase = () => {
-    setConfirmationData({
-      title: '⚠️ DANGER: Complete Database Cleanup',
-      message: 'This will DELETE ALL DATA from the database except Super Admin accounts. This includes:\n\n• All Organizations\n• All Entity Admins\n• All Subscribers\n• All Sessions\n• All Attendance Logs\n• All NFC Cards\n\nThis action is IRREVERSIBLE and should only be used for development/testing purposes.\n\nAre you absolutely sure you want to proceed?',
-      onConfirm: () => performCleanupDatabase(),
-    });
-    setConfirmationOpen(true);
-  };
 
-  const performCleanupDatabase = async () => {
-    setIsCleaningDatabase(true);
-    try {
-      const response = await ApiService.delete('/super/cleanup-all-data');
-      const deletedRecords = response.data.deletedRecords;
-      setSuccessMessage(
-        `Database cleanup completed! Deleted ${deletedRecords.total} total records:\n` +
-        `• ${deletedRecords.organizations} Organizations\n` +
-        `• ${deletedRecords.entityAdmins} Entity Admins\n` +
-        `• ${deletedRecords.subscribers} Subscribers\n` +
-        `• ${deletedRecords.attendanceSessions} Sessions\n` +
-        `• ${deletedRecords.attendanceLogs} Attendance Logs\n` +
-        `• ${deletedRecords.nfcCards} NFC Cards`
-      );
-      fetchEntityAdmins(); // Refresh the list
-      setConfirmationOpen(false);
-      setTimeout(() => setSuccessMessage(null), 10000);
-    } catch (err: any) {
-      console.error('Failed to cleanup database:', err);
-      setError('Failed to cleanup database. Please try again.');
-      setConfirmationOpen(false);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setIsCleaningDatabase(false);
-    }
-  };
 
-  const handleMigrateEntityIds = () => {
-    setConfirmationData({
-      title: 'Migrate Entity IDs',
-      message: 'This will assign Entity IDs to existing organizations that don\'t have them, and remove unused organizations. Organizations with entity admins will be updated with new MSD-prefixed IDs. Are you sure you want to proceed?',
-      onConfirm: () => performMigrateEntityIds(),
-    });
-    setConfirmationOpen(true);
-  };
 
-  const performMigrateEntityIds = async () => {
-    setIsMigrating(true);
-    try {
-      const response = await ApiService.post('/super/migrate-entity-ids');
-      setSuccessMessage(`Migration completed! Updated ${response.data.entitiesUpdated} entities and removed ${response.data.entitiesRemoved} unused entities.`);
-      setConfirmationOpen(false);
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (err: any) {
-      console.error('Failed to migrate Entity IDs:', err);
-      setError('Failed to migrate Entity IDs. Please try again.');
-      setConfirmationOpen(false);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setIsMigrating(false);
-    }
-  };
 
   // Filter admins based on search term
   const filteredAdmins = admins.filter(admin =>
@@ -281,53 +164,7 @@ const EntityAdminsPage: React.FC = () => {
             Manage and view all entity administrators
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button
-            variant="outlined"
-            color="primary"
-            startIcon={<Update />}
-            onClick={handleMigrateEntityIds}
-            disabled={isMigrating}
-            size="small"
-          >
-            {isMigrating ? 'Migrating...' : 'Migrate Entity IDs'}
-          </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<Security />}
-            onClick={handleCleanupSuperAdmin}
-            disabled={isCleaningSuperAdmin}
-            size="small"
-          >
-            {isCleaningSuperAdmin ? 'Cleaning...' : 'Fix SuperAdmin'}
-          </Button>
-          <Button
-            variant="outlined"
-            color="warning"
-            startIcon={<CleaningServices />}
-            onClick={handleCleanupDuplicates}
-            disabled={isCleaningUp}
-            size="small"
-          >
-            {isCleaningUp ? 'Cleaning...' : 'Cleanup Duplicates'}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<DeleteForever />}
-            onClick={handleCleanupDatabase}
-            disabled={isCleaningDatabase}
-            size="small"
-            sx={{
-              backgroundColor: '#d32f2f',
-              '&:hover': { backgroundColor: '#b71c1c' },
-              fontWeight: 'bold'
-            }}
-          >
-            {isCleaningDatabase ? 'Cleaning...' : 'CLEANUP ALL DATA'}
-          </Button>
-        </Box>
+
       </Box>
 
       {/* Alert Messages */}

@@ -90,6 +90,13 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- JmDNS for service discovery -->
+		<dependency>
+			<groupId>org.jmdns</groupId>
+			<artifactId>jmdns</artifactId>
+			<version>3.5.8</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
@@ -166,6 +173,18 @@
 			<groupId>ai.djl</groupId>
 			<artifactId>basicdataset</artifactId>
 			<version>0.24.0</version>
+		</dependency>
+
+		<!-- ZXing QR Code Generation -->
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>3.5.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>javase</artifactId>
+			<version>3.5.2</version>
 		</dependency>
 	</dependencies>
 

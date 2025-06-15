@@ -17,6 +17,7 @@ public interface EntityAdminRepository extends JpaRepository<EntityAdmin, Long> 
     Optional<EntityAdmin> findByOrganization(Organization organization);
     List<EntityAdmin> findAllByOrganization(Organization organization);
     long countByOrganization(Organization organization);
+    void deleteByOrganization(Organization organization);
 
     // Entity ID based methods
     @Query("SELECT ea FROM EntityAdmin ea WHERE ea.organization.entityId = :entityId")
@@ -30,4 +31,6 @@ public interface EntityAdminRepository extends JpaRepository<EntityAdmin, Long> 
 
     @Query("SELECT COUNT(ea) FROM EntityAdmin ea WHERE ea.organization.entityId = :entityId")
     long countByOrganizationEntityId(@Param("entityId") String entityId);
+
+    // Methods for dashboard statistics - removed due to missing createdAt field
 }

@@ -31,6 +31,8 @@ public interface NfcCardRepository extends JpaRepository<NfcCard, Long> {
 
     // Find cards by organization object
     List<NfcCard> findByOrganization(Organization organization);
+    long countByOrganization(Organization organization);
+    void deleteByOrganization(Organization organization);
 
     // Find unassigned active cards for a specific organization by entity ID
     @Query("SELECT c FROM NfcCard c WHERE c.subscriber IS NULL AND c.organization.entityId = :entityId AND c.isActive = true")

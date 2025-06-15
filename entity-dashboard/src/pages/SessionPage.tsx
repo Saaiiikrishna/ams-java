@@ -41,7 +41,7 @@ import {
   CheckCircle,
   Cancel,
   Refresh,
-
+  Security,
   Delete,
   Person,
   Nfc,
@@ -86,6 +86,8 @@ const SessionPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [recentScans, setRecentScans] = useState<any[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permissionLoading, setPermissionLoading] = useState(true);
 
   // Confirmation dialog state
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -116,6 +118,20 @@ const SessionPage: React.FC = () => {
     setSuccessMessage(null);
   };
 
+  const checkPermission = async () => {
+    setPermissionLoading(true);
+    try {
+      const response = await ApiService.get('/api/entity/permissions/check/ATTENDANCE_TRACKING');
+      setHasPermission(response.data.hasPermission);
+    } catch (err: any) {
+      console.error('Failed to check permission:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      setHasPermission(false);
+    } finally {
+      setPermissionLoading(false);
+    }
+  };
+
   // Fetch all sessions for the current organization
   const fetchSessions = async () => {
     setIsLoading(true);
@@ -144,16 +160,22 @@ const SessionPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSessions();
-    fetchRecentScans();
-
-    // Set up polling for real-time updates
-    const interval = setInterval(() => {
-      fetchRecentScans();
-    }, 10000); // Update every 10 seconds
-
-    return () => clearInterval(interval);
+    checkPermission();
   }, []);
+
+  useEffect(() => {
+    if (hasPermission) {
+      fetchSessions();
+      fetchRecentScans();
+
+      // Set up polling for real-time updates
+      const interval = setInterval(() => {
+        fetchRecentScans();
+      }, 10000); // Update every 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [hasPermission]);
 
   const handleCreateSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -243,6 +265,54 @@ const SessionPage: React.FC = () => {
   const formatDateTime = (isoString?: string | null) => {
     if (!isoString) return 'N/A';
     return new Date(isoString).toLocaleString();
+  }
+
+  // Permission loading state
+  if (permissionLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+        <Typography variant="h6" sx={{ ml: 2 }}>
+          Checking permissions...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // No permission state
+  if (!hasPermission) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Attendance Tracking Access Restricted
+          </Typography>
+          <Typography variant="body1">
+            You don't have permission to access the Attendance Tracking system.
+            Please contact your super administrator to request access to attendance tracking features.
+          </Typography>
+        </Alert>
+
+        <Card sx={{ mt: 3 }}>
+          <CardContent sx={{ textAlign: 'center', py: 6 }}>
+            <Security sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h5" color="text.secondary" gutterBottom>
+              Attendance Tracking Unavailable
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              Contact your administrator to enable attendance tracking features for your organization.
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={checkPermission}
+              startIcon={<Security />}
+            >
+              Check Permissions Again
+            </Button>
+          </CardContent>
+        </Card>
+      </Box>
+    );
   }
 
   return (

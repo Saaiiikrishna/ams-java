@@ -114,9 +114,9 @@ class LoggingService {
     this.info(`Auth Event: ${event}`, 'AUTH', data);
   }
 
-  // Subscriber management logging
-  subscriberOperation(operation: string, subscriberId?: string, data?: any): void {
-    this.info(`Subscriber Operation: ${operation}${subscriberId ? ` (${subscriberId})` : ''}`, 'SUBSCRIBER', data);
+  // Member management logging
+  memberOperation(operation: string, memberId?: string, data?: any): void {
+    this.info(`Member Operation: ${operation}${memberId ? ` (${memberId})` : ''}`, 'MEMBER', data);
   }
 
   // Session management logging

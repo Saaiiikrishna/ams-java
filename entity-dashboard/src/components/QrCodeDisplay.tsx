@@ -399,7 +399,7 @@ const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({ sessionId, sessionName, o
             />
           )}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Scan with subscriber mobile app to check in
+            Scan with member mobile app to check in
           </Typography>
           {timeRemaining && (
             <Typography 

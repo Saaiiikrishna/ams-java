@@ -16,12 +16,14 @@ import UnassignedEntitiesPage from './pages/UnassignedEntitiesPage';
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthService from './services/AuthService';
+import { CustomThemeProvider } from './contexts/ThemeContext';
 import './App.css';
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <CustomThemeProvider>
+      <Router>
+        <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
 
@@ -43,8 +45,9 @@ function App() {
 
         {/* Catch-all route for 404 handling */}
         <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </CustomThemeProvider>
   );
 }
 

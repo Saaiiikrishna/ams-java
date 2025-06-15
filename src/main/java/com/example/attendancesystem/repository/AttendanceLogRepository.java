@@ -6,6 +6,7 @@ import com.example.attendancesystem.model.CheckInMethod;
 import com.example.attendancesystem.model.Organization;
 import com.example.attendancesystem.model.Subscriber;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -49,7 +50,14 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, Lo
     // Find all attendance for a subscriber ordered by check-in time
     List<AttendanceLog> findBySubscriberOrderByCheckInTimeDesc(Subscriber subscriber);
 
-    // Delete methods for cleanup
+    // Count and delete methods for cleanup
+    @Query("SELECT COUNT(al) FROM AttendanceLog al WHERE al.session.organization = :organization")
+    long countByOrganization(@Param("organization") Organization organization);
+
+    @Modifying
+    @Query("DELETE FROM AttendanceLog al WHERE al.session.organization = :organization")
+    void deleteByOrganization(@Param("organization") Organization organization);
+
     void deleteBySession(AttendanceSession session);
     void deleteBySubscriber(Subscriber subscriber);
 
