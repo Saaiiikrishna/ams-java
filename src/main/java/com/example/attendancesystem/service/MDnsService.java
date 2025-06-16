@@ -11,8 +11,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,14 +66,31 @@ public class MDnsService {
             currentIPAddress = localAddress.getHostAddress();
             logger.info("   Selected IP address: {}", currentIPAddress);
 
+            // Windows compatibility check
+            String osName = System.getProperty("os.name").toLowerCase();
+            boolean isWindows = osName.contains("windows");
+
             // Stop existing service if running
             if (isServiceRunning) {
                 logger.info("   Stopping existing mDNS service...");
                 stopService();
             }
 
-            // Create JmDNS instance
-            jmdns = JmDNS.create(localAddress);
+            // Create JmDNS instance with proper Windows support
+            if (isWindows) {
+                logger.info("   Windows detected - configuring mDNS for Windows");
+                jmdns = createWindowsCompatibleJmDNS(localAddress);
+                if (jmdns == null) {
+                    return; // Failed to create, error already logged
+                }
+            } else {
+                try {
+                    jmdns = JmDNS.create(localAddress);
+                } catch (IOException e) {
+                    logger.warn("Failed to create JmDNS with specific address, trying default interface: {}", e.getMessage());
+                    jmdns = JmDNS.create();
+                }
+            }
 
             // Wait a moment for JmDNS to initialize
             Thread.sleep(1000);
@@ -85,6 +104,9 @@ public class MDnsService {
             apiProperties.put("discovery", "/subscriber/discovery");
             apiProperties.put("hostname", mdnsHostname);
             apiProperties.put("ip", localAddress.getHostAddress());
+            apiProperties.put("admin", "/admin");
+            apiProperties.put("entity", "/entity");
+            apiProperties.put("menu", "/menu.html");
 
             apiServiceInfo = ServiceInfo.create(
                 API_SERVICE_TYPE,
@@ -334,6 +356,150 @@ public class MDnsService {
     }
 
     /**
+     * Create Windows-compatible JmDNS instance with proper error handling and diagnostics
+     */
+    private JmDNS createWindowsCompatibleJmDNS(InetAddress localAddress) {
+        logger.info("   🔧 Configuring mDNS for Windows environment...");
+
+        // Check Windows prerequisites
+        if (!checkWindowsPrerequisites()) {
+            return null;
+        }
+
+        // Try multiple approaches for Windows compatibility
+        JmDNS jmdnsInstance = null;
+
+        // Approach 1: Try with specific network interface
+        try {
+            logger.info("   📡 Attempting mDNS with specific interface: {}", localAddress.getHostAddress());
+            NetworkInterface networkInterface = NetworkInterface.getByInetAddress(localAddress);
+            if (networkInterface != null && networkInterface.isUp() && !networkInterface.isLoopback()) {
+                jmdnsInstance = JmDNS.create(localAddress, "RestaurantSystem-" + localAddress.getHostAddress());
+                logger.info("   ✅ Successfully created mDNS with specific interface");
+                return jmdnsInstance;
+            }
+        } catch (IOException e) {
+            logger.warn("   ⚠️ Failed to create mDNS with specific interface: {}", e.getMessage());
+        }
+
+        // Approach 2: Try with default interface
+        try {
+            logger.info("   📡 Attempting mDNS with default interface...");
+            jmdnsInstance = JmDNS.create();
+            logger.info("   ✅ Successfully created mDNS with default interface");
+            return jmdnsInstance;
+        } catch (IOException e) {
+            logger.error("   ❌ Failed to create mDNS with default interface: {}", e.getMessage());
+        }
+
+        // Approach 3: Try with all available interfaces
+        try {
+            logger.info("   📡 Attempting mDNS with available network interfaces...");
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                if (ni.isUp() && !ni.isLoopback() && ni.supportsMulticast()) {
+                    Enumeration<InetAddress> addresses = ni.getInetAddresses();
+                    while (addresses.hasMoreElements()) {
+                        InetAddress addr = addresses.nextElement();
+                        if (!addr.isLoopbackAddress() && addr instanceof java.net.Inet4Address) {
+                            try {
+                                jmdnsInstance = JmDNS.create(addr, "RestaurantSystem-" + addr.getHostAddress());
+                                logger.info("   ✅ Successfully created mDNS with interface: {} ({})",
+                                          ni.getName(), addr.getHostAddress());
+                                return jmdnsInstance;
+                            } catch (IOException e) {
+                                logger.debug("   Failed with interface {}: {}", ni.getName(), e.getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("   ❌ Failed to enumerate network interfaces: {}", e.getMessage());
+        }
+
+        // All approaches failed
+        logger.error("   ❌ All mDNS creation approaches failed on Windows");
+        logWindowsTroubleshooting();
+        return null;
+    }
+
+    /**
+     * Check Windows prerequisites for mDNS functionality
+     */
+    private boolean checkWindowsPrerequisites() {
+        logger.info("   🔍 Checking Windows mDNS prerequisites...");
+
+        boolean allGood = true;
+
+        // Check if Bonjour service is available
+        try {
+            // Try to create a test multicast socket to check if multicast is supported
+            java.net.MulticastSocket testSocket = new java.net.MulticastSocket();
+            testSocket.close();
+            logger.info("   ✅ Multicast socket creation successful");
+        } catch (Exception e) {
+            logger.error("   ❌ Multicast socket creation failed: {}", e.getMessage());
+            logger.error("   💡 This usually means Bonjour service is not installed or running");
+            allGood = false;
+        }
+
+        // Check network interfaces
+        try {
+            boolean hasValidInterface = false;
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                if (ni.isUp() && !ni.isLoopback() && ni.supportsMulticast()) {
+                    hasValidInterface = true;
+                    logger.info("   ✅ Found valid multicast interface: {}", ni.getName());
+                    break;
+                }
+            }
+
+            if (!hasValidInterface) {
+                logger.error("   ❌ No valid multicast-capable network interfaces found");
+                allGood = false;
+            }
+
+        } catch (Exception e) {
+            logger.error("   ❌ Failed to check network interfaces: {}", e.getMessage());
+            allGood = false;
+        }
+
+        return allGood;
+    }
+
+    /**
+     * Log Windows-specific troubleshooting information
+     */
+    private void logWindowsTroubleshooting() {
+        logger.error("   🔧 Windows mDNS Troubleshooting Guide:");
+        logger.error("   ");
+        logger.error("   1. Install Apple Bonjour Service:");
+        logger.error("      - Download from: https://support.apple.com/kb/DL999");
+        logger.error("      - Or install iTunes (includes Bonjour)");
+        logger.error("   ");
+        logger.error("   2. Check Windows Services:");
+        logger.error("      - Press Win+R, type 'services.msc'");
+        logger.error("      - Find 'Bonjour Service' and ensure it's running");
+        logger.error("   ");
+        logger.error("   3. Configure Windows Firewall:");
+        logger.error("      - Allow UDP port 5353 (mDNS)");
+        logger.error("      - Allow Java application through firewall");
+        logger.error("   ");
+        logger.error("   4. Network Interface Issues:");
+        logger.error("      - Disable/re-enable network adapter");
+        logger.error("      - Check if VPN is interfering");
+        logger.error("   ");
+        logger.error("   5. Alternative Solutions:");
+        logger.error("      - Use IP address: http://{}:8080", currentIPAddress);
+        logger.error("      - Add to hosts file: {} restaurant.local", currentIPAddress);
+        logger.error("   ");
+    }
+
+    /**
      * Get the best available local IP address for mDNS binding
      * Prioritizes non-loopback, site-local addresses
      */
@@ -473,5 +639,100 @@ public class MDnsService {
         }
 
         return status;
+    }
+
+    /**
+     * Get comprehensive Windows mDNS diagnostics
+     */
+    public Map<String, Object> getWindowsDiagnostics() {
+        Map<String, Object> diagnostics = new HashMap<>();
+
+        try {
+            // Basic system info
+            diagnostics.put("osName", System.getProperty("os.name"));
+            diagnostics.put("osVersion", System.getProperty("os.version"));
+            diagnostics.put("javaVersion", System.getProperty("java.version"));
+
+            // Network interface diagnostics
+            Map<String, Object> networkInfo = new HashMap<>();
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            int interfaceCount = 0;
+            int multicastCapable = 0;
+
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                interfaceCount++;
+
+                Map<String, Object> interfaceInfo = new HashMap<>();
+                interfaceInfo.put("name", ni.getName());
+                interfaceInfo.put("displayName", ni.getDisplayName());
+                interfaceInfo.put("isUp", ni.isUp());
+                interfaceInfo.put("isLoopback", ni.isLoopback());
+                interfaceInfo.put("supportsMulticast", ni.supportsMulticast());
+
+                if (ni.supportsMulticast()) {
+                    multicastCapable++;
+                }
+
+                // Get IP addresses for this interface
+                List<String> addresses = new ArrayList<>();
+                Enumeration<InetAddress> addrs = ni.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress addr = addrs.nextElement();
+                    if (addr instanceof java.net.Inet4Address) {
+                        addresses.add(addr.getHostAddress());
+                    }
+                }
+                interfaceInfo.put("ipv4Addresses", addresses);
+
+                networkInfo.put("interface_" + ni.getName(), interfaceInfo);
+            }
+
+            diagnostics.put("networkInterfaces", networkInfo);
+            diagnostics.put("totalInterfaces", interfaceCount);
+            diagnostics.put("multicastCapableInterfaces", multicastCapable);
+
+            // Multicast socket test
+            try {
+                java.net.MulticastSocket testSocket = new java.net.MulticastSocket(5353);
+                testSocket.close();
+                diagnostics.put("multicastSocketTest", "SUCCESS - Can create multicast socket on port 5353");
+            } catch (Exception e) {
+                diagnostics.put("multicastSocketTest", "FAILED - " + e.getMessage());
+                diagnostics.put("multicastSocketError", "This usually indicates Bonjour service is not installed or port 5353 is blocked");
+            }
+
+            // Bonjour service check (indirect)
+            try {
+                // Try to resolve a known mDNS name to test if Bonjour is working
+                java.net.InetAddress[] addresses = java.net.InetAddress.getAllByName("localhost.local");
+                diagnostics.put("bonjourTest", "SUCCESS - mDNS resolution working");
+            } catch (Exception e) {
+                diagnostics.put("bonjourTest", "FAILED - " + e.getMessage());
+                diagnostics.put("bonjourError", "Bonjour service may not be installed or running");
+            }
+
+            // Installation instructions
+            diagnostics.put("installationInstructions", Map.of(
+                "bonjourDownload", "https://support.apple.com/kb/DL999",
+                "alternativeInstall", "Install iTunes (includes Bonjour service)",
+                "serviceCheck", "Check 'Bonjour Service' in Windows Services (services.msc)",
+                "firewallConfig", "Allow UDP port 5353 and Java application in Windows Firewall"
+            ));
+
+            // Manual workaround
+            InetAddress localAddress = InetAddress.getLocalHost();
+            String hostsFilePath = System.getenv("WINDIR") + "\\System32\\drivers\\etc\\hosts";
+            diagnostics.put("manualWorkaround", Map.of(
+                "hostsFile", hostsFilePath,
+                "entryToAdd", localAddress.getHostAddress() + " " + mdnsHostname,
+                "instructions", "Run Command Prompt as Administrator and add the entry to hosts file"
+            ));
+
+        } catch (Exception e) {
+            diagnostics.put("diagnosticsError", e.getMessage());
+        }
+
+        return diagnostics;
     }
 }

@@ -22,7 +22,7 @@ import './App.css';
 function App() {
   return (
     <CustomThemeProvider>
-      <Router>
+      <Router basename="/admin">
         <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />

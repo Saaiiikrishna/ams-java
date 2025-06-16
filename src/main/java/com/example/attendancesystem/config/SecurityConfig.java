@@ -83,11 +83,12 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain staticResourcesSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/assets/**", "/*.js", "/*.css", "/*.png", "/*.ico", "/*.html") // Static resources
+            .securityMatcher("/assets/**", "/*.js", "/*.css", "/*.png", "/*.ico", "/*.html",
+                           "/admin/**", "/entity/**", "/static/**") // Static resources and React apps
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll() // Allow all static resources
+                .anyRequest().permitAll() // Allow all static resources and React apps
             );
 
         return http.build();
@@ -170,10 +171,17 @@ public class SecurityConfig {
     @Bean // Added CORS configuration source bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*")); // Allow all origins for development
+        // Allow specific origins including restaurant.local
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://restaurant.local:8080",
+            "http://192.168.31.4:8080",
+            "http://127.0.0.1:8080"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")); // Allow common methods
         configuration.setAllowedHeaders(List.of("*")); // Allow all headers
-        // configuration.setAllowCredentials(true); // Only set if you need credentials and origins are specific
+        configuration.setAllowCredentials(true); // Allow credentials for authentication
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // Apply this configuration to all paths

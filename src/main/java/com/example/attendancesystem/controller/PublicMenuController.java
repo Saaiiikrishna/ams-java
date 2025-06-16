@@ -363,8 +363,8 @@ public class PublicMenuController {
                 if (table.getId() != null && table.getIsActive()) {
                     // Generate new QR code using table ID for consistency
                     table.setQrCode("TABLE-" + table.getId() + "-" + System.currentTimeMillis());
-                    // FINAL SOLUTION: Point directly to static HTML file (bypasses controller routing issues)
-                    String qrCodeData = "http://192.168.31.209:8080/menu.html?entityId=" + table.getOrganization().getEntityId() + "&table=" + table.getTableNumber() + "&qr=" + table.getQrCode();
+                    // Use mDNS hostname for better WiFi network compatibility
+                    String qrCodeData = "http://restaurant.local:8080/menu.html?entityId=" + table.getOrganization().getEntityId() + "&table=" + table.getTableNumber() + "&qr=" + table.getQrCode();
                     try {
                         table.setQrCodeUrl("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
                                           java.net.URLEncoder.encode(qrCodeData, "UTF-8"));

@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -19,26 +20,31 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.subscriberapp.util.ServerDiscovery
+import com.example.subscriberapp.data.ServerManager
 import com.example.subscriberapp.ui.debug.DebugActivity
 import kotlinx.coroutines.launch
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import javax.inject.Inject
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun LoginScreen(
     authViewModel: AuthViewModel,
+    serverManager: ServerManager,
     onLoginSuccess: () -> Unit
 ) {
     var mobileNumber by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
-    var isDiscovering by remember { mutableStateOf(false) }
-    var discoveryMessage by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uiState by authViewModel.uiState.collectAsState()
+
+    // Observe server manager state
+    val serverStatus by serverManager.serverStatus.collectAsState()
+    val discoveredServer by serverManager.discoveredServer.collectAsState()
 
     // Location permissions for network discovery
     val locationPermissions = rememberMultiplePermissionsState(
@@ -128,42 +134,30 @@ fun LoginScreen(
                 if (!locationPermissions.allPermissionsGranted) {
                     locationPermissions.launchMultiplePermissionRequest()
                 } else {
-                    scope.launch {
-                        isDiscovering = true
-                        discoveryMessage = "Searching for server on local network..."
-
-                        // Clear saved server to force rediscovery
-                        ServerDiscovery.clearSavedServer(context)
-
-                        // Trigger discovery
-                        val discoveredServer = ServerDiscovery.discoverServerUrl(context)
-
-                        isDiscovering = false
-                        discoveryMessage = if (discoveredServer.contains("10.0.2.2")) {
-                            "No server found on network. Using emulator default."
-                        } else {
-                            "Server found: $discoveredServer"
-                        }
-                    }
+                    serverManager.refreshServerDiscovery()
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isDiscovering && !uiState.isLoading
+            enabled = !uiState.isLoading
         ) {
-            if (isDiscovering) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.Refresh,
-                    contentDescription = "Discover Server"
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+            when (serverStatus) {
+                is ServerManager.ServerStatus.Discovering -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Searching...")
+                }
+                else -> {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = "Discover Server"
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Find Server")
+                }
             }
-            Text(if (isDiscovering) "Searching..." else "Find Server")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -186,7 +180,7 @@ fun LoginScreen(
                 authViewModel.loginWithPin(mobileNumber, pin)
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = mobileNumber.isNotBlank() && pin.length == 4 && !uiState.isLoading && !isDiscovering
+            enabled = mobileNumber.isNotBlank() && pin.length == 4 && !uiState.isLoading
         ) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
@@ -198,20 +192,52 @@ fun LoginScreen(
             }
         }
 
-        // Discovery Message
-        discoveryMessage?.let { message ->
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp),
-                    textAlign = TextAlign.Center
-                )
+        // Server Status Message
+        when (val currentStatus = serverStatus) {
+            is ServerManager.ServerStatus.Found -> {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Text(
+                        text = "✅ Server found: ${currentStatus.serverUrl}",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            is ServerManager.ServerStatus.Error -> {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = "❌ ${currentStatus.message}",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            is ServerManager.ServerStatus.Discovering -> {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Text(
+                        text = "🔍 Searching for server on local network...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
 

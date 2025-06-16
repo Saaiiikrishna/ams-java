@@ -2,7 +2,38 @@ import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 
 import AuthService from './AuthService';
 import logger from './LoggingService';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'; // Backend API URL
+// EMERGENCY FIX: Force direct connection to backend
+const getApiBaseUrl = (): string => {
+  // ALWAYS use the current window location when served from backend
+  const currentHost = window.location.hostname;
+  const currentPort = window.location.port;
+
+  console.log('🔗 Current location:', window.location.href);
+  console.log('🔗 Host:', currentHost, 'Port:', currentPort);
+
+  // If we're on the backend server (port 8080), use same origin
+  if (currentPort === '8080') {
+    console.log('✅ Using same-origin API calls (relative URLs)');
+    return ''; // Use relative URLs - this should work!
+  }
+
+  // Fallback: try multiple backend URLs
+  const possibleUrls = [
+    `http://${currentHost}:8080`,
+    'http://192.168.31.4:8080',
+    'http://restaurant.local:8080',
+    'http://localhost:8080'
+  ];
+
+  const backendUrl = possibleUrls[0];
+  console.log('🔗 Using external API calls:', backendUrl);
+  return backendUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+console.log('🔗 API Base URL configured:', API_BASE_URL);
+console.log('🔗 Full backend URL will be:', API_BASE_URL || window.location.origin);
 
 const ApiService: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

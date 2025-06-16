@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
@@ -28,9 +28,12 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
 
   // Redirect to dashboard if already logged in
-  if (AuthService.isLoggedIn() && location.pathname === '/login') {
-    navigate('/dashboard');
-  }
+  useEffect(() => {
+    if (AuthService.isLoggedIn() && location.pathname === '/login') {
+      console.log('🔄 [LOGIN] Already logged in, redirecting to dashboard');
+      navigate('/dashboard');
+    }
+  }, [navigate, location.pathname]);
 
 
   const handleSubmit = async (event: FormEvent) => {
@@ -38,11 +41,15 @@ const LoginPage: React.FC = () => {
     setError(null);
     setIsLoading(true);
 
+    console.log('🔐 Attempting entity login with:', { username, password: '***' });
+
     try {
       const response = await ApiService.post('/api/auth/login', {
         username,
         password,
       });
+
+      console.log('✅ Entity login response:', response);
 
       if (response.data && response.data.jwt) {
         const token = response.data.jwt;
@@ -61,20 +68,48 @@ const LoginPage: React.FC = () => {
           return;
         }
         AuthService.login(token);
+        console.log('✅ [LOGIN] Token stored successfully');
+        console.log('🔄 [LOGIN] Navigating to /dashboard');
         navigate('/dashboard');
       } else {
+        console.error('❌ Invalid response structure:', response.data);
         setError('Login failed: No authentication token received.');
       }
     } catch (err: any) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(`Login failed: ${err.response.data.message}`);
-      } else if (err.response && err.response.status === 401) {
-        setError('Invalid username or password. Please try again.');
+      console.error('❌ [LOGIN] Entity login error:', err);
+
+      let errorMessage = 'Login failed: An unexpected error occurred.';
+
+      if (err.response) {
+        console.error('❌ [LOGIN] Error response:', err.response);
+        console.error('❌ [LOGIN] Error status:', err.response.status);
+        console.error('❌ [LOGIN] Error data:', err.response.data);
+
+        if (err.response.data && typeof err.response.data === 'string') {
+          errorMessage = `Login failed: ${err.response.data}`;
+        } else if (err.response.data && err.response.data.message) {
+          errorMessage = `Login failed: ${err.response.data.message}`;
+        } else if (err.response.status === 401) {
+          errorMessage = 'Invalid username or password. Please try again.';
+        } else if (err.response.status === 403) {
+          errorMessage = 'Access denied. You do not have permission to access this system.';
+        } else if (err.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = `Login failed: Server returned error ${err.response.status}`;
+        }
+      } else if (err.request) {
+        console.error('❌ [LOGIN] Network error:', err.request);
+        errorMessage = 'Cannot connect to server. Please check your network connection.';
       } else {
-        setError('An unexpected error occurred. Please try again later.');
-        console.error(err);
+        console.error('❌ [LOGIN] Unknown error:', err.message);
+        errorMessage = `Login failed: ${err.message}`;
       }
+
+      console.error('❌ [LOGIN] Setting error message:', errorMessage);
+      setError(errorMessage);
     } finally {
+      console.log('🏁 [LOGIN] Login attempt finished, resetting loading state');
       setIsLoading(false);
     }
   };

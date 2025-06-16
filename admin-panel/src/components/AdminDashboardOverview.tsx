@@ -17,6 +17,7 @@ import {
   ListItemAvatar,
   ListItemText,
   Divider,
+
 } from '@mui/material';
 import {
   Business,
@@ -29,6 +30,7 @@ import {
   CheckCircle,
   Info,
   Schedule,
+
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 
@@ -65,6 +67,8 @@ const AdminDashboardOverview: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+
+
   const fetchDashboardStats = async () => {
     setLoading(true);
     setError(null);
@@ -89,7 +93,7 @@ const AdminDashboardOverview: React.FC = () => {
         totalOrganizations: orgsResponse.data?.length || 0,
         totalEntityAdmins: adminsResponse.data?.length || 0,
         totalSuperAdmins: superAdminsResponse.data?.length || 0,
-        totalNfcCards: nfcCardsResponse.data?.[0]?.count || nfcCardsResponse.data?.length || 0,
+        totalNfcCards: nfcCardsResponse.data?.count || 0,
         systemHealth: {
           status: 'healthy',
           uptime: '99.9%',
@@ -152,6 +156,8 @@ const AdminDashboardOverview: React.FC = () => {
   const handleRefresh = () => {
     fetchDashboardStats();
   };
+
+
 
   if (loading && !stats) {
     return (
@@ -400,6 +406,8 @@ const AdminDashboardOverview: React.FC = () => {
         </Grid>
       </Grid>
 
+
+
       {/* Recent Activity */}
       <Grid container spacing={3}>
         <Grid item xs={12}>
@@ -438,6 +446,8 @@ const AdminDashboardOverview: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
+
+
     </Box>
   );
 };

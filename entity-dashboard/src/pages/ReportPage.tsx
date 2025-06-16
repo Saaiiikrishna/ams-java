@@ -35,8 +35,11 @@ import {
   BarChart,
   FileDownload,
   PictureAsPdf,
-
+  EventNote,
+  People,
+  Analytics,
 } from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ApiService from '../services/ApiService';
 
 // DTOs (simplified for frontend representation)
@@ -66,6 +69,8 @@ interface AttendanceLogFull {
 }
 
 const ReportPage: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [sessions, setSessions] = useState<SessionBasic[]>([]);
   const [subscribers, setSubscribers] = useState<SubscriberBasic[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -266,6 +271,11 @@ const ReportPage: React.FC = () => {
     );
   }
 
+  // Determine which report type to show based on URL
+  const isSessionReports = location.pathname.includes('/reports/sessions');
+  const isSubscriberReports = location.pathname.includes('/reports/subscribers');
+  const isMainReports = location.pathname === '/dashboard/reports';
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -278,9 +288,105 @@ const ReportPage: React.FC = () => {
         </Typography>
       </Box>
 
+      {/* Navigation Buttons - Show only on main reports page */}
+      {isMainReports && (
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4
+                }
+              }}
+              onClick={() => navigate('/dashboard/reports/sessions')}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                <Avatar sx={{ bgcolor: 'primary.main', mx: 'auto', mb: 2, width: 56, height: 56 }}>
+                  <EventNote sx={{ fontSize: 32 }} />
+                </Avatar>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Session Reports
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Generate reports per session basis with attendance details and analytics
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4
+                }
+              }}
+              onClick={() => navigate('/dashboard/reports/subscribers')}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                <Avatar sx={{ bgcolor: 'success.main', mx: 'auto', mb: 2, width: 56, height: 56 }}>
+                  <People sx={{ fontSize: 32 }} />
+                </Avatar>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Subscriber Reports
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Generate reports per subscriber basis with individual attendance history
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4
+                }
+              }}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                <Avatar sx={{ bgcolor: 'warning.main', mx: 'auto', mb: 2, width: 56, height: 56 }}>
+                  <Analytics sx={{ fontSize: 32 }} />
+                </Avatar>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Analytics Dashboard
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  View comprehensive analytics and trends (Coming Soon)
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Back Button for specific report pages */}
+      {(isSessionReports || isSubscriberReports) && (
+        <Box sx={{ mb: 3 }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate('/dashboard/reports')}
+            startIcon={<Assessment />}
+          >
+            Back to Reports Overview
+          </Button>
+        </Box>
+      )}
+
       <Grid container spacing={3}>
-        {/* Absentees Report */}
-        <Grid item xs={12} lg={6}>
+        {/* Session Reports - Show only on main reports or session reports page */}
+        {(isMainReports || isSessionReports) && (
+          <Grid item xs={12} lg={6}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
@@ -289,10 +395,10 @@ const ReportPage: React.FC = () => {
                 </Avatar>
                 <Box>
                   <Typography variant="h6" fontWeight="bold">
-                    Absentees Report
+                    {isSessionReports ? 'Session Attendance Report' : 'Absentees Report'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Find who missed specific sessions
+                    {isSessionReports ? 'Detailed attendance analysis per session' : 'Find who missed specific sessions'}
                   </Typography>
                 </Box>
               </Box>
@@ -391,9 +497,11 @@ const ReportPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
+        )}
 
-        {/* Attendance History */}
-        <Grid item xs={12} lg={6}>
+        {/* Subscriber Reports - Show only on main reports or subscriber reports page */}
+        {(isMainReports || isSubscriberReports) && (
+          <Grid item xs={12} lg={6}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
@@ -402,10 +510,10 @@ const ReportPage: React.FC = () => {
                 </Avatar>
                 <Box>
                   <Typography variant="h6" fontWeight="bold">
-                    Attendance History
+                    {isSubscriberReports ? 'Subscriber Activity Report' : 'Attendance History'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    View individual attendance records
+                    {isSubscriberReports ? 'Comprehensive activity analysis per subscriber' : 'View individual attendance records'}
                   </Typography>
                 </Box>
               </Box>
@@ -545,6 +653,7 @@ const ReportPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
+        )}
       </Grid>
     </Box>
   );

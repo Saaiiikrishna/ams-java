@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -67,64 +68,87 @@ public class SubscriberAuthService {
     }
 
     /**
-     * Login with PIN (simplified - no organization ID required)
+     * Login with PIN (simplified - handles multiple organizations with same mobile number)
      */
     public Map<String, Object> loginWithPinSimple(SubscriberLoginDto loginDto) {
         try {
-            // Find subscriber by mobile number only
-            SubscriberAuth auth = subscriberAuthRepository
-                    .findBySubscriberMobileNumber(loginDto.getMobileNumber())
-                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+            // Find all subscribers with this mobile number across all organizations
+            List<SubscriberAuth> authList = subscriberAuthRepository
+                    .findBySubscriberMobileNumber(loginDto.getMobileNumber());
 
-            if (!auth.getIsActive()) {
-                throw new IllegalArgumentException("Account is inactive");
+            if (authList.isEmpty()) {
+                throw new IllegalArgumentException("Subscriber not found");
             }
 
-            if (!passwordEncoder.matches(loginDto.getPin(), auth.getPin())) {
-                throw new IllegalArgumentException("Invalid PIN");
+            // Try to authenticate with each organization until one succeeds
+            SubscriberAuth validAuth = null;
+            for (SubscriberAuth auth : authList) {
+                if (auth.getIsActive() && passwordEncoder.matches(loginDto.getPin(), auth.getPin())) {
+                    validAuth = auth;
+                    break;
+                }
             }
 
-            auth.setLastLoginTime(LocalDateTime.now());
-            auth.setLastDeviceId(loginDto.getDeviceId());
-            auth.setLastDeviceInfo(loginDto.getDeviceInfo());
-            subscriberAuthRepository.save(auth);
+            if (validAuth == null) {
+                // Check if any account exists but with wrong PIN
+                boolean hasActiveAccount = authList.stream().anyMatch(SubscriberAuth::getIsActive);
+                if (hasActiveAccount) {
+                    throw new IllegalArgumentException("Invalid PIN");
+                } else {
+                    throw new IllegalArgumentException("Account is inactive");
+                }
+            }
+
+            // Update login information
+            validAuth.setLastLoginTime(LocalDateTime.now());
+            validAuth.setLastDeviceId(loginDto.getDeviceId());
+            validAuth.setLastDeviceInfo(loginDto.getDeviceInfo());
+            subscriberAuthRepository.save(validAuth);
 
             // Generate JWT token for subscriber
-            String token = generateSubscriberToken(auth.getSubscriber());
+            String token = generateSubscriberToken(validAuth.getSubscriber());
 
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
-            response.put("subscriber", createSubscriberInfo(auth.getSubscriber()));
-            response.put("organization", createOrganizationInfo(auth.getSubscriber().getOrganization()));
+            response.put("subscriber", createSubscriberInfo(validAuth.getSubscriber()));
+            response.put("organization", createOrganizationInfo(validAuth.getSubscriber().getOrganization()));
             response.put("message", "Login successful");
 
-            logger.info("Subscriber logged in with PIN (simple): {}", loginDto.getMobileNumber());
+            logger.info("Subscriber logged in with PIN: {} for organization: {}",
+                       loginDto.getMobileNumber(), validAuth.getSubscriber().getOrganization().getEntityId());
             return response;
 
         } catch (Exception e) {
-            logger.error("Simple PIN login failed for {}: {}", loginDto.getMobileNumber(), e.getMessage());
+            logger.error("PIN login failed for {}: {}", loginDto.getMobileNumber(), e.getMessage());
             throw e;
         }
     }
 
     /**
-     * Update subscriber PIN
+     * Update subscriber PIN (handles multiple organizations with same mobile number)
      */
     @Transactional
     public void updatePin(String mobileNumber, String currentPin, String newPin) {
         try {
-            // Find subscriber auth by mobile number
-            SubscriberAuth auth = subscriberAuthRepository
-                    .findBySubscriberMobileNumber(mobileNumber)
-                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+            // Find all subscriber auth records by mobile number
+            List<SubscriberAuth> authList = subscriberAuthRepository
+                    .findBySubscriberMobileNumber(mobileNumber);
 
-            if (!auth.getIsActive()) {
-                throw new IllegalArgumentException("Account is inactive");
+            if (authList.isEmpty()) {
+                throw new IllegalArgumentException("Subscriber not found");
             }
 
-            // Verify current PIN
-            if (!passwordEncoder.matches(currentPin, auth.getPin())) {
-                throw new IllegalArgumentException("Current PIN is incorrect");
+            // Find the auth record that matches the current PIN
+            SubscriberAuth validAuth = null;
+            for (SubscriberAuth auth : authList) {
+                if (auth.getIsActive() && passwordEncoder.matches(currentPin, auth.getPin())) {
+                    validAuth = auth;
+                    break;
+                }
+            }
+
+            if (validAuth == null) {
+                throw new IllegalArgumentException("Current PIN is incorrect or account is inactive");
             }
 
             // Validate new PIN
@@ -133,10 +157,11 @@ public class SubscriberAuthService {
             }
 
             // Update PIN
-            auth.setPin(passwordEncoder.encode(newPin));
-            subscriberAuthRepository.save(auth);
+            validAuth.setPin(passwordEncoder.encode(newPin));
+            subscriberAuthRepository.save(validAuth);
 
-            logger.info("PIN updated successfully for subscriber: {}", mobileNumber);
+            logger.info("PIN updated successfully for subscriber: {} in organization: {}",
+                       mobileNumber, validAuth.getSubscriber().getOrganization().getEntityId());
 
         } catch (Exception e) {
             logger.error("PIN update failed for {}: {}", mobileNumber, e.getMessage());

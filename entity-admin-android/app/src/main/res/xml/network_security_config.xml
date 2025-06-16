@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- Local development servers -->
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+
+        <!-- Local network servers -->
+        <domain includeSubdomains="true">192.168.1.0/24</domain>
+        <domain includeSubdomains="true">192.168.0.0/24</domain>
+        <domain includeSubdomains="true">192.168.31.0/24</domain>
+        <domain includeSubdomains="true">172.20.10.0/24</domain>
+
+        <!-- Specific server IPs -->
+        <domain includeSubdomains="true">192.168.31.4</domain>
+        <domain includeSubdomains="true">192.168.31.209</domain>
+        <domain includeSubdomains="true">172.20.10.2</domain>
+
+        <!-- mDNS hostnames -->
+        <domain includeSubdomains="true">restaurant.local</domain>
     </domain-config>
 </network-security-config>

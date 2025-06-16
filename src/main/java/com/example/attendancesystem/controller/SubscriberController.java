@@ -827,4 +827,30 @@ public class SubscriberController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+    /**
+     * Get comprehensive Windows mDNS diagnostics
+     */
+    @GetMapping("/windows-diagnostics")
+    public ResponseEntity<?> windowsDiagnostics() {
+        try {
+            String osName = System.getProperty("os.name").toLowerCase();
+            if (!osName.contains("windows")) {
+                return ResponseEntity.ok(Map.of(
+                    "message", "This endpoint is for Windows diagnostics only",
+                    "currentOS", osName,
+                    "timestamp", System.currentTimeMillis()
+                ));
+            }
+
+            Map<String, Object> diagnostics = mdnsService.getWindowsDiagnostics();
+            diagnostics.put("timestamp", System.currentTimeMillis());
+
+            return ResponseEntity.ok(diagnostics);
+        } catch (Exception e) {
+            logger.error("Failed to get Windows diagnostics: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
 }

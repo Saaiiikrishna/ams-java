@@ -26,8 +26,9 @@ object ServerDiscovery {
         .build()
 
     /**
-     * Discover server URL with mDNS first, then fallback options
+     * Discover server URL with mDNS first, then fallback options (DEPRECATED - use async version)
      */
+    @Deprecated("Use discoverServerUrlAsync for better performance")
     fun discoverServerUrl(context: Context): String {
         Log.i(TAG, "🚀 Starting comprehensive server discovery...")
         Log.i(TAG, "📱 Device info: Android ${android.os.Build.VERSION.RELEASE}")
@@ -134,10 +135,99 @@ object ServerDiscovery {
             }
         }
 
-        // If nothing works, return the current known server IP as last resort
-        val lastResort = "http://192.168.31.209:8080/"
-        Log.w(TAG, "⚠️ No server discovered via scanning, using last resort: $lastResort")
+        // If nothing works, return the mDNS discovered server IP as last resort
+        val lastResort = "http://192.168.31.4:8080/" // This is what mDNS discovered
+        Log.w(TAG, "⚠️ No server discovered via scanning, using mDNS discovered server: $lastResort")
         return lastResort
+    }
+
+    /**
+     * Fast async server discovery with optimized performance
+     */
+    suspend fun discoverServerUrlAsync(context: Context): String = withContext(Dispatchers.IO) {
+        Log.i(TAG, "🚀 Starting fast async server discovery...")
+
+        // Check network connectivity first
+        checkNetworkConnectivity(context)
+
+        // Try to get previously discovered server first (fastest option)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val savedServer = prefs.getString(KEY_DISCOVERED_SERVER, null)
+
+        if (savedServer != null) {
+            Log.i(TAG, "🔍 Testing saved server: $savedServer")
+            if (testServerHealth(savedServer)) {
+                Log.i(TAG, "✅ Using cached server: $savedServer")
+                return@withContext savedServer
+            } else {
+                Log.w(TAG, "❌ Cached server not responding, clearing cache")
+                prefs.edit().remove(KEY_DISCOVERED_SERVER).apply()
+            }
+        }
+
+        // Try direct hostname resolution first (fast)
+        Log.i(TAG, "🏠 Testing direct mDNS hostname...")
+        val mdnsHostname = "http://restaurant.local:8080/"
+        if (testServerHealth(mdnsHostname)) {
+            Log.i(TAG, "✅ SUCCESS! Direct mDNS hostname works: $mdnsHostname")
+            prefs.edit().putString(KEY_DISCOVERED_SERVER, mdnsHostname).apply()
+            return@withContext mdnsHostname
+        }
+
+        // Try hostname resolution
+        try {
+            val resolvedIp = HostnameResolver.resolveRestaurantLocal(context)
+            if (resolvedIp != null) {
+                val resolvedUrl = "http://$resolvedIp:8080/"
+                Log.i(TAG, "🔍 Testing resolved IP: $resolvedUrl")
+                if (testServerHealth(resolvedUrl)) {
+                    Log.i(TAG, "✅ SUCCESS! Resolved hostname works: $resolvedUrl")
+                    prefs.edit().putString(KEY_DISCOVERED_SERVER, resolvedUrl).apply()
+                    return@withContext resolvedUrl
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Hostname resolution failed: ${e.message}")
+        }
+
+        // Try fast mDNS discovery (limited time)
+        Log.i(TAG, "📡 Attempting fast mDNS discovery...")
+        try {
+            val mdnsDiscovery = MDnsDiscovery(context)
+            val services = mdnsDiscovery.discoverServicesSync(3000L) // Only 3 seconds for fast discovery
+
+            for (service in services) {
+                if (testServerHealth(service.baseUrl)) {
+                    Log.i(TAG, "✅ SUCCESS! mDNS service works: ${service.baseUrl}")
+                    prefs.edit().putString(KEY_DISCOVERED_SERVER, service.baseUrl).apply()
+                    return@withContext service.baseUrl
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Fast mDNS discovery failed: ${e.message}")
+        }
+
+        // Fast fallback to known working servers
+        val quickFallbacks = listOf(
+            "http://192.168.31.4:8080/", // Current known server (from mDNS discovery)
+            "http://192.168.31.209:8080/", // Alternative
+            "http://10.0.2.2:8080/", // Emulator
+            "http://localhost:8080/"
+        )
+
+        Log.i(TAG, "🔍 Testing quick fallback servers...")
+        for (serverUrl in quickFallbacks) {
+            if (testServerHealth(serverUrl)) {
+                Log.i(TAG, "✅ SUCCESS! Fallback server works: $serverUrl")
+                prefs.edit().putString(KEY_DISCOVERED_SERVER, serverUrl).apply()
+                return@withContext serverUrl
+            }
+        }
+
+        // Last resort - use the server that was discovered by mDNS if available
+        val lastResort = "http://192.168.31.4:8080/" // This is the server that mDNS found
+        Log.w(TAG, "⚠️ Using last resort server (mDNS discovered): $lastResort")
+        return@withContext lastResort
     }
 
     /**
@@ -239,7 +329,7 @@ object ServerDiscovery {
     /**
      * Quick test if server is responding
      */
-    private fun testServerQuick(baseUrl: String): Boolean {
+    fun testServerQuick(baseUrl: String): Boolean {
         return try {
             val url = if (baseUrl.endsWith("/")) {
                 baseUrl + HEALTH_ENDPOINT

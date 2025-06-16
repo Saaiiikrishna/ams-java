@@ -27,6 +27,8 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  Snackbar,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -35,6 +37,8 @@ import {
   AdminPanelSettings as AdminIcon,
   Lock as LockIcon,
   MoreVert as MoreVertIcon,
+  DeleteForever,
+  Warning,
 } from '@mui/icons-material';
 import ApiService from '../services/ApiService';
 import ChangePasswordDialog from '../components/ChangePasswordDialog';
@@ -90,6 +94,19 @@ const SuperAdminsPage: React.FC = () => {
     message: string;
     onConfirm: () => void;
   } | null>(null);
+
+  // Database cleanup states
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupSnackbar, setCleanupSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
 
   useEffect(() => {
     fetchSuperAdmins();
@@ -212,12 +229,107 @@ const SuperAdminsPage: React.FC = () => {
     const date = new Date(dateString);
     const diffInMs = now.getTime() - date.getTime();
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return 'Today';
     if (diffInDays === 1) return '1 day ago';
     if (diffInDays < 30) return `${diffInDays} days ago`;
     if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`;
     return `${Math.floor(diffInDays / 365)} years ago`;
+  };
+
+  const handleCleanupDatabase = async () => {
+    console.log('🚨 [DANGER ZONE] ===== DATABASE CLEANUP INITIATED =====');
+    console.log('🚨 [DANGER ZONE] User confirmed database cleanup');
+    console.log('🚨 [DANGER ZONE] Current timestamp:', new Date().toISOString());
+    console.log('🚨 [DANGER ZONE] Current super admins count:', superAdmins.length);
+    console.log('🚨 [DANGER ZONE] About to send POST request to /super/database/cleanup');
+
+    setCleanupLoading(true);
+
+    try {
+      console.log('🔄 [DANGER ZONE] Sending cleanup request to backend...');
+      console.log('🔄 [DANGER ZONE] API endpoint: /super/database/cleanup');
+      console.log('🔄 [DANGER ZONE] Request payload: {}');
+
+      const response = await ApiService.post('/super/database/cleanup', {});
+
+      console.log('✅ [DANGER ZONE] Cleanup response received:', response);
+      console.log('✅ [DANGER ZONE] Response status:', response.status);
+      console.log('✅ [DANGER ZONE] Response data:', response.data);
+
+      if (response.data && response.data.success) {
+        console.log('🎉 [DANGER ZONE] Database cleanup completed successfully!');
+        console.log('🎉 [DANGER ZONE] Success message:', response.data.message);
+
+        setCleanupSnackbar({
+          open: true,
+          message: `Database cleanup completed successfully! ${response.data.message}`,
+          severity: 'success',
+        });
+
+        // Refresh super admins list after cleanup
+        console.log('🔄 [DANGER ZONE] Refreshing super admins list in 1 second...');
+        setTimeout(() => {
+          fetchSuperAdmins();
+        }, 1000);
+
+      } else {
+        console.error('❌ [DANGER ZONE] Cleanup failed - success flag is false');
+        console.error('❌ [DANGER ZONE] Error message:', response.data?.message);
+
+        setCleanupSnackbar({
+          open: true,
+          message: `Cleanup failed: ${response.data?.message || 'Unknown error'}`,
+          severity: 'error',
+        });
+      }
+
+    } catch (error: any) {
+      console.error('💥 [DANGER ZONE] ===== CLEANUP ERROR =====');
+      console.error('💥 [DANGER ZONE] Error object:', error);
+      console.error('💥 [DANGER ZONE] Error message:', error.message);
+      console.error('💥 [DANGER ZONE] Error response:', error.response);
+      console.error('💥 [DANGER ZONE] Error request:', error.request);
+
+      let errorMessage = 'Database cleanup failed due to an unexpected error.';
+      if (error.response?.data?.message) {
+        errorMessage = `Cleanup failed: ${error.response.data.message}`;
+        console.error('💥 [DANGER ZONE] Server error message:', error.response.data.message);
+      } else if (error.response?.status) {
+        errorMessage = `Cleanup failed: Server returned status ${error.response.status}`;
+        console.error('💥 [DANGER ZONE] HTTP status:', error.response.status);
+      } else if (error.message) {
+        errorMessage = `Cleanup failed: ${error.message}`;
+        console.error('💥 [DANGER ZONE] Network/client error:', error.message);
+      }
+
+      setCleanupSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error',
+      });
+    } finally {
+      console.log('🏁 [DANGER ZONE] Cleanup process finished, resetting UI state');
+      setCleanupLoading(false);
+      setCleanupDialogOpen(false);
+    }
+  };
+
+  const openCleanupDialog = () => {
+    console.log('🔍 [DANGER ZONE] Opening database cleanup dialog');
+    console.log('🔍 [DANGER ZONE] Current super admins count:', superAdmins.length);
+    console.log('🔍 [DANGER ZONE] User is about to see critical warning dialog');
+    setCleanupDialogOpen(true);
+  };
+
+  const closeCleanupDialog = () => {
+    console.log('❌ [DANGER ZONE] User cancelled database cleanup dialog');
+    console.log('❌ [DANGER ZONE] Database cleanup aborted by user');
+    setCleanupDialogOpen(false);
+  };
+
+  const closeSnackbar = () => {
+    setCleanupSnackbar(prev => ({ ...prev, open: false }));
   };
 
   return (
@@ -363,6 +475,67 @@ const SuperAdminsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* DANGER ZONE - Database Management Section */}
+      <Card sx={{
+        mt: 4,
+        border: '2px solid',
+        borderColor: 'error.main',
+        bgcolor: 'error.light',
+        color: 'error.contrastText',
+      }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Warning color="inherit" />
+            ⚠️ DANGER ZONE - Database Management
+          </Typography>
+
+          <Typography variant="body2" sx={{ mb: 3, opacity: 0.9 }}>
+            This section contains critical database operations that cannot be undone.
+            Use with extreme caution and only when absolutely necessary.
+          </Typography>
+
+          <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
+
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            p: 2,
+            bgcolor: 'rgba(255,255,255,0.1)',
+            borderRadius: 2,
+          }}>
+            <DeleteForever fontSize="large" />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Clean Database
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                Delete ALL data from ALL tables except super_admins. This will permanently remove:
+                Organizations, Entity Admins, Subscribers, NFC Cards, Sessions, Orders, and all other data.
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              color="error"
+              size="large"
+              onClick={openCleanupDialog}
+              disabled={cleanupLoading}
+              startIcon={cleanupLoading ? <CircularProgress size={20} /> : <DeleteForever />}
+              sx={{
+                minWidth: 200,
+                fontWeight: 'bold',
+                bgcolor: 'error.dark',
+                '&:hover': {
+                  bgcolor: 'error.darker',
+                }
+              }}
+            >
+              {cleanupLoading ? 'Cleaning...' : 'Clean Database'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
       {/* Create Super Admin Dialog */}
       <Dialog 
         open={createDialogOpen} 
@@ -500,6 +673,97 @@ const SuperAdminsPage: React.FC = () => {
           severity="error"
         />
       )}
+
+      {/* Database Cleanup Confirmation Dialog */}
+      <Dialog
+        open={cleanupDialogOpen}
+        onClose={closeCleanupDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{
+          bgcolor: 'error.main',
+          color: 'error.contrastText',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}>
+          <Warning />
+          ⚠️ CRITICAL WARNING - Database Cleanup
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Box component="div">
+            <Typography variant="h6" color="error" gutterBottom>
+              YOU ARE ABOUT TO DELETE ALL DATABASE DATA!
+            </Typography>
+
+            <Typography variant="body1" paragraph>
+              This action will <strong>permanently delete ALL data</strong> from the following tables:
+            </Typography>
+
+            <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+              <li>Organizations and all their data</li>
+              <li>Entity Admins and their assignments</li>
+              <li>Subscribers and their profiles</li>
+              <li>NFC Cards and assignments</li>
+              <li>Attendance Sessions and records</li>
+              <li>Orders and transaction history</li>
+              <li>System logs and activity records</li>
+              <li>All other application data</li>
+            </Box>
+
+            <Typography variant="body1" paragraph color="success.main">
+              ✅ <strong>PRESERVED:</strong> super_admins table will remain intact
+            </Typography>
+
+            <Typography variant="body1" paragraph color="error">
+              ❌ <strong>THIS CANNOT BE UNDONE!</strong>
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary">
+              Only proceed if you are absolutely certain you want to reset the entire system
+              to a clean state. This is typically used for testing or system reset purposes.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button
+            onClick={closeCleanupDialog}
+            variant="outlined"
+            size="large"
+            disabled={cleanupLoading}
+          >
+            Cancel - Keep Data Safe
+          </Button>
+          <Button
+            onClick={handleCleanupDatabase}
+            variant="contained"
+            color="error"
+            size="large"
+            disabled={cleanupLoading}
+            startIcon={cleanupLoading ? <CircularProgress size={20} /> : <DeleteForever />}
+            sx={{ minWidth: 200 }}
+          >
+            {cleanupLoading ? 'Deleting All Data...' : 'YES - DELETE ALL DATA'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Cleanup Result Snackbar */}
+      <Snackbar
+        open={cleanupSnackbar.open}
+        autoHideDuration={6000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity={cleanupSnackbar.severity}
+          sx={{ width: '100%', fontSize: '1.1rem' }}
+        >
+          {cleanupSnackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

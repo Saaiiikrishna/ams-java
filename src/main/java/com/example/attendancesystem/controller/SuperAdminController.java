@@ -580,14 +580,22 @@ public class SuperAdminController {
     @GetMapping("/nfc-cards")
     public ResponseEntity<?> getAllNfcCards() {
         try {
+            logger.info("🔍 [NFC CARDS] Fetching NFC cards count...");
+
             // Get count of NFC cards from the system
             long nfcCardCount = nfcCardRepository.count();
 
-            return ResponseEntity.ok(java.util.Arrays.asList(
-                Map.of("count", nfcCardCount)
-            ));
+            logger.info("📊 [NFC CARDS] Current NFC cards count: {}", nfcCardCount);
+            logger.info("📊 [NFC CARDS] Returning response with count: {}", nfcCardCount);
+
+            Map<String, Object> response = Map.of(
+                "count", nfcCardCount,
+                "timestamp", System.currentTimeMillis()
+            );
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Failed to fetch NFC cards: {}", e.getMessage());
+            logger.error("❌ [NFC CARDS] Failed to fetch NFC cards: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch NFC cards"));
         }

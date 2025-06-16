@@ -38,28 +38,46 @@ const LoginPage: React.FC = () => {
     event.preventDefault();
     setError(null);
     setIsLoading(true);
+
+    console.log('🔐 Attempting login with:', { username, password: '***' });
+
     try {
       const response = await ApiService.post('/super/auth/login', {
         username,
         password,
       });
+
+      console.log('✅ Login response:', response);
+
       // Assuming backend response is { jwt: "accessTokenValue", refreshToken: "refreshTokenValue" }
       // The LoginResponse.java DTO uses "jwt" for accessToken and "refreshToken" for refreshToken.
       if (response.data && response.data.jwt && response.data.refreshToken) {
         AuthService.storeTokens(response.data.jwt, response.data.refreshToken);
+        console.log('✅ Tokens stored, navigating to dashboard');
         // Navigate to the dashboard after successful login
         navigate('/dashboard');
       } else {
+        console.error('❌ Invalid response structure:', response.data);
         setError('Login failed: Invalid response from server.');
       }
     } catch (err: any) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(`Login failed: ${err.response.data.message}`);
-      } else if (err.response && err.response.status === 401) {
-        setError('Login failed: Invalid username or password.');
+      console.error('❌ Login error:', err);
+
+      if (err.response) {
+        console.error('❌ Error response:', err.response);
+        if (err.response.data && err.response.data.message) {
+          setError(`Login failed: ${err.response.data.message}`);
+        } else if (err.response.status === 401) {
+          setError('Login failed: Invalid username or password.');
+        } else {
+          setError(`Login failed: Server error (${err.response.status})`);
+        }
+      } else if (err.request) {
+        console.error('❌ Network error:', err.request);
+        setError('Login failed: Cannot connect to server. Please check your network connection.');
       } else {
-        setError('Login failed: An unexpected error occurred.');
-        console.error(err);
+        console.error('❌ Unknown error:', err.message);
+        setError(`Login failed: ${err.message}`);
       }
     } finally {
       setIsLoading(false);

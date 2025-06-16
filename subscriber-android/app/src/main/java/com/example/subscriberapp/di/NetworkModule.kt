@@ -3,6 +3,8 @@ package com.example.subscriberapp.di
 import android.content.Context
 import com.example.subscriberapp.data.api.ApiService
 import com.example.subscriberapp.data.TokenManager
+import com.example.subscriberapp.data.DynamicApiService
+import com.example.subscriberapp.data.ServerManager
 import com.example.subscriberapp.util.ServerDiscovery
 import com.example.subscriberapp.util.MDnsDiscovery
 import dagger.Module
@@ -92,36 +94,26 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(
+    fun provideDynamicApiService(
         okHttpClient: OkHttpClient,
         @ApplicationContext context: Context
-    ): Retrofit {
-        // Use a more reliable server URL discovery approach
-        Log.i("NetworkModule", "🚀 Starting server discovery for Retrofit configuration...")
-
-        // Try to get cached server URL first
-        val prefs = context.getSharedPreferences("server_discovery", Context.MODE_PRIVATE)
-        var baseUrl = prefs.getString("discovered_server", null)
-
-        if (baseUrl == null) {
-            Log.i("NetworkModule", "🔍 No cached server found, discovering...")
-            baseUrl = ServerDiscovery.discoverServerUrl(context)
-            Log.i("NetworkModule", "✅ Discovered server URL: $baseUrl")
-        } else {
-            Log.i("NetworkModule", "📋 Using cached server URL: $baseUrl")
-        }
-
-        return Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+    ): DynamicApiService {
+        return DynamicApiService(okHttpClient, context)
     }
 
     @Provides
     @Singleton
-    fun provideApiService(retrofit: Retrofit): ApiService {
-        return retrofit.create(ApiService::class.java)
+    fun provideServerManager(
+        @ApplicationContext context: Context,
+        dynamicApiService: DynamicApiService
+    ): ServerManager {
+        return ServerManager(context, dynamicApiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideApiService(dynamicApiService: DynamicApiService): ApiService {
+        return dynamicApiService.getApiService()
     }
 
     @Provides

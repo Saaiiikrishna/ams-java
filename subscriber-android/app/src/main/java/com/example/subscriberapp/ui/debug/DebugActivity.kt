@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,7 +22,9 @@ import androidx.compose.ui.unit.sp
 import com.example.subscriberapp.util.ServerDiscovery
 import com.example.subscriberapp.util.MDnsDiscovery
 import com.example.subscriberapp.util.HostnameResolver
+import com.example.subscriberapp.data.ServerManager
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,10 +34,13 @@ import java.util.concurrent.TimeUnit
 
 @AndroidEntryPoint
 class DebugActivity : ComponentActivity() {
-    
+
+    @Inject
+    lateinit var serverManager: ServerManager
+
     companion object {
         private const val TAG = "DebugActivity"
-        
+
         fun start(context: Context) {
             val intent = Intent(context, DebugActivity::class.java)
             context.startActivity(intent)
@@ -56,13 +62,31 @@ class DebugActivity : ComponentActivity() {
     fun DebugScreen() {
         var logs by remember { mutableStateOf(listOf<String>()) }
         var isRunning by remember { mutableStateOf(false) }
-        var discoveredServer by remember { mutableStateOf<String?>(null) }
-        
+
+        // Observe server manager state
+        val serverStatus by serverManager.serverStatus.collectAsState()
+        val discoveredServer by serverManager.discoveredServer.collectAsState()
+
         val scope = rememberCoroutineScope()
         
         fun addLog(message: String) {
             logs = logs + "[${System.currentTimeMillis() % 100000}] $message"
             Log.d(TAG, message)
+        }
+
+        // Add logs based on server status changes
+        LaunchedEffect(serverStatus) {
+            when (val currentStatus = serverStatus) {
+                is ServerManager.ServerStatus.Discovering -> {
+                    addLog("🔍 Server discovery in progress...")
+                }
+                is ServerManager.ServerStatus.Found -> {
+                    addLog("✅ Server found: ${currentStatus.serverUrl}")
+                }
+                is ServerManager.ServerStatus.Error -> {
+                    addLog("❌ Server discovery error: ${currentStatus.message}")
+                }
+            }
         }
         
         Column(
@@ -108,16 +132,11 @@ class DebugActivity : ComponentActivity() {
                 Button(
                     onClick = {
                         if (!isRunning) {
-                            scope.launch {
-                                isRunning = true
-                                logs = emptyList()
-                                discoveredServer = null
-                                runServerDiscovery(
-                                    addLog = { addLog(it) },
-                                    onServerFound = { server -> discoveredServer = server }
-                                )
-                                isRunning = false
-                            }
+                            isRunning = true
+                            logs = emptyList()
+                            addLog("🚀 Starting server discovery via ServerManager...")
+                            serverManager.refreshServerDiscovery()
+                            isRunning = false
                         }
                     },
                     enabled = !isRunning,
@@ -136,11 +155,38 @@ class DebugActivity : ComponentActivity() {
                 Button(
                     onClick = {
                         logs = emptyList()
-                        discoveredServer = null
                     },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("🗑️ Clear Logs")
+                }
+            }
+
+            // Manual server entry
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        addLog("🔧 Setting manual server: http://192.168.31.4:8080/")
+                        serverManager.setManualServer("http://192.168.31.4:8080/")
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Use .4:8080")
+                }
+
+                Button(
+                    onClick = {
+                        addLog("🔧 Setting manual server: http://192.168.31.209:8080/")
+                        serverManager.setManualServer("http://192.168.31.209:8080/")
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Use .209:8080")
                 }
             }
             

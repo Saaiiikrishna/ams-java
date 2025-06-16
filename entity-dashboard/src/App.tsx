@@ -25,7 +25,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
+      <Router basename="/entity">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 
@@ -54,12 +54,28 @@ function App() {
             </Route>
           </Route>
 
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<RootRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} /> {/* Catch-all */}
         </Routes>
       </Router>
     </ThemeProvider>
   );
 }
+
+// Smart root redirect component for entity dashboard
+const RootRedirect: React.FC = () => {
+  const token = localStorage.getItem('authToken'); // Fixed: Use same key as AuthService
+
+  console.log('🔍 [ROUTING] RootRedirect - checking token:', !!token);
+  console.log('🔍 [ROUTING] Current pathname:', window.location.pathname);
+
+  if (token) {
+    console.log('✅ [ROUTING] Token found, redirecting to /dashboard');
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  console.log('❌ [ROUTING] No token found, redirecting to /login');
+  return <Navigate to="/login" replace />;
+};
 
 export default App;

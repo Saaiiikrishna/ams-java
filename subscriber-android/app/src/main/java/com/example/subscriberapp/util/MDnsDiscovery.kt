@@ -3,6 +3,7 @@ package com.example.subscriberapp.util
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -20,16 +21,22 @@ class MDnsDiscovery(private val context: Context) {
     companion object {
         private const val TAG = "MDnsDiscovery"
         private const val SERVICE_TYPE = "_attendanceapi._tcp"
-        private const val DISCOVERY_TIMEOUT_MS = 10000L // 10 seconds
+        private const val DISCOVERY_TIMEOUT_MS = 5000L // Reduced to 5 seconds for faster discovery
+        private const val FAST_DISCOVERY_TIMEOUT_MS = 3000L // 3 seconds for fast discovery
     }
     
     private val nsdManager: NsdManager by lazy {
         context.getSystemService(Context.NSD_SERVICE) as NsdManager
     }
-    
+
+    private val wifiManager: WifiManager by lazy {
+        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    }
+
     private val discoveredServices = ConcurrentHashMap<String, DiscoveredService>()
     private val isDiscovering = AtomicBoolean(false)
     private var discoveryListener: NsdManager.DiscoveryListener? = null
+    private var multicastLock: WifiManager.MulticastLock? = null
     
     data class DiscoveredService(
         val name: String,
@@ -82,8 +89,8 @@ class MDnsDiscovery(private val context: Context) {
                     val resultChannel = Channel<List<DiscoveredService>>(Channel.UNLIMITED)
                     startDiscovery(resultChannel)
                     
-                    // Wait for at least one service or timeout
-                    delay(minOf(timeoutMs, 5000L))
+                    // Wait for services to be discovered (shorter delay for faster response)
+                    delay(minOf(timeoutMs, 2000L))
                     
                     discoveredServices.values.toList()
                 }
@@ -101,7 +108,10 @@ class MDnsDiscovery(private val context: Context) {
             Log.w(TAG, "Discovery already in progress")
             return
         }
-        
+
+        // Acquire multicast lock for mDNS discovery
+        acquireMulticastLock()
+
         discoveredServices.clear()
         
         discoveryListener = object : NsdManager.DiscoveryListener {
@@ -198,7 +208,10 @@ class MDnsDiscovery(private val context: Context) {
                 Log.e(TAG, "Failed to stop discovery: ${e.message}", e)
             }
         }
-        
+
+        // Release multicast lock
+        releaseMulticastLock()
+
         discoveryListener = null
         isDiscovering.set(false)
     }
@@ -215,5 +228,50 @@ class MDnsDiscovery(private val context: Context) {
      */
     fun isDiscovering(): Boolean {
         return isDiscovering.get()
+    }
+
+    /**
+     * Acquire multicast lock to enable mDNS packet reception
+     * This is required on many Android devices to receive multicast packets
+     */
+    private fun acquireMulticastLock() {
+        try {
+            if (multicastLock == null) {
+                multicastLock = wifiManager.createMulticastLock("MDnsDiscovery")
+                multicastLock?.setReferenceCounted(true)
+            }
+
+            if (multicastLock?.isHeld == false) {
+                multicastLock?.acquire()
+                Log.i(TAG, "✅ Multicast lock acquired for mDNS discovery")
+            } else {
+                Log.d(TAG, "Multicast lock already held")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to acquire multicast lock: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Release multicast lock to save battery
+     */
+    private fun releaseMulticastLock() {
+        try {
+            if (multicastLock?.isHeld == true) {
+                multicastLock?.release()
+                Log.i(TAG, "🔓 Multicast lock released")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to release multicast lock: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Clean up resources when done
+     */
+    fun cleanup() {
+        stopDiscovery()
+        releaseMulticastLock()
+        multicastLock = null
     }
 }

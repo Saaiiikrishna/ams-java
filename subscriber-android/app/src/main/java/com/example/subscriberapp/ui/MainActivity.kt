@@ -19,12 +19,17 @@ import com.example.subscriberapp.ui.auth.AuthViewModel
 import com.example.subscriberapp.ui.auth.LoginScreen
 import com.example.subscriberapp.ui.dashboard.DashboardScreen
 import com.example.subscriberapp.ui.theme.SubscriberAppTheme
+import com.example.subscriberapp.data.ServerManager
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    
+
     private val authViewModel: AuthViewModel by viewModels()
+
+    @Inject
+    lateinit var serverManager: ServerManager
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +53,7 @@ class MainActivity : ComponentActivity() {
                         composable("login") {
                             LoginScreen(
                                 authViewModel = authViewModel,
+                                serverManager = serverManager,
                                 onLoginSuccess = {
                                     navController.navigate("dashboard") {
                                         popUpTo("login") { inclusive = true }

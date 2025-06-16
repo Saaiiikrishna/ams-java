@@ -26,9 +26,9 @@ public interface SubscriberAuthRepository extends JpaRepository<SubscriberAuth, 
     @Query("SELECT sa FROM SubscriberAuth sa WHERE sa.subscriber.mobileNumber = :mobileNumber AND sa.isActive = true")
     Optional<SubscriberAuth> findBySubscriberMobileNumberAndIsActiveTrue(@Param("mobileNumber") String mobileNumber);
 
-    // Find by subscriber mobile number only (simplified login)
-    @Query("SELECT sa FROM SubscriberAuth sa WHERE sa.subscriber.mobileNumber = :mobileNumber AND sa.isActive = true")
-    Optional<SubscriberAuth> findBySubscriberMobileNumber(@Param("mobileNumber") String mobileNumber);
+    // Find by subscriber mobile number only (simplified login) - returns list to handle multiple organizations
+    @Query("SELECT sa FROM SubscriberAuth sa WHERE sa.subscriber.mobileNumber = :mobileNumber AND sa.isActive = true ORDER BY sa.lastLoginTime DESC NULLS LAST, sa.id ASC")
+    List<SubscriberAuth> findBySubscriberMobileNumber(@Param("mobileNumber") String mobileNumber);
     
 
     

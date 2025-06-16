@@ -46,22 +46,18 @@ fun ServerDiscoveryDialog(
             
             try {
                 val mdnsDiscovery = MDnsDiscovery(context)
-                
-                // Collect discovery results
-                mdnsDiscovery.discoverServices().collect { services ->
-                    discoveredServices = services
-                    
-                    if (services.isNotEmpty()) {
-                        discoveryState = DiscoveryState.FOUND
-                    }
-                }
-                
-                // If no services found after timeout, show fallback options
-                delay(8000)
-                if (discoveredServices.isEmpty()) {
+
+                // Use fast discovery with shorter timeout
+                val services = mdnsDiscovery.discoverServicesSync(3000L) // 3 seconds only
+                discoveredServices = services
+
+                if (services.isNotEmpty()) {
+                    discoveryState = DiscoveryState.FOUND
+                } else {
+                    // If no services found, show fallback options immediately
                     discoveryState = DiscoveryState.FALLBACK
                 }
-                
+
             } catch (e: Exception) {
                 errorMessage = e.message
                 discoveryState = DiscoveryState.ERROR
