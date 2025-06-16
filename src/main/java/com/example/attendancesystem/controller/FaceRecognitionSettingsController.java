@@ -3,6 +3,7 @@ package com.example.attendancesystem.controller;
 import com.example.attendancesystem.model.FaceRecognitionSettings;
 import com.example.attendancesystem.repository.FaceRecognitionSettingsRepository;
 import com.example.attendancesystem.service.FaceRecognitionService;
+import com.example.attendancesystem.util.AuthUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -453,20 +454,6 @@ public class FaceRecognitionSettingsController {
      * Helper method to extract entity ID from authentication
      */
     private String getEntityIdFromAuthentication(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
-            String username = authentication.getName();
-            return extractEntityIdFromUsername(username);
-        }
-        throw new IllegalArgumentException("Unable to determine entity ID from authentication");
-    }
-
-    /**
-     * Helper method to extract entity ID from username
-     */
-    private String extractEntityIdFromUsername(String username) {
-        if (username != null && username.contains("@")) {
-            return username.split("@")[1];
-        }
-        return "MSD00001"; // Default fallback
+        return com.example.attendancesystem.util.AuthUtil.getEntityId(authentication);
     }
 }

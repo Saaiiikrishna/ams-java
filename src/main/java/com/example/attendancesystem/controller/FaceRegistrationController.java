@@ -6,6 +6,7 @@ import com.example.attendancesystem.model.Subscriber;
 import com.example.attendancesystem.repository.SubscriberRepository;
 import com.example.attendancesystem.service.FaceRecognitionService;
 import com.example.attendancesystem.service.FileStorageService;
+import com.example.attendancesystem.util.AuthUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -479,36 +480,7 @@ public class FaceRegistrationController {
      * Helper method to extract entity ID from authentication
      */
     private String getEntityIdFromAuthentication(Authentication authentication) {
-        // Extract entity ID from JWT token or authentication principal
-        // This should match your existing authentication implementation
-        if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
-            // For entity admin authentication, extract entity ID from username or custom claims
-            String username = authentication.getName();
-            // Assuming username format or custom implementation to get entity ID
-            // You may need to adjust this based on your JWT token structure
-            return extractEntityIdFromUsername(username);
-        }
-        throw new IllegalArgumentException("Unable to determine entity ID from authentication");
-    }
-
-    /**
-     * Helper method to extract entity ID from username
-     * Adjust this method based on your authentication implementation
-     */
-    private String extractEntityIdFromUsername(String username) {
-        // This is a placeholder implementation
-        // You should implement this based on your actual authentication structure
-        // For example, if entity ID is stored in JWT claims or user details
-
-        // Temporary implementation - you may need to modify this
-        // to match your actual authentication system
-        if (username != null && username.contains("@")) {
-            // If username format includes entity info
-            return username.split("@")[1]; // Example format: admin@MSD00001
-        }
-
-        // Default fallback - you should implement proper entity ID extraction
-        return "MSD00001"; // This should be replaced with actual implementation
+        return com.example.attendancesystem.util.AuthUtil.getEntityId(authentication);
     }
 
     /**
