@@ -209,7 +209,7 @@ public class MdnsServiceDiscovery {
     /**
      * Get the appropriate network address for mDNS
      */
-    private InetAddress getNetworkAddress() throws SocketException {
+    private InetAddress getNetworkAddress() throws SocketException, java.net.UnknownHostException {
         if (!"auto".equals(config.getNetworkInterface())) {
             // Use specific network interface
             NetworkInterface ni = NetworkInterface.getByName(config.getNetworkInterface());
@@ -239,8 +239,9 @@ public class MdnsServiceDiscovery {
             }
         }
 
-        // Fallback to localhost
-        return InetAddress.getLocalHost();
+        // NO FALLBACK TO LOCALHOST - throw exception if no valid interface found
+        throw new RuntimeException("No valid network interface found for mDNS. " +
+                "Ensure the system has an active non-loopback network interface.");
     }
 
     /**

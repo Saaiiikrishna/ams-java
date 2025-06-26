@@ -128,67 +128,151 @@ public class OrderServiceImpl extends OrderServiceGrpc.OrderServiceImplBase {
     }
 
     @Override
-    public void getOrdersByTable(GetOrdersByTableRequest request, StreamObserver<ListOrdersResponse> responseObserver) {
-        logger.info("Order service - getOrdersByTable called for table: {}", request.getTableId());
-        
+    public void updateOrder(UpdateOrderRequest request, StreamObserver<OrderResponse> responseObserver) {
+        logger.info("Order service - updateOrder called for ID: {}", request.getId());
+
+        try {
+            OrderResponse response = OrderResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Order service not implemented yet - order update pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in updateOrder", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to update order: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getOrdersByStatus(GetOrdersByStatusRequest request, StreamObserver<ListOrdersResponse> responseObserver) {
+        logger.info("Order service - getOrdersByStatus called for status: {}", request.getStatus());
+
         try {
             ListOrdersResponse response = ListOrdersResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Order service not implemented yet - table orders retrieval pending")
+                    .setMessage("Order service not implemented yet - orders by status pending")
                     .setTotalCount(0)
-                    .setPage(0)
-                    .setSize(0)
+                    .setPage(request.getPage())
+                    .setSize(request.getSize())
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in getOrdersByTable", e);
+            logger.error("Error in getOrdersByStatus", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to get orders by table: " + e.getMessage())
+                    .withDescription("Failed to get orders by status: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void getOrderAnalytics(GetOrderAnalyticsRequest request, StreamObserver<OrderAnalyticsResponse> responseObserver) {
-        logger.info("Order service - getOrderAnalytics called for organization: {}", request.getOrganizationId());
-        
+    public void addOrderItem(AddOrderItemRequest request, StreamObserver<OrderItemResponse> responseObserver) {
+        logger.info("Order service - addOrderItem called for order: {}", request.getOrderId());
+
         try {
-            OrderAnalyticsResponse response = OrderAnalyticsResponse.newBuilder()
+            OrderItemResponse response = OrderItemResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Order service not implemented yet - order analytics pending")
+                    .setMessage("Order service not implemented yet - add order item pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in getOrderAnalytics", e);
+            logger.error("Error in addOrderItem", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to get order analytics: " + e.getMessage())
+                    .withDescription("Failed to add order item: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void processPayment(ProcessPaymentRequest request, StreamObserver<PaymentResponse> responseObserver) {
-        logger.info("Order service - processPayment called for order: {}", request.getOrderId());
-        
+    public void updateOrderItem(UpdateOrderItemRequest request, StreamObserver<OrderItemResponse> responseObserver) {
+        logger.info("Order service - updateOrderItem called for item: {}", request.getId());
+
         try {
-            PaymentResponse response = PaymentResponse.newBuilder()
+            OrderItemResponse response = OrderItemResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Order service not implemented yet - payment processing pending")
+                    .setMessage("Order service not implemented yet - update order item pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in processPayment", e);
+            logger.error("Error in updateOrderItem", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to process payment: " + e.getMessage())
+                    .withDescription("Failed to update order item: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void removeOrderItem(RemoveOrderItemRequest request, StreamObserver<DeleteResponse> responseObserver) {
+        logger.info("Order service - removeOrderItem called for item: {}", request.getId());
+
+        try {
+            DeleteResponse response = DeleteResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Order service not implemented yet - remove order item pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in removeOrderItem", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to remove order item: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getOrderStatistics(GetOrderStatisticsRequest request, StreamObserver<OrderStatisticsResponse> responseObserver) {
+        logger.info("Order service - getOrderStatistics called for organization: {}", request.getOrganizationId());
+
+        try {
+            OrderStatisticsResponse response = OrderStatisticsResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Order service not implemented yet - order statistics pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in getOrderStatistics", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get order statistics: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getPopularItems(GetPopularItemsRequest request, StreamObserver<PopularItemsResponse> responseObserver) {
+        logger.info("Order service - getPopularItems called for organization: {}", request.getOrganizationId());
+
+        try {
+            PopularItemsResponse response = PopularItemsResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Order service not implemented yet - popular items pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in getPopularItems", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get popular items: " + e.getMessage())
                     .asRuntimeException());
         }
     }

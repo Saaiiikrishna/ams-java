@@ -211,7 +211,9 @@ public class ServiceDiscoveryController {
         
         // Add properties
         Map<String, String> properties = new HashMap<>();
-        for (String key : serviceInfo.getPropertyNames()) {
+        java.util.Enumeration<String> propertyNames = serviceInfo.getPropertyNames();
+        while (propertyNames.hasMoreElements()) {
+            String key = propertyNames.nextElement();
             properties.put(key, serviceInfo.getPropertyString(key));
         }
         map.put("properties", properties);

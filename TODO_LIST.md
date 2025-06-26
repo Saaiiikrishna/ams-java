@@ -17,23 +17,68 @@
   - [x] Copy APK to desktop (subscriber-app-debug.apk)
 
 ### Phase 2: Domain Separation with gRPC 🔄 IN PROGRESS
-- [ ] **Identify Domain Boundaries**
-  - [ ] Analyze current monolithic structure
-  - [ ] Identify core business domains (User Management, Menu Management, Order Processing, etc.)
-  - [ ] Map existing controllers and services to domains
-  - [ ] Define clear domain boundaries and responsibilities
+- [x] **Identify Domain Boundaries**
+  - [x] Analyze current monolithic structure
+  - [x] Identify core business domains (User Management, Menu Management, Order Processing, etc.)
+  - [x] Map existing controllers and services to domains
+  - [x] Define clear domain boundaries and responsibilities
 
-- [ ] **Design gRPC Service Contracts**
-  - [ ] Create .proto files for each identified domain
-  - [ ] Define service interfaces and message types
-  - [ ] Establish inter-service communication patterns
-  - [ ] Design error handling and status codes
+**IDENTIFIED DOMAINS:**
+1. **Authentication & Authorization Domain**
+   - Controllers: AuthenticationController, SuperAdminAuthController, SubscriberController (auth endpoints)
+   - Services: SubscriberAuthService, RefreshTokenService, SuperAdminRefreshTokenService
+   - Models: EntityAdmin, SuperAdmin, SubscriberAuth, RefreshToken, SuperAdminRefreshToken, Role
 
-- [ ] **Implement gRPC Services**
-  - [ ] Set up gRPC server infrastructure
-  - [ ] Implement gRPC service implementations
+2. **Organization Management Domain**
+   - Controllers: SuperAdminController, EntityController (org management)
+   - Services: PermissionService
+   - Models: Organization, OrganizationPermission, FeaturePermission
+
+3. **Subscriber Management Domain**
+   - Controllers: EntityController (subscriber CRUD), SubscriberController (profile)
+   - Services: SubscriberAuthService (profile management)
+   - Models: Subscriber, NfcCard
+
+4. **Attendance Management Domain**
+   - Controllers: EntityController (sessions), SubscriberController (checkin/checkout)
+   - Services: ScheduledSessionService, QrCodeService
+   - Models: AttendanceSession, ScheduledSession, AttendanceLog, CheckInMethod
+
+5. **Menu Management Domain**
+   - Controllers: PublicMenuController
+   - Services: MenuService
+   - Models: Category, Item
+
+6. **Order Management Domain**
+   - Controllers: PublicMenuController (order endpoints)
+   - Services: OrderService
+   - Models: Order, OrderItem, OrderStatus
+
+7. **Table Management Domain**
+   - Controllers: PublicMenuController (table endpoints)
+   - Services: TableService, TableQrCodeService
+   - Models: RestaurantTable
+
+8. **Infrastructure Services Domain**
+   - Services: MDnsService, DJLFaceRecognitionService, DatabaseCleanupService
+   - Cross-cutting concerns: Security, Configuration, Utilities
+
+- [x] **Design gRPC Service Contracts** ✅ COMPLETED
+  - [x] Create .proto files for each identified domain
+  - [x] Define service interfaces and message types
+  - [x] Establish inter-service communication patterns
+  - [x] Design error handling and status codes
+
+- [x] **Implement gRPC Services** ✅ BASIC IMPLEMENTATION COMPLETE
+  - [x] Add gRPC dependencies to projects
+  - [x] Configure protobuf-maven-plugin for code generation
+  - [x] Generate Java classes from proto files (480+ classes generated)
+  - [x] Fix javax.annotation.Generated compilation issues
+  - [x] Set up gRPC server infrastructure with interceptors
+  - [x] Implement basic gRPC service implementations (Auth + Organization)
+  - [x] Configure gRPC server properties
   - [ ] Create gRPC client configurations
-  - [ ] Add gRPC dependencies to projects
+  - [ ] Implement remaining service implementations (Subscriber, Attendance, Menu, Order, Table)
 
 - [ ] **Refactor Existing Code**
   - [ ] Extract domain-specific logic into separate modules
@@ -41,12 +86,15 @@
   - [ ] Update data access patterns for domain separation
   - [ ] Maintain backward compatibility during transition
 
-### Phase 3: mDNS Service Discovery 🔄 PENDING
-- [ ] **Backend mDNS Configuration**
-  - [ ] Implement mDNS service registration
-  - [ ] Configure service discovery mechanisms
-  - [ ] Set up health check endpoints
-  - [ ] Test service discovery functionality
+### Phase 3: mDNS Service Discovery ✅ COMPLETED
+- [x] **Backend mDNS Configuration**
+  - [x] Implement mDNS service registration
+  - [x] Configure service discovery mechanisms
+  - [x] Set up health check endpoints
+  - [x] Test service discovery functionality
+  - [x] Create comprehensive service discovery manager
+  - [x] Add gRPC client factory with automatic service discovery
+  - [x] Implement REST API for monitoring discovered services
 
 - [ ] **Android mDNS Integration**
   - [ ] Implement mDNS service discovery in Android app
@@ -120,9 +168,9 @@
   - [ ] Create deployment scripts
 
 ## Current Status
-- **Current Phase**: Phase 2 (Domain Separation with gRPC)
-- **Last Completed**: Phase 1 - Build Verification
-- **Next Milestone**: Complete domain boundary analysis and gRPC service design
+- **Current Phase**: Phase 3 (mDNS Service Discovery) - COMPLETED ✅
+- **Last Completed**: Full mDNS service discovery infrastructure with gRPC integration
+- **Next Milestone**: Phase 4 (Dynamic IP Handling) and Android mDNS integration
 
 ## Notes
 - Phase 1 completed successfully with both backend and Android builds working
@@ -135,3 +183,4 @@
 - Mark tasks as completed when finished: [x]
 - Update current status after each major milestone
 - Keep notes about any issues or decisions made during implementation
+- Use the folder 'useless' to store all unwanted files. DO NOT DELETE / REMOVE ANY FILES. If you cannot find the folder 'useless', create it in the root directory of the project.

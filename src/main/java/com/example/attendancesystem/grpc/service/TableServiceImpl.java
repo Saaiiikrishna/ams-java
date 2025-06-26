@@ -149,18 +149,18 @@ public class TableServiceImpl extends TableServiceGrpc.TableServiceImplBase {
     }
 
     @Override
-    public void generateTableQrCode(GenerateTableQrCodeRequest request, StreamObserver<TableQrCodeResponse> responseObserver) {
+    public void generateTableQrCode(GenerateTableQrCodeRequest request, StreamObserver<QrCodeResponse> responseObserver) {
         logger.info("Table service - generateTableQrCode called for table: {}", request.getTableId());
-        
+
         try {
-            TableQrCodeResponse response = TableQrCodeResponse.newBuilder()
+            QrCodeResponse response = QrCodeResponse.newBuilder()
                     .setSuccess(false)
                     .setMessage("Table service not implemented yet - QR code generation pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
             logger.error("Error in generateTableQrCode", e);
             responseObserver.onError(Status.INTERNAL
@@ -170,18 +170,18 @@ public class TableServiceImpl extends TableServiceGrpc.TableServiceImplBase {
     }
 
     @Override
-    public void validateTableQrCode(ValidateTableQrCodeRequest request, StreamObserver<TableQrCodeValidationResponse> responseObserver) {
+    public void validateTableQrCode(ValidateTableQrCodeRequest request, StreamObserver<QrCodeValidationResponse> responseObserver) {
         logger.info("Table service - validateTableQrCode called");
-        
+
         try {
-            TableQrCodeValidationResponse response = TableQrCodeValidationResponse.newBuilder()
+            QrCodeValidationResponse response = QrCodeValidationResponse.newBuilder()
                     .setValid(false)
                     .setMessage("Table service not implemented yet - QR code validation pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
             logger.error("Error in validateTableQrCode", e);
             responseObserver.onError(Status.INTERNAL
@@ -191,63 +191,66 @@ public class TableServiceImpl extends TableServiceGrpc.TableServiceImplBase {
     }
 
     @Override
-    public void getTablesByArea(GetTablesByAreaRequest request, StreamObserver<ListTablesResponse> responseObserver) {
-        logger.info("Table service - getTablesByArea called for area: {}", request.getArea());
-        
+    public void getAvailableTables(GetAvailableTablesRequest request, StreamObserver<ListTablesResponse> responseObserver) {
+        logger.info("Table service - getAvailableTables called for organization: {}", request.getOrganizationId());
+
         try {
             ListTablesResponse response = ListTablesResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Table service not implemented yet - area tables retrieval pending")
+                    .setMessage("Table service not implemented yet - available tables retrieval pending")
                     .setTotalCount(0)
-                    .setPage(0)
-                    .setSize(0)
+                    .setPage(request.getPage())
+                    .setSize(request.getSize())
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in getTablesByArea", e);
+            logger.error("Error in getAvailableTables", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to get tables by area: " + e.getMessage())
+                    .withDescription("Failed to get available tables: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void getTableOccupancy(GetTableOccupancyRequest request, StreamObserver<TableOccupancyResponse> responseObserver) {
-        logger.info("Table service - getTableOccupancy called for organization: {}", request.getOrganizationId());
-        
+    public void getTablesByStatus(GetTablesByStatusRequest request, StreamObserver<ListTablesResponse> responseObserver) {
+        logger.info("Table service - getTablesByStatus called for status: {}", request.getStatus());
+
         try {
-            TableOccupancyResponse response = TableOccupancyResponse.newBuilder()
+            ListTablesResponse response = ListTablesResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Table service not implemented yet - table occupancy pending")
+                    .setMessage("Table service not implemented yet - tables by status pending")
+                    .setTotalCount(0)
+                    .setPage(request.getPage())
+                    .setSize(request.getSize())
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in getTableOccupancy", e);
+            logger.error("Error in getTablesByStatus", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to get table occupancy: " + e.getMessage())
+                    .withDescription("Failed to get tables by status: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void reserveTable(ReserveTableRequest request, StreamObserver<TableReservationResponse> responseObserver) {
+    public void reserveTable(ReserveTableRequest request, StreamObserver<TableResponse> responseObserver) {
         logger.info("Table service - reserveTable called for table: {}", request.getTableId());
-        
+
         try {
-            TableReservationResponse response = TableReservationResponse.newBuilder()
+            TableResponse response = TableResponse.newBuilder()
                     .setSuccess(false)
                     .setMessage("Table service not implemented yet - table reservation pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
             logger.error("Error in reserveTable", e);
             responseObserver.onError(Status.INTERNAL
@@ -257,22 +260,64 @@ public class TableServiceImpl extends TableServiceGrpc.TableServiceImplBase {
     }
 
     @Override
-    public void cancelReservation(CancelReservationRequest request, StreamObserver<DeleteResponse> responseObserver) {
-        logger.info("Table service - cancelReservation called for reservation: {}", request.getReservationId());
-        
+    public void releaseTable(ReleaseTableRequest request, StreamObserver<TableResponse> responseObserver) {
+        logger.info("Table service - releaseTable called for table: {}", request.getTableId());
+
         try {
-            DeleteResponse response = DeleteResponse.newBuilder()
+            TableResponse response = TableResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Table service not implemented yet - reservation cancellation pending")
+                    .setMessage("Table service not implemented yet - table release pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in cancelReservation", e);
+            logger.error("Error in releaseTable", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to cancel reservation: " + e.getMessage())
+                    .withDescription("Failed to release table: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getTableQrCode(GetTableQrCodeRequest request, StreamObserver<QrCodeResponse> responseObserver) {
+        logger.info("Table service - getTableQrCode called for table: {}", request.getTableId());
+
+        try {
+            QrCodeResponse response = QrCodeResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Table service not implemented yet - get QR code pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in getTableQrCode", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get table QR code: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void regenerateTableQrCode(RegenerateTableQrCodeRequest request, StreamObserver<QrCodeResponse> responseObserver) {
+        logger.info("Table service - regenerateTableQrCode called for table: {}", request.getTableId());
+
+        try {
+            QrCodeResponse response = QrCodeResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Table service not implemented yet - regenerate QR code pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in regenerateTableQrCode", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to regenerate table QR code: " + e.getMessage())
                     .asRuntimeException());
         }
     }

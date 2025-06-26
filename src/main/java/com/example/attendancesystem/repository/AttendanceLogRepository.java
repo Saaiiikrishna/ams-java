@@ -54,6 +54,10 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, Lo
     @Query("SELECT COUNT(al) FROM AttendanceLog al WHERE al.session.organization = :organization")
     long countByOrganization(@Param("organization") Organization organization);
 
+    // Find logs by organization
+    @Query("SELECT al FROM AttendanceLog al WHERE al.session.organization = :organization")
+    List<AttendanceLog> findBySessionOrganization(@Param("organization") Organization organization);
+
     @Modifying
     @Query("DELETE FROM AttendanceLog al WHERE al.session.organization = :organization")
     void deleteByOrganization(@Param("organization") Organization organization);

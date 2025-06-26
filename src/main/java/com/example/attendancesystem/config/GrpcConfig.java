@@ -166,7 +166,7 @@ public class GrpcConfig {
         }
 
         @Override
-        public MethodDescriptor<ReqT, RespT> getMethodDescriptor() {
+        public io.grpc.MethodDescriptor<ReqT, RespT> getMethodDescriptor() {
             return delegate().getMethodDescriptor();
         }
     }

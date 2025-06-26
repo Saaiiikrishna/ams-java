@@ -276,7 +276,7 @@ public class SubscriberServiceImpl extends SubscriberServiceGrpc.SubscriberServi
     }
 
     @Override
-    public void updateSubscriberPassword(UpdatePasswordRequest request, StreamObserver<SubscriberResponse> responseObserver) {
+    public void changeSubscriberPassword(ChangePasswordRequest request, StreamObserver<ChangePasswordResponse> responseObserver) {
         try {
             Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
             if (subscriberOpt.isEmpty()) {
@@ -290,9 +290,9 @@ public class SubscriberServiceImpl extends SubscriberServiceGrpc.SubscriberServi
             }
 
             // Find subscriber auth
-            List<SubscriberAuth> authList = subscriberAuthRepository.findBySubscriber(subscriberOpt.get());
-            if (authList.isEmpty()) {
-                SubscriberResponse response = SubscriberResponse.newBuilder()
+            Optional<SubscriberAuth> authOpt = subscriberAuthRepository.findBySubscriber(subscriberOpt.get());
+            if (authOpt.isEmpty()) {
+                ChangePasswordResponse response = ChangePasswordResponse.newBuilder()
                         .setSuccess(false)
                         .setMessage("Subscriber authentication not found")
                         .build();
@@ -302,16 +302,15 @@ public class SubscriberServiceImpl extends SubscriberServiceGrpc.SubscriberServi
             }
 
             // Update password
-            SubscriberAuth auth = authList.get(0);
+            SubscriberAuth auth = authOpt.get();
             auth.setPin(passwordEncoder.encode(request.getNewPassword()));
             subscriberAuthRepository.save(auth);
 
             com.example.attendancesystem.grpc.subscriber.Subscriber grpcSubscriber = convertToGrpcSubscriber(subscriberOpt.get());
 
-            SubscriberResponse response = SubscriberResponse.newBuilder()
+            ChangePasswordResponse response = ChangePasswordResponse.newBuilder()
                     .setSuccess(true)
                     .setMessage("Password updated successfully")
-                    .setSubscriber(grpcSubscriber)
                     .build();
 
             responseObserver.onNext(response);
@@ -362,5 +361,294 @@ public class SubscriberServiceImpl extends SubscriberServiceGrpc.SubscriberServi
         }
 
         return builder.build();
+    }
+
+    @Override
+    public void assignNfcCard(AssignNfcCardRequest request, StreamObserver<NfcCardResponse> responseObserver) {
+        try {
+            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            if (subscriberOpt.isEmpty()) {
+                NfcCardResponse response = NfcCardResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Subscriber not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Check if card is already assigned
+            Optional<NfcCard> existingCard = nfcCardRepository.findByCardUid(request.getCardId());
+            if (existingCard.isPresent() && existingCard.get().getSubscriber() != null) {
+                NfcCardResponse response = NfcCardResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("NFC card is already assigned to another subscriber")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            NfcCard nfcCard;
+            if (existingCard.isPresent()) {
+                nfcCard = existingCard.get();
+            } else {
+                nfcCard = new NfcCard();
+                nfcCard.setCardUid(request.getCardId());
+            }
+
+            nfcCard.setSubscriber(subscriberOpt.get());
+            nfcCard.setActive(true);
+            nfcCard.setOrganization(subscriberOpt.get().getOrganization());
+
+            NfcCard savedCard = nfcCardRepository.save(nfcCard);
+
+            com.example.attendancesystem.grpc.subscriber.NfcCard grpcNfcCard = convertToGrpcNfcCard(savedCard);
+
+            NfcCardResponse response = NfcCardResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("NFC card assigned successfully")
+                    .setNfcCard(grpcNfcCard)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error assigning NFC card", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to assign NFC card: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void unassignNfcCard(UnassignNfcCardRequest request, StreamObserver<NfcCardResponse> responseObserver) {
+        try {
+            Optional<NfcCard> nfcCardOpt = nfcCardRepository.findById(Long.parseLong(request.getCardId()));
+            if (nfcCardOpt.isEmpty()) {
+                NfcCardResponse response = NfcCardResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("NFC card not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            NfcCard nfcCard = nfcCardOpt.get();
+            nfcCard.setSubscriber(null);
+            nfcCard.setActive(false);
+            nfcCardRepository.save(nfcCard);
+
+            NfcCardResponse response = NfcCardResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("NFC card unassigned successfully")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error unassigning NFC card", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to unassign NFC card: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getSubscriberNfcCards(GetSubscriberNfcCardsRequest request, StreamObserver<ListNfcCardsResponse> responseObserver) {
+        try {
+            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            if (subscriberOpt.isEmpty()) {
+                ListNfcCardsResponse response = ListNfcCardsResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Subscriber not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Get NFC cards for this subscriber
+            Optional<NfcCard> nfcCardOpt = Optional.ofNullable(subscriberOpt.get().getNfcCard());
+            List<NfcCard> nfcCards = nfcCardOpt.map(List::of).orElse(List.of());
+            List<com.example.attendancesystem.grpc.subscriber.NfcCard> grpcNfcCards = nfcCards.stream()
+                    .map(this::convertToGrpcNfcCard)
+                    .collect(Collectors.toList());
+
+            ListNfcCardsResponse response = ListNfcCardsResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("NFC cards retrieved successfully")
+                    .addAllNfcCards(grpcNfcCards)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error getting subscriber NFC cards", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get NFC cards: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void registerFace(RegisterFaceRequest request, StreamObserver<FaceRegistrationResponse> responseObserver) {
+        try {
+            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            if (subscriberOpt.isEmpty()) {
+                FaceRegistrationResponse response = FaceRegistrationResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Subscriber not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            Subscriber subscriber = subscriberOpt.get();
+            // Store face image data
+            subscriber.setFaceEncoding(request.getFaceImage().toByteArray());
+            subscriber.setFaceEncodingVersion("1.0");
+            subscriber.setFaceRegisteredAt(LocalDateTime.now());
+            subscriber.setFaceUpdatedAt(LocalDateTime.now());
+
+            subscriberRepository.save(subscriber);
+
+            FaceRegistrationResponse response = FaceRegistrationResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Face registered successfully")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error registering face", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to register face: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void updateFaceData(UpdateFaceDataRequest request, StreamObserver<FaceRegistrationResponse> responseObserver) {
+        try {
+            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            if (subscriberOpt.isEmpty()) {
+                FaceRegistrationResponse response = FaceRegistrationResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Subscriber not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            Subscriber subscriber = subscriberOpt.get();
+            // Update face image data
+            subscriber.setFaceEncoding(request.getFaceImage().toByteArray());
+            subscriber.setFaceUpdatedAt(LocalDateTime.now());
+
+            subscriberRepository.save(subscriber);
+
+            FaceRegistrationResponse response = FaceRegistrationResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Face updated successfully")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error updating face", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to update face: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void deleteFaceData(DeleteFaceDataRequest request, StreamObserver<DeleteResponse> responseObserver) {
+        try {
+            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            if (subscriberOpt.isEmpty()) {
+                DeleteResponse response = DeleteResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Subscriber not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            Subscriber subscriber = subscriberOpt.get();
+            // Clear face data
+            subscriber.setFaceEncoding(null);
+            subscriber.setFaceEncodingVersion(null);
+            subscriber.setFaceRegisteredAt(null);
+            subscriber.setFaceUpdatedAt(LocalDateTime.now());
+
+            subscriberRepository.save(subscriber);
+
+            DeleteResponse response = DeleteResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Face data deleted successfully")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error deleting face", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to delete face: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    private com.example.attendancesystem.grpc.subscriber.NfcCard convertToGrpcNfcCard(NfcCard nfcCard) {
+        return com.example.attendancesystem.grpc.subscriber.NfcCard.newBuilder()
+                .setId(nfcCard.getId())
+                .setCardId(nfcCard.getCardUid())
+                .setSubscriberId(nfcCard.getSubscriber() != null ? nfcCard.getSubscriber().getId() : 0)
+                .setActive(nfcCard.isActive())
+                .setAssignedAt("") // Not available in current model
+                .setLastUsed("") // Not available in current model
+                .build();
+    }
+
+    @Override
+    public void getSubscriberProfile(GetSubscriberProfileRequest request, StreamObserver<SubscriberResponse> responseObserver) {
+        // This is the same as getSubscriber for now
+        GetSubscriberRequest getRequest = GetSubscriberRequest.newBuilder()
+                .setId(request.getSubscriberId())
+                .build();
+        getSubscriber(getRequest, responseObserver);
+    }
+
+    @Override
+    public void updateSubscriberProfile(UpdateSubscriberProfileRequest request, StreamObserver<SubscriberResponse> responseObserver) {
+        // This is similar to updateSubscriber for now
+        UpdateSubscriberRequest updateRequest = UpdateSubscriberRequest.newBuilder()
+                .setId(request.getSubscriberId())
+                .setEmail(request.getEmail())
+                .setFirstName(request.getFirstName())
+                .setLastName(request.getLastName())
+                .build();
+        updateSubscriber(updateRequest, responseObserver);
+    }
+
+    @Override
+    public void registerNfcCard(RegisterNfcCardRequest request, StreamObserver<NfcCardResponse> responseObserver) {
+        // This is the same as assignNfcCard for now
+        AssignNfcCardRequest assignRequest = AssignNfcCardRequest.newBuilder()
+                .setSubscriberId(request.getSubscriberId())
+                .setCardId(request.getCardId())
+                .build();
+        assignNfcCard(assignRequest, responseObserver);
     }
 }

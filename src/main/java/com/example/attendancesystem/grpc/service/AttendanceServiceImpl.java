@@ -360,4 +360,318 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
                 .setCreatedAt("") // Not available in current model
                 .build();
     }
+
+    @Override
+    public void checkOut(CheckOutRequest request, StreamObserver<CheckOutResponse> responseObserver) {
+        try {
+            // Validate subscriber
+            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            if (subscriberOpt.isEmpty()) {
+                CheckOutResponse response = CheckOutResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Subscriber not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Validate session
+            Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(request.getSessionId());
+            if (sessionOpt.isEmpty()) {
+                CheckOutResponse response = CheckOutResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Attendance session not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Find existing check-in log
+            AttendanceLog existingLog = attendanceLogRepository
+                    .findBySubscriberAndSessionAndCheckOutTimeIsNull(subscriberOpt.get(), sessionOpt.get());
+            if (existingLog == null) {
+                CheckOutResponse response = CheckOutResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("No active check-in found for this subscriber")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Update attendance log with check-out
+            existingLog.setCheckOutTime(LocalDateTime.now());
+            existingLog.setCheckOutMethod(CheckInMethod.valueOf(request.getMethod()));
+
+            AttendanceLog savedLog = attendanceLogRepository.save(existingLog);
+
+            com.example.attendancesystem.grpc.attendance.AttendanceLog grpcLog = convertToGrpcAttendanceLog(savedLog);
+
+            CheckOutResponse response = CheckOutResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Check-out successful")
+                    .setAttendanceLog(grpcLog)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            logger.info("Check-out successful for subscriber ID: {} in session ID: {}", request.getSubscriberId(), request.getSessionId());
+
+        } catch (Exception e) {
+            logger.error("Error during check-out", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Check-out failed: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getAttendanceLogs(GetAttendanceLogsRequest request, StreamObserver<ListAttendanceLogsResponse> responseObserver) {
+        try {
+            Optional<Organization> organizationOpt = organizationRepository.findById(request.getOrganizationId());
+            if (organizationOpt.isEmpty()) {
+                ListAttendanceLogsResponse response = ListAttendanceLogsResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Organization not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Get attendance logs based on filters
+            List<AttendanceLog> logs;
+            if (request.getSessionId() > 0) {
+                Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(request.getSessionId());
+                if (sessionOpt.isPresent()) {
+                    logs = attendanceLogRepository.findBySession(sessionOpt.get());
+                } else {
+                    logs = List.of();
+                }
+            } else if (request.getSubscriberId() > 0) {
+                Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+                if (subscriberOpt.isPresent()) {
+                    logs = attendanceLogRepository.findBySubscriberOrderByCheckInTimeDesc(subscriberOpt.get());
+                } else {
+                    logs = List.of();
+                }
+            } else {
+                // Get all logs for organization (simplified - in real implementation would use pagination)
+                logs = attendanceLogRepository.findBySessionOrganization(organizationOpt.get());
+            }
+
+            List<com.example.attendancesystem.grpc.attendance.AttendanceLog> grpcLogs = logs.stream()
+                    .map(this::convertToGrpcAttendanceLog)
+                    .collect(Collectors.toList());
+
+            ListAttendanceLogsResponse response = ListAttendanceLogsResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Attendance logs retrieved successfully")
+                    .addAllAttendanceLogs(grpcLogs)
+                    .setTotalCount(logs.size())
+                    .setPage(request.getPage())
+                    .setSize(request.getSize())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error getting attendance logs", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get attendance logs: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void generateSessionQrCode(GenerateQrCodeRequest request, StreamObserver<QrCodeResponse> responseObserver) {
+        try {
+            Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(request.getSessionId());
+            if (sessionOpt.isEmpty()) {
+                QrCodeResponse response = QrCodeResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Attendance session not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            AttendanceSession session = sessionOpt.get();
+
+            // Generate new QR code if needed
+            if (session.getQrCode() == null || !session.isQrCodeValid()) {
+                String qrCodeData = "session_" + session.getId() + "_" + System.currentTimeMillis();
+                session.setQrCode(qrCodeData);
+                session.setQrCodeExpiry(session.getEndTime() != null ? session.getEndTime() : LocalDateTime.now().plusHours(24));
+                attendanceSessionRepository.save(session);
+            }
+
+            QrCodeResponse response = QrCodeResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("QR code generated successfully")
+                    .setQrCodeData(session.getQrCode())
+                    .setExpiresAt(session.getQrCodeExpiry().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error generating QR code", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to generate QR code: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void validateQrCode(ValidateQrCodeRequest request, StreamObserver<QrCodeValidationResponse> responseObserver) {
+        try {
+            Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findByQrCodeAndEndTimeIsNull(request.getQrCodeData());
+
+            if (sessionOpt.isEmpty()) {
+                QrCodeValidationResponse response = QrCodeValidationResponse.newBuilder()
+                        .setValid(false)
+                        .setMessage("Invalid or expired QR code")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            AttendanceSession session = sessionOpt.get();
+
+            // Check if QR code is still valid
+            if (!session.isQrCodeValid()) {
+                QrCodeValidationResponse response = QrCodeValidationResponse.newBuilder()
+                        .setValid(false)
+                        .setMessage("QR code has expired")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            com.example.attendancesystem.grpc.attendance.AttendanceSession grpcSession = convertToGrpcAttendanceSession(session);
+
+            QrCodeValidationResponse response = QrCodeValidationResponse.newBuilder()
+                    .setValid(true)
+                    .setMessage("QR code is valid")
+                    .setSessionId(session.getId())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error validating QR code", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to validate QR code: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getActiveSession(GetActiveSessionRequest request, StreamObserver<AttendanceSessionResponse> responseObserver) {
+        try {
+            Optional<Organization> organizationOpt = organizationRepository.findById(request.getOrganizationId());
+            if (organizationOpt.isEmpty()) {
+                AttendanceSessionResponse response = AttendanceSessionResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Organization not found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Find active session for organization
+            Optional<AttendanceSession> activeSessionOpt = attendanceSessionRepository.findActiveSessionByOrganization(organizationOpt.get());
+
+            if (activeSessionOpt.isEmpty()) {
+                AttendanceSessionResponse response = AttendanceSessionResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("No active session found")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            com.example.attendancesystem.grpc.attendance.AttendanceSession grpcSession = convertToGrpcAttendanceSession(activeSessionOpt.get());
+
+            AttendanceSessionResponse response = AttendanceSessionResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Active session retrieved successfully")
+                    .setSession(grpcSession)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error getting active session", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get active session: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    // Placeholder implementations for scheduled session methods
+    @Override
+    public void createScheduledSession(CreateScheduledSessionRequest request, StreamObserver<ScheduledSessionResponse> responseObserver) {
+        ScheduledSessionResponse response = ScheduledSessionResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Scheduled sessions not implemented yet")
+                .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getScheduledSession(GetScheduledSessionRequest request, StreamObserver<ScheduledSessionResponse> responseObserver) {
+        ScheduledSessionResponse response = ScheduledSessionResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Scheduled sessions not implemented yet")
+                .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void updateScheduledSession(UpdateScheduledSessionRequest request, StreamObserver<ScheduledSessionResponse> responseObserver) {
+        ScheduledSessionResponse response = ScheduledSessionResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Scheduled sessions not implemented yet")
+                .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void deleteScheduledSession(DeleteScheduledSessionRequest request, StreamObserver<DeleteResponse> responseObserver) {
+        DeleteResponse response = DeleteResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Scheduled sessions not implemented yet")
+                .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void listScheduledSessions(ListScheduledSessionsRequest request, StreamObserver<ListScheduledSessionsResponse> responseObserver) {
+        ListScheduledSessionsResponse response = ListScheduledSessionsResponse.newBuilder()
+                .setSuccess(false)
+                .setMessage("Scheduled sessions not implemented yet")
+                .setTotalCount(0)
+                .setPage(request.getPage())
+                .setSize(request.getSize())
+                .build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
 }

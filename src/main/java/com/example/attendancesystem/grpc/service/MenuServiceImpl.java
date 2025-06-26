@@ -127,109 +127,109 @@ public class MenuServiceImpl extends MenuServiceGrpc.MenuServiceImplBase {
     }
 
     @Override
-    public void createMenuItem(CreateMenuItemRequest request, StreamObserver<MenuItemResponse> responseObserver) {
-        logger.info("Menu service - createMenuItem called for: {}", request.getName());
-        
+    public void createItem(CreateItemRequest request, StreamObserver<ItemResponse> responseObserver) {
+        logger.info("Menu service - createItem called for: {}", request.getName());
+
         try {
-            MenuItemResponse response = MenuItemResponse.newBuilder()
+            ItemResponse response = ItemResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Menu service not implemented yet - menu item creation pending")
+                    .setMessage("Menu service not implemented yet - item creation pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in createMenuItem", e);
+            logger.error("Error in createItem", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to create menu item: " + e.getMessage())
+                    .withDescription("Failed to create item: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void getMenuItem(GetMenuItemRequest request, StreamObserver<MenuItemResponse> responseObserver) {
-        logger.info("Menu service - getMenuItem called for ID: {}", request.getId());
-        
+    public void getItem(GetItemRequest request, StreamObserver<ItemResponse> responseObserver) {
+        logger.info("Menu service - getItem called for ID: {}", request.getId());
+
         try {
-            MenuItemResponse response = MenuItemResponse.newBuilder()
+            ItemResponse response = ItemResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Menu service not implemented yet - menu item retrieval pending")
+                    .setMessage("Menu service not implemented yet - item retrieval pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in getMenuItem", e);
+            logger.error("Error in getItem", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to get menu item: " + e.getMessage())
+                    .withDescription("Failed to get item: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void updateMenuItem(UpdateMenuItemRequest request, StreamObserver<MenuItemResponse> responseObserver) {
-        logger.info("Menu service - updateMenuItem called for ID: {}", request.getId());
-        
+    public void updateItem(UpdateItemRequest request, StreamObserver<ItemResponse> responseObserver) {
+        logger.info("Menu service - updateItem called for ID: {}", request.getId());
+
         try {
-            MenuItemResponse response = MenuItemResponse.newBuilder()
+            ItemResponse response = ItemResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Menu service not implemented yet - menu item update pending")
+                    .setMessage("Menu service not implemented yet - item update pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in updateMenuItem", e);
+            logger.error("Error in updateItem", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to update menu item: " + e.getMessage())
+                    .withDescription("Failed to update item: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void deleteMenuItem(DeleteMenuItemRequest request, StreamObserver<DeleteResponse> responseObserver) {
-        logger.info("Menu service - deleteMenuItem called for ID: {}", request.getId());
-        
+    public void deleteItem(DeleteItemRequest request, StreamObserver<DeleteResponse> responseObserver) {
+        logger.info("Menu service - deleteItem called for ID: {}", request.getId());
+
         try {
             DeleteResponse response = DeleteResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Menu service not implemented yet - menu item deletion pending")
+                    .setMessage("Menu service not implemented yet - item deletion pending")
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in deleteMenuItem", e);
+            logger.error("Error in deleteItem", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to delete menu item: " + e.getMessage())
+                    .withDescription("Failed to delete item: " + e.getMessage())
                     .asRuntimeException());
         }
     }
 
     @Override
-    public void listMenuItems(ListMenuItemsRequest request, StreamObserver<ListMenuItemsResponse> responseObserver) {
-        logger.info("Menu service - listMenuItems called for category: {}", request.getCategoryId());
-        
+    public void listItems(ListItemsRequest request, StreamObserver<ListItemsResponse> responseObserver) {
+        logger.info("Menu service - listItems called for organization: {}", request.getOrganizationId());
+
         try {
-            ListMenuItemsResponse response = ListMenuItemsResponse.newBuilder()
+            ListItemsResponse response = ListItemsResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Menu service not implemented yet - menu item listing pending")
+                    .setMessage("Menu service not implemented yet - item listing pending")
                     .setTotalCount(0)
                     .setPage(request.getPage())
                     .setSize(request.getSize())
                     .build();
-            
+
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            
+
         } catch (Exception e) {
-            logger.error("Error in listMenuItems", e);
+            logger.error("Error in listItems", e);
             responseObserver.onError(Status.INTERNAL
-                    .withDescription("Failed to list menu items: " + e.getMessage())
+                    .withDescription("Failed to list items: " + e.getMessage())
                     .asRuntimeException());
         }
     }
@@ -251,6 +251,96 @@ public class MenuServiceImpl extends MenuServiceGrpc.MenuServiceImplBase {
             logger.error("Error in getPublicMenu", e);
             responseObserver.onError(Status.INTERNAL
                     .withDescription("Failed to get public menu: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void listItemsByCategory(ListItemsByCategoryRequest request, StreamObserver<ListItemsResponse> responseObserver) {
+        logger.info("Menu service - listItemsByCategory called for category: {}", request.getCategoryId());
+
+        try {
+            ListItemsResponse response = ListItemsResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Menu service not implemented yet - items by category listing pending")
+                    .setTotalCount(0)
+                    .setPage(request.getPage())
+                    .setSize(request.getSize())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in listItemsByCategory", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to list items by category: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getPublicCategory(GetPublicCategoryRequest request, StreamObserver<CategoryResponse> responseObserver) {
+        logger.info("Menu service - getPublicCategory called for ID: {}", request.getId());
+
+        try {
+            CategoryResponse response = CategoryResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Menu service not implemented yet - public category retrieval pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in getPublicCategory", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get public category: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void getPublicItem(GetPublicItemRequest request, StreamObserver<ItemResponse> responseObserver) {
+        logger.info("Menu service - getPublicItem called for ID: {}", request.getId());
+
+        try {
+            ItemResponse response = ItemResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Menu service not implemented yet - public item retrieval pending")
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in getPublicItem", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to get public item: " + e.getMessage())
+                    .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void searchMenuItems(SearchMenuItemsRequest request, StreamObserver<ListItemsResponse> responseObserver) {
+        logger.info("Menu service - searchMenuItems called with query: {}", request.getQuery());
+
+        try {
+            ListItemsResponse response = ListItemsResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Menu service not implemented yet - menu item search pending")
+                    .setTotalCount(0)
+                    .setPage(request.getPage())
+                    .setSize(request.getSize())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error in searchMenuItems", e);
+            responseObserver.onError(Status.INTERNAL
+                    .withDescription("Failed to search menu items: " + e.getMessage())
                     .asRuntimeException());
         }
     }

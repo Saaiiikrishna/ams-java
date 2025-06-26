@@ -2,6 +2,8 @@ package com.example.attendancesystem.repository;
 
 import com.example.attendancesystem.model.Organization;
 import com.example.attendancesystem.model.Subscriber;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -65,6 +67,11 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
      * Find subscribers without face encoding for an organization
      */
     List<Subscriber> findByOrganizationAndFaceEncodingIsNull(Organization organization);
+
+    // Pagination support
+    Page<Subscriber> findByOrganization(Organization organization, Pageable pageable);
+    Page<Subscriber> findByOrganizationAndFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+            Organization organization, String firstName, String lastName, Pageable pageable);
 
     /**
      * Check if subscriber has face recognition enabled
