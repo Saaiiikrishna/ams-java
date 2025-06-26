@@ -20,7 +20,8 @@ class MDnsDiscovery(private val context: Context) {
     
     companion object {
         private const val TAG = "MDnsDiscovery"
-        private const val SERVICE_TYPE = "_attendanceapi._tcp"
+        // Updated to match backend service type - backend advertises "_grpc._tcp.local."
+        private const val SERVICE_TYPE = "_grpc._tcp"
         private const val DISCOVERY_TIMEOUT_MS = 5000L // Reduced to 5 seconds for faster discovery
         private const val FAST_DISCOVERY_TIMEOUT_MS = 3000L // 3 seconds for fast discovery
     }
@@ -44,8 +45,12 @@ class MDnsDiscovery(private val context: Context) {
         val port: Int,
         val properties: Map<String, String> = emptyMap()
     ) {
-        val baseUrl: String get() = "http://$host:$port/"
+        // For gRPC services, we need to construct the REST API URL
+        // Backend runs REST API on port 8080 and gRPC on port 9090
+        val restPort: Int get() = if (port == 9090) 8080 else port
+        val baseUrl: String get() = "http://$host:$restPort/"
         val healthUrl: String get() = "${baseUrl}subscriber/health"
+        val grpcUrl: String get() = "http://$host:$port/"
     }
     
     /**
@@ -138,7 +143,15 @@ class MDnsDiscovery(private val context: Context) {
             override fun onServiceFound(serviceInfo: NsdServiceInfo?) {
                 serviceInfo?.let { service ->
                     Log.i(TAG, "Service found: ${service.serviceName}")
-                    resolveService(service, resultChannel)
+                    // Filter for attendance-system service or any service that looks like our backend
+                    if (service.serviceName.contains("attendance-system", ignoreCase = true) ||
+                        service.serviceName.contains("attendance", ignoreCase = true) ||
+                        service.serviceName.contains("grpc", ignoreCase = true)) {
+                        Log.i(TAG, "✅ Relevant service found: ${service.serviceName}")
+                        resolveService(service, resultChannel)
+                    } else {
+                        Log.d(TAG, "⏭️ Skipping irrelevant service: ${service.serviceName}")
+                    }
                 }
             }
             
@@ -182,13 +195,16 @@ class MDnsDiscovery(private val context: Context) {
                         port = service.port,
                         properties = properties
                     )
-                    
+
                     discoveredServices[service.serviceName] = discoveredService
-                    
+
                     // Emit updated list
                     resultChannel.trySend(discoveredServices.values.toList())
-                    
-                    Log.i(TAG, "✅ Added service: ${discoveredService.baseUrl}")
+
+                    Log.i(TAG, "✅ Added service: ${discoveredService.name}")
+                    Log.i(TAG, "   📍 gRPC URL: ${discoveredService.grpcUrl}")
+                    Log.i(TAG, "   🌐 REST URL: ${discoveredService.baseUrl}")
+                    Log.i(TAG, "   ❤️ Health URL: ${discoveredService.healthUrl}")
                 }
             }
         }

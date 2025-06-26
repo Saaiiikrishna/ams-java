@@ -1,4 +1,4 @@
-package com.example.attendancesystem.repository;
+package com.example.attendancesystem.subscriber.repository;
 
 import com.example.attendancesystem.model.Category;
 import com.example.attendancesystem.model.Item;

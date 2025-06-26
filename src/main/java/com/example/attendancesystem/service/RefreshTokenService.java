@@ -1,5 +1,5 @@
 // src/main/java/com/example/attendancesystem/service/RefreshTokenService.java
-package com.example.attendancesystem.service;
+package com.example.attendancesystem.subscriber.service;
 
 import com.example.attendancesystem.model.EntityAdmin;
 import com.example.attendancesystem.model.RefreshToken;

@@ -1,4 +1,4 @@
-package com.example.attendancesystem.controller;
+package com.example.attendancesystem.subscriber.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;

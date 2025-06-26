@@ -1,4 +1,4 @@
-package com.example.attendancesystem.service;
+package com.example.attendancesystem.subscriber.service;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;

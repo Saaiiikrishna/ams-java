@@ -1,4 +1,4 @@
-package com.example.attendancesystem.service;
+package com.example.attendancesystem.subscriber.service;
 
 import ai.djl.Application;
 import ai.djl.Model;

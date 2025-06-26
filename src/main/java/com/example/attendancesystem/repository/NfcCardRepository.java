@@ -1,4 +1,4 @@
-package com.example.attendancesystem.repository;
+package com.example.attendancesystem.subscriber.repository;
 
 import com.example.attendancesystem.model.NfcCard;
 import com.example.attendancesystem.model.Organization;

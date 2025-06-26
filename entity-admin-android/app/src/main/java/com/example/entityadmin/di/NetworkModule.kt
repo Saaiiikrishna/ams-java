@@ -5,6 +5,7 @@ import com.example.entityadmin.data.TokenManager
 import com.example.entityadmin.data.DynamicApiService
 import com.example.entityadmin.data.ServerManager
 import com.example.entityadmin.data.api.ApiService
+import com.example.entityadmin.util.EnhancedMDnsDiscovery
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -86,5 +87,14 @@ object NetworkModule {
     @Singleton
     fun provideApiService(dynamicApiService: DynamicApiService): ApiService {
         return dynamicApiService.getApiService()
+    }
+
+    /**
+     * Provide Enhanced mDNS Discovery for entity admin
+     */
+    @Provides
+    @Singleton
+    fun provideEnhancedMDnsDiscovery(@ApplicationContext context: Context): EnhancedMDnsDiscovery {
+        return EnhancedMDnsDiscovery(context)
     }
 }

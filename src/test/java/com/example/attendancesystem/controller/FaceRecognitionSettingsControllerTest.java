@@ -1,4 +1,4 @@
-package com.example.attendancesystem.controller;
+package com.example.attendancesystem.subscriber.controller;
 
 import com.example.attendancesystem.model.FaceRecognitionSettings;
 import com.example.attendancesystem.repository.FaceRecognitionSettingsRepository;

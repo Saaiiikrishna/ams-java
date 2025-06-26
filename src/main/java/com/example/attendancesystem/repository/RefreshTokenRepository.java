@@ -1,5 +1,5 @@
 // src/main/java/com/example/attendancesystem/repository/RefreshTokenRepository.java
-package com.example.attendancesystem.repository;
+package com.example.attendancesystem.subscriber.repository;
 
 import com.example.attendancesystem.model.EntityAdmin;
 import com.example.attendancesystem.model.RefreshToken;

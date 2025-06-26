@@ -109,6 +109,11 @@ dependencies {
     // Location Services
     implementation 'com.google.android.gms:play-services-location:21.0.1'
 
+    // mDNS Service Discovery (Android NSD)
+    // Note: Android NSD is part of the Android framework, no additional dependencies needed
+    // But we can add JmDNS as a fallback for better compatibility
+    implementation 'org.jmdns:jmdns:3.5.8'
+
     // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

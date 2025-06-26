@@ -3,10 +3,10 @@ import Combine
 
 class APIService {
     static let shared = APIService()
-    
-    private let baseURL = "http://localhost:8080/subscriber/"
+
+    private let dynamicAPIService = DynamicAPIService.shared
     private let session = URLSession.shared
-    
+
     private init() {}
     
     // MARK: - Authentication
@@ -41,6 +41,7 @@ class APIService {
     // MARK: - Dashboard
 
     func getDashboard(mobileNumber: String, entityId: String) -> AnyPublisher<DashboardResponse, Error> {
+        let baseURL = dynamicAPIService.getSubscriberBaseURL()
         let url = URL(string: baseURL + "mobile/dashboard?mobileNumber=\(mobileNumber)&entityId=\(entityId)")!
 
         return session.dataTaskPublisher(for: url)
@@ -50,6 +51,7 @@ class APIService {
     }
 
     func getAvailableSessions(mobileNumber: String, entityId: String) -> AnyPublisher<SessionsResponse, Error> {
+        let baseURL = dynamicAPIService.getSubscriberBaseURL()
         let url = URL(string: baseURL + "mobile/sessions?mobileNumber=\(mobileNumber)&entityId=\(entityId)")!
 
         return session.dataTaskPublisher(for: url)
@@ -59,8 +61,9 @@ class APIService {
     }
 
     func getAttendanceHistory(mobileNumber: String, entityId: String) -> AnyPublisher<AttendanceHistoryResponse, Error> {
+        let baseURL = dynamicAPIService.getSubscriberBaseURL()
         let url = URL(string: baseURL + "mobile/attendance/history?mobileNumber=\(mobileNumber)&entityId=\(entityId)")!
-        
+
         return session.dataTaskPublisher(for: url)
             .map(\.data)
             .decode(type: AttendanceHistoryResponse.self, decoder: JSONDecoder())
@@ -92,7 +95,8 @@ class APIService {
         body: T,
         responseType: U.Type
     ) -> AnyPublisher<U, Error> {
-        
+
+        let baseURL = dynamicAPIService.getSubscriberBaseURL()
         guard let url = URL(string: baseURL + endpoint) else {
             return Fail(error: APIError.invalidURL)
                 .eraseToAnyPublisher()

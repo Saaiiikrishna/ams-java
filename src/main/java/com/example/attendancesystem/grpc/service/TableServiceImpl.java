@@ -1,4 +1,4 @@
-package com.example.attendancesystem.grpc.service;
+package com.example.attendancesystem.subscriber.grpc;
 
 import com.example.attendancesystem.grpc.table.*;
 import io.grpc.Status;
@@ -199,8 +199,8 @@ public class TableServiceImpl extends TableServiceGrpc.TableServiceImplBase {
                     .setSuccess(false)
                     .setMessage("Table service not implemented yet - available tables retrieval pending")
                     .setTotalCount(0)
-                    .setPage(request.getPage())
-                    .setSize(request.getSize())
+                    .setPage(0)
+                    .setSize(0)
                     .build();
 
             responseObserver.onNext(response);

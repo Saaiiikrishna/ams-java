@@ -1,4 +1,4 @@
-package com.example.attendancesystem.grpc.service;
+package com.example.attendancesystem.subscriber.grpc;
 
 import com.example.attendancesystem.grpc.order.*;
 import io.grpc.Status;

@@ -1,4 +1,4 @@
-package com.example.attendancesystem.repository;
+package com.example.attendancesystem.subscriber.repository;
 
 import com.example.attendancesystem.model.Role;
 import org.springframework.data.jpa.repository.JpaRepository;

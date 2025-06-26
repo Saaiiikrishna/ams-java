@@ -1,4 +1,4 @@
-package com.example.attendancesystem.grpc.service;
+package com.example.attendancesystem.subscriber.grpc;
 
 import com.example.attendancesystem.grpc.auth.*;
 import com.example.attendancesystem.dto.LoginRequest;

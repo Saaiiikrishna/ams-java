@@ -1,4 +1,4 @@
-package com.example.attendancesystem.controller;
+package com.example.attendancesystem.subscriber.controller;
 
 import com.example.attendancesystem.facerecognition.SeetaFaceJNI;
 import com.example.attendancesystem.service.FaceRecognitionService;

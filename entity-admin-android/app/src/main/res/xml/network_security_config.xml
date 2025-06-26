@@ -17,7 +17,19 @@
         <domain includeSubdomains="true">192.168.31.209</domain>
         <domain includeSubdomains="true">172.20.10.2</domain>
 
-        <!-- mDNS hostnames -->
+        <!-- mDNS hostnames - DYNAMIC DISCOVERY -->
+        <domain includeSubdomains="true">*.local</domain>
+        <domain includeSubdomains="true">attendance-system.local</domain>
         <domain includeSubdomains="true">restaurant.local</domain>
     </domain-config>
+
+    <!--
+    CRITICAL: Allow cleartext for ALL private IP ranges
+    This enables dynamic discovery on any private network for entity admin
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
 </network-security-config>

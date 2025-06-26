@@ -1,4 +1,4 @@
-package com.example.attendancesystem.controller;
+package com.example.attendancesystem.subscriber.controller;
 
 import com.example.attendancesystem.dto.LoginRequest;
 import com.example.attendancesystem.dto.LoginResponse;

@@ -1,4 +1,4 @@
-package com.example.attendancesystem.controller;
+package com.example.attendancesystem.subscriber.controller;
 
 import com.example.attendancesystem.dto.CardAssignmentDto;
 import com.example.attendancesystem.dto.CardRegistrationDto;

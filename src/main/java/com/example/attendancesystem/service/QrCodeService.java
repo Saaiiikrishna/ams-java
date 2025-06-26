@@ -1,4 +1,4 @@
-package com.example.attendancesystem.service;
+package com.example.attendancesystem.subscriber.service;
 
 import com.example.attendancesystem.model.AttendanceSession;
 import com.google.zxing.BarcodeFormat;

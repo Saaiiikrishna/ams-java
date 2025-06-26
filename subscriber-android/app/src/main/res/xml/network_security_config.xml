@@ -1,35 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic for all local network ranges -->
+    <!--
+    COMPLETELY DYNAMIC NETWORK SECURITY CONFIGURATION
+    No hardcoded IP addresses - allows cleartext traffic for all private networks
+    This enables mDNS discovery to work on any WiFi network
+    -->
+
+    <!-- Allow cleartext traffic for all private network ranges (RFC 1918) -->
     <domain-config cleartextTrafficPermitted="true">
-        <!-- Emulator and localhost -->
-        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- Localhost and emulator -->
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
 
-        <!-- Common router IPs -->
-        <domain includeSubdomains="true">192.168.1.1</domain>
-        <domain includeSubdomains="true">192.168.0.1</domain>
-        <domain includeSubdomains="true">192.168.31.1</domain>
-        <domain includeSubdomains="true">10.0.0.1</domain>
-
-        <!-- Specific server IPs -->
-        <domain includeSubdomains="true">192.168.31.4</domain>
-        <domain includeSubdomains="true">192.168.31.209</domain>
-        <domain includeSubdomains="true">172.20.10.2</domain>
-
-        <!-- mDNS hostname -->
-        <domain includeSubdomains="true">restaurant.local</domain>
-
-        <!-- All private IP ranges -->
-        <domain includeSubdomains="true">192.168.1.0</domain>
-        <domain includeSubdomains="true">192.168.0.0</domain>
-        <domain includeSubdomains="true">192.168.31.0</domain>
-        <domain includeSubdomains="true">172.20.10.0</domain>
-        <domain includeSubdomains="true">10.0.0.0</domain>
+        <!-- mDNS .local domains -->
+        <domain includeSubdomains="true">*.local</domain>
+        <domain includeSubdomains="true">attendance-system.local</domain>
     </domain-config>
 
-    <!-- Fallback: Allow cleartext for all private IP ranges -->
+    <!--
+    CRITICAL: Allow cleartext for ALL private IP ranges
+    This enables dynamic discovery on any private network
+    -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system"/>

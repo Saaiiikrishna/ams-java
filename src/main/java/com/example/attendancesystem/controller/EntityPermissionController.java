@@ -1,4 +1,4 @@
-package com.example.attendancesystem.controller;
+package com.example.attendancesystem.subscriber.controller;
 
 import com.example.attendancesystem.model.FeaturePermission;
 import com.example.attendancesystem.security.CustomUserDetails;

@@ -1,4 +1,4 @@
-package com.example.attendancesystem.model;
+package com.example.attendancesystem.subscriber.model;
 
 /**
  * Enum representing different check-in methods available for attendance

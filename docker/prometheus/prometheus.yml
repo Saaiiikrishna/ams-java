@@ -1,0 +1,136 @@
+# Prometheus configuration for Attendance Management System
+# Comprehensive monitoring setup with service discovery
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ams-docker'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alert_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  # Attendance Management System Backend
+  - job_name: 'ams-backend'
+    static_configs:
+      - targets: ['ams-backend:8080']
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: ams-backend:8080
+
+  # Spring Boot Actuator endpoints
+  - job_name: 'ams-backend-actuator'
+    static_configs:
+      - targets: ['ams-backend:8080']
+    metrics_path: /actuator/metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # JVM metrics
+  - job_name: 'ams-backend-jvm'
+    static_configs:
+      - targets: ['ams-backend:8080']
+    metrics_path: /actuator/prometheus
+    scrape_interval: 30s
+    params:
+      match[]:
+        - 'jvm_*'
+        - 'process_*'
+        - 'system_*'
+
+  # Custom application metrics
+  - job_name: 'ams-backend-custom'
+    static_configs:
+      - targets: ['ams-backend:8080']
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    params:
+      match[]:
+        - 'attendance_*'
+        - 'http_*'
+        - 'grpc_*'
+
+  # Database metrics (if exposed)
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    honor_labels: true
+
+  # Nginx metrics (if nginx-prometheus-exporter is added)
+  - job_name: 'nginx-admin-panel'
+    static_configs:
+      - targets: ['admin-panel:80']
+    metrics_path: /health
+    scrape_interval: 30s
+    scrape_timeout: 5s
+
+  - job_name: 'nginx-entity-dashboard'
+    static_configs:
+      - targets: ['entity-dashboard:80']
+    metrics_path: /health
+    scrape_interval: 30s
+    scrape_timeout: 5s
+
+  # Zipkin metrics
+  - job_name: 'zipkin'
+    static_configs:
+      - targets: ['zipkin:9411']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Container metrics (if cAdvisor is added)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Node exporter (if added for host metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+# Remote write configuration (for external monitoring)
+# remote_write:
+#   - url: "https://your-remote-prometheus-endpoint/api/v1/write"
+#     basic_auth:
+#       username: "your-username"
+#       password: "your-password"
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 15d
+    retention.size: 10GB

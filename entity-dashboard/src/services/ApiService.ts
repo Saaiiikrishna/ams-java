@@ -1,40 +1,30 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import AuthService from './AuthService';
 import logger from './LoggingService';
+import DynamicApiService from './DynamicApiService';
 
-// EMERGENCY FIX: Force direct connection to backend
-const getApiBaseUrl = (): string => {
-  // ALWAYS use the current window location when served from backend
-  const currentHost = window.location.hostname;
-  const currentPort = window.location.port;
+// Dynamic API service instance
+const dynamicApiService = DynamicApiService.getInstance();
 
-  console.log('🔗 Current location:', window.location.href);
-  console.log('🔗 Host:', currentHost, 'Port:', currentPort);
+// Initialize with dynamic base URL
+let API_BASE_URL = '';
 
-  // If we're on the backend server (port 8080), use same origin
-  if (currentPort === '8080') {
-    console.log('✅ Using same-origin API calls (relative URLs)');
-    return ''; // Use relative URLs - this should work!
-  }
-
-  // Fallback: try multiple backend URLs
-  const possibleUrls = [
-    `http://${currentHost}:8080`,
-    'http://192.168.31.4:8080',
-    'http://restaurant.local:8080',
-    'http://localhost:8080'
-  ];
-
-  const backendUrl = possibleUrls[0];
-  console.log('🔗 Using external API calls:', backendUrl);
-  return backendUrl;
+// Function to get current API base URL
+const getApiBaseUrl = async (): Promise<string> => {
+  return await dynamicApiService.getApiBaseUrl();
 };
 
-const API_BASE_URL = getApiBaseUrl();
+// Initialize the base URL
+getApiBaseUrl().then(url => {
+  API_BASE_URL = url;
+  console.log('🔗 Entity Dashboard: API Base URL configured:', API_BASE_URL);
+  console.log('🔗 Entity Dashboard: Full backend URL will be:', API_BASE_URL || window.location.origin);
+}).catch(error => {
+  console.error('❌ Entity Dashboard: Failed to get API base URL:', error);
+  API_BASE_URL = `http://${window.location.hostname}:8080`; // Fallback
+});
 
-console.log('🔗 API Base URL configured:', API_BASE_URL);
-console.log('🔗 Full backend URL will be:', API_BASE_URL || window.location.origin);
-
+// Create axios instance with initial base URL
 const ApiService: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -42,9 +32,26 @@ const ApiService: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add the auth token to headers
+// Function to update the base URL dynamically
+const updateApiBaseUrl = async (): Promise<void> => {
+  try {
+    const newBaseUrl = await getApiBaseUrl();
+    if (newBaseUrl !== ApiService.defaults.baseURL) {
+      ApiService.defaults.baseURL = newBaseUrl;
+      console.log('🔄 Entity Dashboard: Updated API base URL to:', newBaseUrl);
+    }
+  } catch (error) {
+    console.error('❌ Entity Dashboard: Failed to update API base URL:', error);
+  }
+};
+
+// Request interceptor to add the auth token and ensure dynamic URL
 ApiService.interceptors.request.use(
-  (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+  async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
+    // Update base URL if needed
+    await updateApiBaseUrl();
+
+    // Add auth token
     const token = AuthService.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

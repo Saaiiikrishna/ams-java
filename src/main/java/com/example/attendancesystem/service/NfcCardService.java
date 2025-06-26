@@ -1,4 +1,4 @@
-package com.example.attendancesystem.service;
+package com.example.attendancesystem.subscriber.service;
 
 import com.example.attendancesystem.dto.CardAssignmentDto;
 import com.example.attendancesystem.dto.CardRegistrationDto;

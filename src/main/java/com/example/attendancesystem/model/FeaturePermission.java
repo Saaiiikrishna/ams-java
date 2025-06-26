@@ -1,4 +1,4 @@
-package com.example.attendancesystem.model;
+package com.example.attendancesystem.subscriber.model;
 
 public enum FeaturePermission {
     // Menu and Ordering System

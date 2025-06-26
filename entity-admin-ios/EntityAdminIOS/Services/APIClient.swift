@@ -21,10 +21,12 @@ struct SessionCreateRequest: Codable { // Added
 class APIClient {
     static let shared = APIClient()
     var token: String? // In-memory token
+    private let dynamicAPIService = DynamicAPIService.shared
 
     // Updated login method
     func login(username: String, password: String, completion: @escaping (Result<Void, APIError>) -> Void) {
-        guard let url = URL(string: "http://localhost:8080/api/auth/login") else {
+        let baseURL = dynamicAPIService.getAPIBaseURL()
+        guard let url = URL(string: baseURL + "api/auth/login") else {
             completion(.failure(APIError.invalidURLOrToken))
             return
         }

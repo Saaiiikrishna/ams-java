@@ -1,4 +1,4 @@
-package com.example.attendancesystem.model;
+package com.example.attendancesystem.subscriber.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;

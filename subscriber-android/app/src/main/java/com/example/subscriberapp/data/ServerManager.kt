@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.example.subscriberapp.util.ServerDiscovery
 import com.example.subscriberapp.util.MDnsDiscovery
+import com.example.subscriberapp.util.EnhancedMDnsDiscovery
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,14 +75,27 @@ class ServerManager @Inject constructor(
                     return@launch
                 }
                 
-                // If fast discovery didn't work, try mDNS discovery
-                Log.i(TAG, "📡 Trying mDNS discovery...")
+                // If fast discovery didn't work, try both mDNS discovery methods
+                Log.i(TAG, "📡 Trying Android NSD mDNS discovery...")
                 val mdnsDiscovery = MDnsDiscovery(context)
-                val services = mdnsDiscovery.discoverServicesSync(5000L)
-                
-                for (service in services) {
+                val nsdServices = mdnsDiscovery.discoverServicesSync(4000L)
+
+                for (service in nsdServices) {
                     if (ServerDiscovery.testServerQuick(service.baseUrl)) {
-                        Log.i(TAG, "✅ mDNS discovery found working server: ${service.baseUrl}")
+                        Log.i(TAG, "✅ Android NSD found working server: ${service.baseUrl}")
+                        updateServerFound(service.baseUrl)
+                        return@launch
+                    }
+                }
+
+                // Try enhanced JmDNS discovery as fallback
+                Log.i(TAG, "🔍 Trying enhanced JmDNS discovery...")
+                val enhancedDiscovery = EnhancedMDnsDiscovery(context)
+                val jmdnsServices = enhancedDiscovery.discoverServicesSync(6000L)
+
+                for (service in jmdnsServices) {
+                    if (ServerDiscovery.testServerQuick(service.baseUrl)) {
+                        Log.i(TAG, "✅ Enhanced JmDNS found working server: ${service.baseUrl}")
                         updateServerFound(service.baseUrl)
                         return@launch
                     }

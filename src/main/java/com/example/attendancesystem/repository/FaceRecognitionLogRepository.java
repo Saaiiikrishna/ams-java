@@ -1,4 +1,4 @@
-package com.example.attendancesystem.repository;
+package com.example.attendancesystem.subscriber.repository;
 
 import com.example.attendancesystem.model.FaceRecognitionLog;
 import com.example.attendancesystem.model.Subscriber;

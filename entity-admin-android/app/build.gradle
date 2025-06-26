@@ -105,4 +105,7 @@ dependencies {
     // Hilt testing
     androidTestImplementation 'com.google.dagger:hilt-android-testing:2.48'
     kaptAndroidTest 'com.google.dagger:hilt-android-compiler:2.48'
+
+    // mDNS Service Discovery
+    implementation 'org.jmdns:jmdns:3.5.8'
 }

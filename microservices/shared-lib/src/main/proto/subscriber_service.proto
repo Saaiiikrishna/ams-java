@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package com.example.attendancesystem.grpc.subscriber;
+
+option java_multiple_files = true;
+option java_package = "com.example.attendancesystem.grpc.subscriber";
+option java_outer_classname = "SubscriberServiceProto";
+
+// Subscriber Management Service
+service SubscriberService {
+  // Subscriber CRUD Operations
+  rpc CreateSubscriber(CreateSubscriberRequest) returns (SubscriberResponse);
+  rpc GetSubscriber(GetSubscriberRequest) returns (SubscriberResponse);
+  rpc UpdateSubscriber(UpdateSubscriberRequest) returns (SubscriberResponse);
+  rpc DeleteSubscriber(DeleteSubscriberRequest) returns (DeleteResponse);
+  rpc ListSubscribers(ListSubscribersRequest) returns (ListSubscribersResponse);
+  
+  // Subscriber Profile Management
+  rpc GetSubscriberProfile(GetSubscriberProfileRequest) returns (SubscriberResponse);
+  rpc UpdateSubscriberProfile(UpdateSubscriberProfileRequest) returns (SubscriberResponse);
+  rpc ChangeSubscriberPassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  
+  // NFC Card Management
+  rpc AssignNfcCard(AssignNfcCardRequest) returns (NfcCardResponse);
+  rpc UnassignNfcCard(UnassignNfcCardRequest) returns (NfcCardResponse);
+  rpc GetSubscriberNfcCards(GetSubscriberNfcCardsRequest) returns (ListNfcCardsResponse);
+  rpc RegisterNfcCard(RegisterNfcCardRequest) returns (NfcCardResponse);
+  
+  // Face Recognition Management
+  rpc RegisterFace(RegisterFaceRequest) returns (FaceRegistrationResponse);
+  rpc UpdateFaceData(UpdateFaceDataRequest) returns (FaceRegistrationResponse);
+  rpc DeleteFaceData(DeleteFaceDataRequest) returns (DeleteResponse);
+}
+
+// Subscriber Messages
+message Subscriber {
+  int64 id = 1;
+  string username = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string phone = 6;
+  string employee_id = 7;
+  string department = 8;
+  string position = 9;
+  int64 organization_id = 10;
+  bool active = 11;
+  string created_at = 12;
+  string updated_at = 13;
+  string profile_photo_url = 14;
+  repeated NfcCard nfc_cards = 15;
+  bool face_registered = 16;
+}
+
+message CreateSubscriberRequest {
+  string username = 1;
+  string password = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string phone = 6;
+  string employee_id = 7;
+  string department = 8;
+  string position = 9;
+  int64 organization_id = 10;
+}
+
+message GetSubscriberRequest {
+  int64 id = 1;
+}
+
+message UpdateSubscriberRequest {
+  int64 id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string phone = 5;
+  string employee_id = 6;
+  string department = 7;
+  string position = 8;
+  bool active = 9;
+}
+
+message DeleteSubscriberRequest {
+  int64 id = 1;
+}
+
+message ListSubscribersRequest {
+  int64 organization_id = 1;
+  int32 page = 2;
+  int32 size = 3;
+  string search = 4;
+  bool active_only = 5;
+  string department = 6;
+}
+
+message GetSubscriberProfileRequest {
+  int64 subscriber_id = 1;
+}
+
+message UpdateSubscriberProfileRequest {
+  int64 subscriber_id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string phone = 5;
+}
+
+message ChangePasswordRequest {
+  int64 subscriber_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+// NFC Card Messages
+message NfcCard {
+  int64 id = 1;
+  string card_id = 2;
+  int64 subscriber_id = 3;
+  bool active = 4;
+  string assigned_at = 5;
+  string last_used = 6;
+}
+
+message AssignNfcCardRequest {
+  int64 subscriber_id = 1;
+  string card_id = 2;
+}
+
+message UnassignNfcCardRequest {
+  int64 subscriber_id = 1;
+  string card_id = 2;
+}
+
+message GetSubscriberNfcCardsRequest {
+  int64 subscriber_id = 1;
+}
+
+message RegisterNfcCardRequest {
+  string card_id = 1;
+  int64 subscriber_id = 2;
+}
+
+// Face Recognition Messages
+message RegisterFaceRequest {
+  int64 subscriber_id = 1;
+  bytes face_image = 2;
+  string image_format = 3; // "jpeg", "png", etc.
+}
+
+message UpdateFaceDataRequest {
+  int64 subscriber_id = 1;
+  bytes face_image = 2;
+  string image_format = 3;
+}
+
+message DeleteFaceDataRequest {
+  int64 subscriber_id = 1;
+}
+
+// Response Messages
+message SubscriberResponse {
+  bool success = 1;
+  string message = 2;
+  Subscriber subscriber = 3;
+}
+
+message ListSubscribersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Subscriber subscribers = 3;
+  int64 total_count = 4;
+  int32 page = 5;
+  int32 size = 6;
+}
+
+message NfcCardResponse {
+  bool success = 1;
+  string message = 2;
+  NfcCard nfc_card = 3;
+}
+
+message ListNfcCardsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated NfcCard nfc_cards = 3;
+}
+
+message ChangePasswordResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message FaceRegistrationResponse {
+  bool success = 1;
+  string message = 2;
+  string face_encoding_id = 3;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}

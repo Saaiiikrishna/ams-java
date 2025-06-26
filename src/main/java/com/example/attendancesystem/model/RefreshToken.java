@@ -1,5 +1,5 @@
 // src/main/java/com/example/attendancesystem/model/RefreshToken.java
-package com.example.attendancesystem.model;
+package com.example.attendancesystem.subscriber.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;

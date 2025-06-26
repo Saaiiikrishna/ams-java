@@ -1,4 +1,4 @@
-package com.example.attendancesystem.grpc.service;
+package com.example.attendancesystem.subscriber.grpc;
 
 import com.example.attendancesystem.grpc.subscriber.*;
 import com.example.attendancesystem.model.NfcCard;
@@ -280,7 +280,7 @@ public class SubscriberServiceImpl extends SubscriberServiceGrpc.SubscriberServi
         try {
             Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
             if (subscriberOpt.isEmpty()) {
-                SubscriberResponse response = SubscriberResponse.newBuilder()
+                ChangePasswordResponse response = ChangePasswordResponse.newBuilder()
                         .setSuccess(false)
                         .setMessage("Subscriber not found")
                         .build();

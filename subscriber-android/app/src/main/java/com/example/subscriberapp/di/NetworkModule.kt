@@ -7,6 +7,7 @@ import com.example.subscriberapp.data.DynamicApiService
 import com.example.subscriberapp.data.ServerManager
 import com.example.subscriberapp.util.ServerDiscovery
 import com.example.subscriberapp.util.MDnsDiscovery
+import com.example.subscriberapp.util.EnhancedMDnsDiscovery
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -120,5 +121,11 @@ object NetworkModule {
     @Singleton
     fun provideMDnsDiscovery(@ApplicationContext context: Context): MDnsDiscovery {
         return MDnsDiscovery(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEnhancedMDnsDiscovery(@ApplicationContext context: Context): EnhancedMDnsDiscovery {
+        return EnhancedMDnsDiscovery(context)
     }
 }
