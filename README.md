@@ -1,6 +1,6 @@
 # Modules For Smart Home Automation
 
-This project is a comprehensive Attendance Management System featuring a Spring Boot backend, three React-based frontend applications (Admin Panel, Entity Dashboard, and Public Menu), native mobile applications for both Android and iOS (for Entity Admins and Subscribers), and various development tools.
+This project is a comprehensive Automation systems featuring a Spring Boot backend, three React-based frontend applications (Admin Panel, Entity Dashboard, and Public Menu), native mobile applications for both Android and iOS (for Entity Admins and Subscribers), and various development tools.
 
 ## Table of Contents
 
