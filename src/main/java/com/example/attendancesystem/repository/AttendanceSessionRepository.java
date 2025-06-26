@@ -2,6 +2,8 @@ package com.example.attendancesystem.repository;
 
 import com.example.attendancesystem.model.AttendanceSession;
 import com.example.attendancesystem.model.Organization;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,4 +47,12 @@ public interface AttendanceSessionRepository extends JpaRepository<AttendanceSes
 
     // Find session by QR code that is still active
     Optional<AttendanceSession> findByQrCodeAndEndTimeIsNull(String qrCode);
+
+    // Pagination support
+    Page<AttendanceSession> findByOrganization(Organization organization, Pageable pageable);
+    Page<AttendanceSession> findByOrganizationAndNameContainingIgnoreCase(Organization organization, String name, Pageable pageable);
+
+    // Find active session for organization
+    @Query("SELECT s FROM AttendanceSession s WHERE s.organization = :organization AND s.active = true AND s.endTime > CURRENT_TIMESTAMP")
+    Optional<AttendanceSession> findActiveSessionByOrganization(@Param("organization") Organization organization);
 }
