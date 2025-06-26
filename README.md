@@ -1,4 +1,4 @@
-# Attendance Management System
+# Modules For Smart Home Automation
 
 This project is a comprehensive Attendance Management System featuring a Spring Boot backend, three React-based frontend applications (Admin Panel, Entity Dashboard, and Public Menu), native mobile applications for both Android and iOS (for Entity Admins and Subscribers), and various development tools.
 
@@ -225,7 +225,7 @@ From Swagger UI, you can execute requests, inspect request/response models, and 
 
 ## Contributing
 
-We welcome contributions to the Attendance Management System! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) file for guidelines on how to report bugs, suggest features, and submit pull requests.
+We welcome contributions to the Automation System! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) file for guidelines on how to report bugs, suggest features, and submit pull requests.
 
 You can also reach out with specific queries to [saaiiikrishna@gmail.com](mailto:saaiiikrishna@gmail.com).
 
