@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+package com.example.attendancesystem.grpc.organization;
+
+option java_multiple_files = true;
+option java_package = "com.example.attendancesystem.grpc.organization";
+option java_outer_classname = "OrganizationServiceProto";
+
+// Organization Management Service
+service OrganizationService {
+  // Organization CRUD Operations
+  rpc CreateOrganization(CreateOrganizationRequest) returns (OrganizationResponse);
+  rpc GetOrganization(GetOrganizationRequest) returns (OrganizationResponse);
+  rpc UpdateOrganization(UpdateOrganizationRequest) returns (OrganizationResponse);
+  rpc DeleteOrganization(DeleteOrganizationRequest) returns (DeleteResponse);
+  rpc ListOrganizations(ListOrganizationsRequest) returns (ListOrganizationsResponse);
+  
+  // Permission Management
+  rpc GetOrganizationPermissions(GetPermissionsRequest) returns (PermissionsResponse);
+  rpc UpdateOrganizationPermissions(UpdatePermissionsRequest) returns (PermissionsResponse);
+  rpc GetFeaturePermissions(GetFeaturePermissionsRequest) returns (FeaturePermissionsResponse);
+  
+  // Entity Admin Management
+  rpc CreateEntityAdmin(CreateEntityAdminRequest) returns (EntityAdminResponse);
+  rpc GetEntityAdmin(GetEntityAdminRequest) returns (EntityAdminResponse);
+  rpc UpdateEntityAdmin(UpdateEntityAdminRequest) returns (EntityAdminResponse);
+  rpc DeleteEntityAdmin(DeleteEntityAdminRequest) returns (DeleteResponse);
+  rpc ListEntityAdmins(ListEntityAdminsRequest) returns (ListEntityAdminsResponse);
+}
+
+// Organization Messages
+message Organization {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string contact_email = 4;
+  string contact_phone = 5;
+  string address = 6;
+  bool active = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message CreateOrganizationRequest {
+  string name = 1;
+  string description = 2;
+  string contact_email = 3;
+  string contact_phone = 4;
+  string address = 5;
+}
+
+message GetOrganizationRequest {
+  int64 id = 1;
+}
+
+message UpdateOrganizationRequest {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string contact_email = 4;
+  string contact_phone = 5;
+  string address = 6;
+  bool active = 7;
+}
+
+message DeleteOrganizationRequest {
+  int64 id = 1;
+}
+
+message ListOrganizationsRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string search = 3;
+  bool active_only = 4;
+}
+
+message OrganizationResponse {
+  bool success = 1;
+  string message = 2;
+  Organization organization = 3;
+}
+
+message ListOrganizationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Organization organizations = 3;
+  int64 total_count = 4;
+  int32 page = 5;
+  int32 size = 6;
+}
+
+// Permission Messages
+message Permission {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  bool enabled = 4;
+}
+
+message FeaturePermission {
+  int64 id = 1;
+  string feature_name = 2;
+  string description = 3;
+  bool enabled = 4;
+}
+
+message GetPermissionsRequest {
+  int64 organization_id = 1;
+}
+
+message UpdatePermissionsRequest {
+  int64 organization_id = 1;
+  repeated Permission permissions = 2;
+}
+
+message GetFeaturePermissionsRequest {
+  int64 organization_id = 1;
+}
+
+message PermissionsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Permission permissions = 3;
+}
+
+message FeaturePermissionsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated FeaturePermission feature_permissions = 3;
+}
+
+// Entity Admin Messages
+message EntityAdmin {
+  int64 id = 1;
+  string username = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  int64 organization_id = 6;
+  bool active = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  repeated string roles = 10;
+}
+
+message CreateEntityAdminRequest {
+  string username = 1;
+  string password = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  int64 organization_id = 6;
+  repeated string roles = 7;
+}
+
+message GetEntityAdminRequest {
+  int64 id = 1;
+}
+
+message UpdateEntityAdminRequest {
+  int64 id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  bool active = 5;
+  repeated string roles = 6;
+}
+
+message DeleteEntityAdminRequest {
+  int64 id = 1;
+}
+
+message ListEntityAdminsRequest {
+  int64 organization_id = 1;
+  int32 page = 2;
+  int32 size = 3;
+  string search = 4;
+  bool active_only = 5;
+}
+
+message EntityAdminResponse {
+  bool success = 1;
+  string message = 2;
+  EntityAdmin entity_admin = 3;
+}
+
+message ListEntityAdminsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated EntityAdmin entity_admins = 3;
+  int64 total_count = 4;
+  int32 page = 5;
+  int32 size = 6;
+}
+
+// Common Response Messages
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}

@@ -1,0 +1,269 @@
+syntax = "proto3";
+
+package com.example.attendancesystem.grpc.attendance;
+
+option java_multiple_files = true;
+option java_package = "com.example.attendancesystem.grpc.attendance";
+option java_outer_classname = "AttendanceServiceProto";
+
+// Attendance Management Service
+service AttendanceService {
+  // Attendance Session Management
+  rpc CreateAttendanceSession(CreateAttendanceSessionRequest) returns (AttendanceSessionResponse);
+  rpc GetAttendanceSession(GetAttendanceSessionRequest) returns (AttendanceSessionResponse);
+  rpc UpdateAttendanceSession(UpdateAttendanceSessionRequest) returns (AttendanceSessionResponse);
+  rpc DeleteAttendanceSession(DeleteAttendanceSessionRequest) returns (DeleteResponse);
+  rpc ListAttendanceSessions(ListAttendanceSessionsRequest) returns (ListAttendanceSessionsResponse);
+  rpc GetActiveSession(GetActiveSessionRequest) returns (AttendanceSessionResponse);
+  
+  // Scheduled Session Management
+  rpc CreateScheduledSession(CreateScheduledSessionRequest) returns (ScheduledSessionResponse);
+  rpc GetScheduledSession(GetScheduledSessionRequest) returns (ScheduledSessionResponse);
+  rpc UpdateScheduledSession(UpdateScheduledSessionRequest) returns (ScheduledSessionResponse);
+  rpc DeleteScheduledSession(DeleteScheduledSessionRequest) returns (DeleteResponse);
+  rpc ListScheduledSessions(ListScheduledSessionsRequest) returns (ListScheduledSessionsResponse);
+  
+  // Check-in/Check-out Operations
+  rpc CheckIn(CheckInRequest) returns (CheckInResponse);
+  rpc CheckOut(CheckOutRequest) returns (CheckOutResponse);
+  rpc GetAttendanceLogs(GetAttendanceLogsRequest) returns (ListAttendanceLogsResponse);
+  
+  // QR Code Management
+  rpc GenerateSessionQrCode(GenerateQrCodeRequest) returns (QrCodeResponse);
+  rpc ValidateQrCode(ValidateQrCodeRequest) returns (QrCodeValidationResponse);
+}
+
+// Attendance Session Messages
+message AttendanceSession {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string start_time = 4;
+  string end_time = 5;
+  int64 organization_id = 6;
+  bool active = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  string qr_code_data = 10;
+  int32 total_attendees = 11;
+}
+
+message CreateAttendanceSessionRequest {
+  string name = 1;
+  string description = 2;
+  string start_time = 3;
+  string end_time = 4;
+  int64 organization_id = 5;
+}
+
+message GetAttendanceSessionRequest {
+  int64 id = 1;
+}
+
+message UpdateAttendanceSessionRequest {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string start_time = 4;
+  string end_time = 5;
+  bool active = 6;
+}
+
+message DeleteAttendanceSessionRequest {
+  int64 id = 1;
+}
+
+message ListAttendanceSessionsRequest {
+  int64 organization_id = 1;
+  int32 page = 2;
+  int32 size = 3;
+  string search = 4;
+  bool active_only = 5;
+  string start_date = 6;
+  string end_date = 7;
+}
+
+message GetActiveSessionRequest {
+  int64 organization_id = 1;
+}
+
+// Scheduled Session Messages
+message ScheduledSession {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string scheduled_date = 4;
+  string start_time = 5;
+  string end_time = 6;
+  int64 organization_id = 7;
+  bool active = 8;
+  string created_at = 9;
+  string updated_at = 10;
+  bool recurring = 11;
+  string recurrence_pattern = 12;
+}
+
+message CreateScheduledSessionRequest {
+  string name = 1;
+  string description = 2;
+  string scheduled_date = 3;
+  string start_time = 4;
+  string end_time = 5;
+  int64 organization_id = 6;
+  bool recurring = 7;
+  string recurrence_pattern = 8;
+}
+
+message GetScheduledSessionRequest {
+  int64 id = 1;
+}
+
+message UpdateScheduledSessionRequest {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string scheduled_date = 4;
+  string start_time = 5;
+  string end_time = 6;
+  bool active = 7;
+  bool recurring = 8;
+  string recurrence_pattern = 9;
+}
+
+message DeleteScheduledSessionRequest {
+  int64 id = 1;
+}
+
+message ListScheduledSessionsRequest {
+  int64 organization_id = 1;
+  int32 page = 2;
+  int32 size = 3;
+  string search = 4;
+  bool active_only = 5;
+  string start_date = 6;
+  string end_date = 7;
+}
+
+// Attendance Log Messages
+message AttendanceLog {
+  int64 id = 1;
+  int64 subscriber_id = 2;
+  int64 session_id = 3;
+  string check_in_time = 4;
+  string check_out_time = 5;
+  string check_in_method = 6; // "QR_CODE", "NFC", "FACE_RECOGNITION"
+  string check_out_method = 7;
+  string location = 8;
+  string notes = 9;
+  string created_at = 10;
+}
+
+message CheckInRequest {
+  int64 subscriber_id = 1;
+  int64 session_id = 2;
+  string method = 3; // "QR_CODE", "NFC", "FACE_RECOGNITION"
+  string location = 4;
+  string qr_code_data = 5; // Optional, for QR code check-in
+  string nfc_card_id = 6; // Optional, for NFC check-in
+  bytes face_image = 7; // Optional, for face recognition check-in
+}
+
+message CheckOutRequest {
+  int64 subscriber_id = 1;
+  int64 session_id = 2;
+  string method = 3;
+  string location = 4;
+  string notes = 5;
+}
+
+message GetAttendanceLogsRequest {
+  int64 organization_id = 1;
+  int64 session_id = 2; // Optional
+  int64 subscriber_id = 3; // Optional
+  int32 page = 4;
+  int32 size = 5;
+  string start_date = 6;
+  string end_date = 7;
+}
+
+// QR Code Messages
+message GenerateQrCodeRequest {
+  int64 session_id = 1;
+  int32 expiry_minutes = 2; // Optional, default 60 minutes
+}
+
+message ValidateQrCodeRequest {
+  string qr_code_data = 1;
+  int64 session_id = 2;
+}
+
+// Response Messages
+message AttendanceSessionResponse {
+  bool success = 1;
+  string message = 2;
+  AttendanceSession session = 3;
+}
+
+message ListAttendanceSessionsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AttendanceSession sessions = 3;
+  int64 total_count = 4;
+  int32 page = 5;
+  int32 size = 6;
+}
+
+message ScheduledSessionResponse {
+  bool success = 1;
+  string message = 2;
+  ScheduledSession scheduled_session = 3;
+}
+
+message ListScheduledSessionsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated ScheduledSession scheduled_sessions = 3;
+  int64 total_count = 4;
+  int32 page = 5;
+  int32 size = 6;
+}
+
+message CheckInResponse {
+  bool success = 1;
+  string message = 2;
+  AttendanceLog attendance_log = 3;
+}
+
+message CheckOutResponse {
+  bool success = 1;
+  string message = 2;
+  AttendanceLog attendance_log = 3;
+}
+
+message ListAttendanceLogsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AttendanceLog attendance_logs = 3;
+  int64 total_count = 4;
+  int32 page = 5;
+  int32 size = 6;
+}
+
+message QrCodeResponse {
+  bool success = 1;
+  string message = 2;
+  string qr_code_data = 3;
+  bytes qr_code_image = 4;
+  string expires_at = 5;
+}
+
+message QrCodeValidationResponse {
+  bool valid = 1;
+  string message = 2;
+  int64 session_id = 3;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
