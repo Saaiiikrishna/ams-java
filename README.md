@@ -225,8 +225,10 @@ From Swagger UI, you can execute requests, inspect request/response models, and 
 
 ## Contributing
 
-(Placeholder: If your project has specific contribution guidelines, add them here or link to a `CONTRIBUTING.md` file.)
+We welcome contributions to the Attendance Management System! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) file for guidelines on how to report bugs, suggest features, and submit pull requests.
+
+You can also reach out with specific queries to [saaiiikrishna@gmail.com](mailto:saaiiikrishna@gmail.com).
 
 ## License
 
-(Placeholder: Specify the license for your project here, e.g., MIT, Apache 2.0, or link to a `LICENSE` file.)
+This project is open source and licensed under the MIT License. See the [LICENSE](./LICENSE) file for more details.
