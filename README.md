@@ -1,6 +1,21 @@
-# Modules For Smart Home Automation
+# AMS - Attendance Management System
 
-This project is a comprehensive Automation systems featuring a Spring Boot backend, three React-based frontend applications (Admin Panel, Entity Dashboard, and Public Menu), native mobile applications for both Android and iOS (for Entity Admins and Subscribers), and various development tools.
+This project is a comprehensive Attendance Management System featuring a Spring Boot backend (both monolithic and microservices), three React-based frontend applications (Admin Panel, Entity Dashboard, and Public Menu), native mobile applications for both Android and iOS (for Entity Admins and Subscribers), and various development tools.
+
+> **📁 NEW PROJECT STRUCTURE:** This project has been recently restructured for better organization. See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for the complete guide to the new folder structure.
+
+## 🏗️ Quick Structure Overview
+
+```
+ams-java/
+├── backend/           # Backend services (monolithic + microservices)
+├── frontend/          # React web applications
+├── mobile/           # Native mobile apps (Android & iOS)
+├── infrastructure/   # Docker, database, monitoring configs
+├── scripts/          # Build and deployment scripts
+├── docs/            # Documentation
+└── mreview/         # Files for manual review
+```
 
 ## Table of Contents
 

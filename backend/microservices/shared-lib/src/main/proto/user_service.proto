@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package com.example.attendancesystem.grpc.user;
+
+option java_multiple_files = true;
+option java_package = "com.example.attendancesystem.grpc.user";
+option java_outer_classname = "UserServiceProto";
+
+// User Management Service for Authentication and Authorization
+service UserService {
+  // Authentication Operations
+  rpc GetUserByUsername(GetUserByUsernameRequest) returns (UserResponse);
+  rpc GetUserById(GetUserByIdRequest) returns (UserResponse);
+  rpc ValidateCredentials(ValidateCredentialsRequest) returns (ValidateCredentialsResponse);
+  
+  // User Management Operations
+  rpc CreateSuperAdmin(CreateSuperAdminRequest) returns (UserResponse);
+  rpc CreateEntityAdmin(CreateEntityAdminRequest) returns (UserResponse);
+  rpc CreateMember(CreateMemberRequest) returns (UserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Password Management
+  rpc HashPassword(HashPasswordRequest) returns (HashPasswordResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  
+  // Organization-related Operations
+  rpc GetUsersByOrganization(GetUsersByOrganizationRequest) returns (ListUsersResponse);
+  rpc CountUsersByOrganization(CountUsersByOrganizationRequest) returns (CountResponse);
+}
+
+// User Messages
+message User {
+  int64 id = 1;
+  string username = 2;
+  string password = 3; // Only included for authentication requests
+  string email = 4;
+  string first_name = 5;
+  string last_name = 6;
+  string mobile_number = 7;
+  string user_type = 8; // SUPER_ADMIN, ENTITY_ADMIN, MEMBER
+  int64 organization_id = 9;
+  bool is_active = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+// Request Messages
+message GetUserByUsernameRequest {
+  string username = 1;
+  bool include_password = 2; // For authentication purposes only
+}
+
+message GetUserByIdRequest {
+  int64 user_id = 1;
+}
+
+message ValidateCredentialsRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message CreateSuperAdminRequest {
+  string username = 1;
+  string password = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string mobile_number = 6;
+  int64 created_by_user_id = 7;
+}
+
+message CreateEntityAdminRequest {
+  string username = 1;
+  string password = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string mobile_number = 6;
+  int64 organization_id = 7;
+  int64 created_by_user_id = 8;
+}
+
+message CreateMemberRequest {
+  string username = 1;
+  string password = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string mobile_number = 6;
+  int64 organization_id = 7;
+  int64 created_by_user_id = 8;
+}
+
+message UpdateUserRequest {
+  int64 user_id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string mobile_number = 5;
+  bool is_active = 6;
+  int64 updated_by_user_id = 7;
+}
+
+message DeleteUserRequest {
+  int64 user_id = 1;
+  int64 deleted_by_user_id = 2;
+}
+
+message ListUsersRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string search = 3;
+  string user_type = 4; // Filter by user type
+  int64 organization_id = 5; // Filter by organization
+  bool active_only = 6;
+}
+
+message HashPasswordRequest {
+  string password = 1;
+}
+
+message ChangePasswordRequest {
+  int64 user_id = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
+message GetUsersByOrganizationRequest {
+  int64 organization_id = 1;
+  int32 page = 2;
+  int32 size = 3;
+  string user_type = 4; // Filter by user type
+  bool active_only = 5;
+}
+
+message CountUsersByOrganizationRequest {
+  int64 organization_id = 1;
+  string user_type = 2; // Filter by user type
+  bool active_only = 3;
+}
+
+// Response Messages
+message UserResponse {
+  bool success = 1;
+  string message = 2;
+  User user = 3;
+}
+
+message ListUsersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated User users = 3;
+  int64 total_count = 4;
+  int32 page = 5;
+  int32 size = 6;
+}
+
+message ValidateCredentialsResponse {
+  bool valid = 1;
+  string message = 2;
+  User user = 3; // User details if validation successful
+}
+
+message HashPasswordResponse {
+  bool success = 1;
+  string message = 2;
+  string hashed_password = 3;
+}
+
+message ChangePasswordResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message CountResponse {
+  bool success = 1;
+  string message = 2;
+  int64 count = 3;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}

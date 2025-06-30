@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    image: ams-api-gateway:latest
+    container_name: ams-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - JWT_SECRET=api_gateway_secret_key_2024
+      - LOG_LEVEL=DEBUG
+    networks:
+      - infrastructure_ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  infrastructure_ams-microservices-network:
+    external: true

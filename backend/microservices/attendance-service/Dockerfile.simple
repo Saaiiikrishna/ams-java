@@ -1,0 +1,23 @@
+# Simple Dockerfile for Attendance Service
+FROM eclipse-temurin:21-jre-alpine
+
+RUN apk add --no-cache curl dumb-init tzdata
+ENV TZ=Asia/Kolkata
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN addgroup -g 1001 -S appgroup && adduser -u 1001 -S appuser -G appgroup
+WORKDIR /app
+COPY target/*.jar app.jar
+RUN mkdir -p logs && chown -R appuser:appgroup /app
+
+USER appuser
+EXPOSE 8084 9094
+
+ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0" \
+    SPRING_PROFILES_ACTIVE=docker
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8084/attendance/actuator/health || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

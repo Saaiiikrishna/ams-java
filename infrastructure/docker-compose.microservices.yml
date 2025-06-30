@@ -1,0 +1,327 @@
+# Docker Compose for Microservices Architecture
+# Complete microservices deployment with all services
+
+version: '3.8'
+
+networks:
+  ams-microservices-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+volumes:
+  postgres_data_microservices:
+    driver: local
+  prometheus_data_microservices:
+    driver: local
+  grafana_data_microservices:
+    driver: local
+
+services:
+  # Shared Database (can be separated per service later)
+  postgres:
+    image: postgres:16-alpine
+    container_name: ams-postgres-microservices
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: attendance_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data_microservices:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d attendance_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: ams-redis-microservices
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # Shared Library Build (commented out - built locally)
+  # shared-lib:
+  #   build:
+  #     context: ./microservices/shared-lib
+  #     dockerfile: Dockerfile
+  #   image: ams-shared-lib:latest
+  #   container_name: ams-shared-lib-build
+  #   volumes:
+  #     - ~/.m2:/root/.m2
+  #   command: ["mvn", "clean", "install", "-DskipTests"]
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ../backend/microservices/auth-service
+      dockerfile: Dockerfile
+    image: ams-auth-service:latest
+    container_name: ams-auth-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/attendance_db
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      JWT_SECRET: ${JWT_SECRET:-auth_service_secret_key_2024}
+      SERVER_PORT: 8081
+      GRPC_SERVER_PORT: 9091
+    ports:
+      - "8081:8081"
+      - "9091:9091"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/auth/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Organization Service
+  organization-service:
+    build:
+      context: ../backend/microservices/organization-service
+      dockerfile: Dockerfile
+    image: ams-organization-service:latest
+    container_name: ams-organization-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/attendance_db
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      SERVER_PORT: 8082
+      GRPC_SERVER_PORT: 9092
+      # gRPC Client Configuration
+      USER_SERVICE_HOST: user-service
+      USER_SERVICE_GRPC_PORT: 9093
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_GRPC_PORT: 9091
+      ATTENDANCE_SERVICE_HOST: attendance-service
+      ATTENDANCE_SERVICE_GRPC_PORT: 9094
+    ports:
+      - "8082:8082"
+      - "9092:9092"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/organization/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # User Service (formerly Subscriber Service)
+  user-service:
+    build:
+      context: ../backend/microservices/user-service
+      dockerfile: Dockerfile
+    image: ams-user-service:latest
+    container_name: ams-user-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/attendance_db
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      SERVER_PORT: 8083
+      GRPC_SERVER_PORT: 9093
+    ports:
+      - "8083:8083"
+      - "9093:9093"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/user/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Attendance Service
+  attendance-service:
+    build:
+      context: ../backend/microservices/attendance-service
+      dockerfile: Dockerfile
+    image: ams-attendance-service:latest
+    container_name: ams-attendance-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/attendance_db
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      SERVER_PORT: 8084
+      GRPC_SERVER_PORT: 9094
+    ports:
+      - "8084:8084"
+      - "9094:9094"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/attendance/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Menu Service
+  menu-service:
+    build:
+      context: ../backend/microservices/menu-service
+      dockerfile: Dockerfile
+    image: ams-menu-service:latest
+    container_name: ams-menu-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/attendance_db
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      SERVER_PORT: 8085
+      GRPC_SERVER_PORT: 9095
+    ports:
+      - "8085:8085"
+      - "9095:9095"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/menu/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Order Service
+  order-service:
+    build:
+      context: ../backend/microservices/order-service
+      dockerfile: Dockerfile
+    image: ams-order-service:latest
+    container_name: ams-order-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/attendance_db
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      SERVER_PORT: 8086
+      GRPC_SERVER_PORT: 9096
+    ports:
+      - "8086:8086"
+      - "9096:9096"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/order/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Table Service
+  table-service:
+    build:
+      context: ../backend/microservices/table-service
+      dockerfile: Dockerfile
+    image: ams-table-service:latest
+    container_name: ams-table-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/attendance_db
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      SERVER_PORT: 8087
+      GRPC_SERVER_PORT: 9097
+    ports:
+      - "8087:8087"
+      - "9097:9097"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/table/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ../backend/microservices/api-gateway
+      dockerfile: Dockerfile
+    image: ams-api-gateway:latest
+    container_name: ams-api-gateway
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+      - organization-service
+      - user-service
+      - attendance-service
+      - menu-service
+      - order-service
+      - table-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
