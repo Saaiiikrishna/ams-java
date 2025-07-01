@@ -2,7 +2,10 @@ package com.example.attendancesystem.attendance.service;
 
 import com.example.attendancesystem.attendance.model.FaceRecognitionSettings;
 import com.example.attendancesystem.attendance.repository.FaceRecognitionSettingsRepository;
-import com.example.attendancesystem.shared.repository.SubscriberRepository;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.UserDto;
+// TODO: Replace with gRPC calls to User Service
+// import com.example.attendancesystem.shared.repository.SubscriberRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +31,7 @@ public class FaceRecognitionSettingsService {
     private FaceRecognitionSettingsRepository settingsRepository;
     
     @Autowired
-    private SubscriberRepository subscriberRepository;
+    private UserServiceGrpcClient userServiceGrpcClient;
     
     @Autowired
     private FaceRecognitionService faceRecognitionService;
@@ -71,8 +74,9 @@ public class FaceRecognitionSettingsService {
     public FaceRecognitionSettings generateOptimizedSettings(String entityId) {
         try {
             // Get entity statistics
-            long totalSubscribers = subscriberRepository.countByOrganizationEntityId(entityId);
-            long subscribersWithFaces = subscriberRepository.countByOrganizationEntityIdAndFaceEncodingIsNotNull(entityId);
+            // TODO: Get counts via gRPC
+            long totalSubscribers = 0; // userServiceGrpcClient.countByOrganizationEntityId(entityId);
+            long subscribersWithFaces = 0; // userServiceGrpcClient.countByOrganizationEntityIdAndFaceEncodingIsNotNull(entityId);
             
             // Determine entity size category
             String entitySize = categorizeEntitySize(totalSubscribers);
@@ -105,8 +109,9 @@ public class FaceRecognitionSettingsService {
             FaceRecognitionSettings settings = getOrCreateSettings(entityId);
             
             // Get entity statistics
-            long totalSubscribers = subscriberRepository.countByOrganizationEntityId(entityId);
-            long subscribersWithFaces = subscriberRepository.countByOrganizationEntityIdAndFaceEncodingIsNotNull(entityId);
+            // TODO: Get counts via gRPC
+            long totalSubscribers = 0; // userServiceGrpcClient.countByOrganizationEntityId(entityId);
+            long subscribersWithFaces = 0; // userServiceGrpcClient.countByOrganizationEntityIdAndFaceEncodingIsNotNull(entityId);
             
             // Calculate metrics
             double faceRegistrationRatio = totalSubscribers > 0 ? 

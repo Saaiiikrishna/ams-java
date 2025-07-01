@@ -1,8 +1,10 @@
 package com.example.attendancesystem.attendance.service;
 
 import com.example.attendancesystem.attendance.dto.ScheduledSessionDto;
-import com.example.attendancesystem.shared.model.*;
-import com.example.attendancesystem.shared.repository.*;
+import com.example.attendancesystem.attendance.model.*;
+import com.example.attendancesystem.attendance.repository.*;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +34,7 @@ public class ScheduledSessionService {
     private AttendanceSessionRepository attendanceSessionRepository;
 
     @Autowired
-    private OrganizationRepository organizationRepository;
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     @Autowired
     private QrCodeService qrCodeService;
@@ -45,7 +47,7 @@ public class ScheduledSessionService {
     public ScheduledSessionDto createScheduledSession(ScheduledSessionDto dto, String entityId) {
         logger.info("Creating scheduled session: {} for entity: {}", dto.getName(), entityId);
 
-        Organization organization = organizationRepository.findByEntityId(entityId)
+        OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
                 .orElseThrow(() -> new IllegalArgumentException("Organization not found with entity ID: " + entityId));
 
         ScheduledSession scheduledSession = new ScheduledSession();
@@ -55,7 +57,7 @@ public class ScheduledSessionService {
         scheduledSession.setDurationMinutes(dto.getDurationMinutes());
         scheduledSession.setDaysOfWeek(dto.getDaysOfWeek());
         scheduledSession.setAllowedCheckInMethods(dto.getAllowedCheckInMethods());
-        scheduledSession.setOrganization(organization);
+        scheduledSession.setOrganizationId(organization.getId());
         scheduledSession.setActive(true);
 
         ScheduledSession saved = scheduledSessionRepository.save(scheduledSession);
@@ -69,7 +71,10 @@ public class ScheduledSessionService {
      */
     @Cacheable(value = "scheduledSessions", key = "#entityId")
     public List<ScheduledSessionDto> getScheduledSessions(String entityId) {
-        List<ScheduledSession> sessions = scheduledSessionRepository.findAllByOrganizationEntityId(entityId);
+        OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
+                .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+
+        List<ScheduledSession> sessions = scheduledSessionRepository.findByOrganizationId(organization.getId());
         return sessions.stream().map(this::convertToDto).toList();
     }
 
@@ -77,7 +82,10 @@ public class ScheduledSessionService {
      * Get active scheduled sessions for an organization
      */
     public List<ScheduledSessionDto> getActiveScheduledSessions(String entityId) {
-        List<ScheduledSession> sessions = scheduledSessionRepository.findAllByOrganizationEntityIdAndActiveTrue(entityId);
+        OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
+                .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+
+        List<ScheduledSession> sessions = scheduledSessionRepository.findByOrganizationIdAndActiveTrue(organization.getId());
         return sessions.stream().map(this::convertToDto).toList();
     }
 
@@ -85,7 +93,10 @@ public class ScheduledSessionService {
      * Get a single scheduled session by ID
      */
     public ScheduledSessionDto getScheduledSessionById(Long id, String entityId) {
-        ScheduledSession session = scheduledSessionRepository.findByIdAndOrganizationEntityId(id, entityId)
+        OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
+                .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+
+        ScheduledSession session = scheduledSessionRepository.findByIdAndOrganizationId(id, organization.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Scheduled session not found"));
         return convertToDto(session);
     }
@@ -96,7 +107,10 @@ public class ScheduledSessionService {
     @Transactional
     @CacheEvict(value = "scheduledSessions", key = "#entityId")
     public ScheduledSessionDto updateScheduledSession(Long id, ScheduledSessionDto dto, String entityId) {
-        ScheduledSession session = scheduledSessionRepository.findByIdAndOrganizationEntityId(id, entityId)
+        OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
+                .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+
+        ScheduledSession session = scheduledSessionRepository.findByIdAndOrganizationId(id, organization.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Scheduled session not found"));
 
         session.setName(dto.getName());
@@ -119,7 +133,10 @@ public class ScheduledSessionService {
     @Transactional
     @CacheEvict(value = "scheduledSessions", key = "#entityId")
     public void deleteScheduledSession(Long id, String entityId) {
-        ScheduledSession session = scheduledSessionRepository.findByIdAndOrganizationEntityId(id, entityId)
+        OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
+                .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+
+        ScheduledSession session = scheduledSessionRepository.findByIdAndOrganizationId(id, organization.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Scheduled session not found"));
 
         scheduledSessionRepository.delete(session);
@@ -199,8 +216,8 @@ public class ScheduledSessionService {
         
         // Check for existing session in the same time window
         boolean sessionExists = attendanceSessionRepository
-                .findByOrganizationAndEndTimeIsNullAndStartTimeBefore(
-                    scheduledSession.getOrganization(), startTime.plusMinutes(5))
+                .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(
+                    scheduledSession.getOrganizationId(), startTime.plusMinutes(5))
                 .stream()
                 .anyMatch(session -> session.getScheduledSession() != null && 
                          session.getScheduledSession().getId().equals(scheduledSession.getId()) &&
@@ -215,7 +232,7 @@ public class ScheduledSessionService {
         session.setName(scheduledSession.getName());
         session.setDescription(scheduledSession.getDescription());
         session.setStartTime(startTime);
-        session.setOrganization(scheduledSession.getOrganization());
+        session.setOrganizationId(scheduledSession.getOrganizationId());
         session.setScheduledSession(scheduledSession);
         session.setAllowedCheckInMethods(new HashSet<>(scheduledSession.getAllowedCheckInMethods()));
 
@@ -248,7 +265,8 @@ public class ScheduledSessionService {
         dto.setDaysOfWeek(session.getDaysOfWeek());
         dto.setAllowedCheckInMethods(session.getAllowedCheckInMethods());
         dto.setActive(session.getActive());
-        dto.setOrganizationEntityId(session.getOrganization().getEntityId());
+        // TODO: Get organization entity ID via gRPC call using organizationId
+        dto.setOrganizationEntityId("ORG-" + session.getOrganizationId());
         return dto;
     }
 }

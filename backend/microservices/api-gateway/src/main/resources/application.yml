@@ -38,7 +38,7 @@ spring:
           predicates:
             - Path=/api/auth/v2/**
           filters:
-            - RewritePath=/api/auth/v2/(?<segment>.*), /auth/api/v2/$\{segment}
+            - RewritePath=/api/auth/v2/(?<segment>.*), /auth/api/v2/auth/$\{segment}
 
         # Auth Service Routes - Entity Admin (must be last to avoid conflicts)
         - id: auth-service

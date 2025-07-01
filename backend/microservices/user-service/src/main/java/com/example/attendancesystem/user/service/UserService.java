@@ -8,13 +8,13 @@ import com.example.attendancesystem.user.model.UserPermission;
 import com.example.attendancesystem.user.model.UserType;
 import com.example.attendancesystem.user.repository.UserPermissionRepository;
 import com.example.attendancesystem.user.repository.UserRepository;
+import com.example.attendancesystem.user.grpc.client.AuthServiceGrpcClient;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +39,9 @@ public class UserService {
 
     @Autowired
     private UserPermissionRepository userPermissionRepository;
+
+    @Autowired
+    private AuthServiceGrpcClient authServiceGrpcClient;
 
 
 
@@ -79,30 +82,74 @@ public class UserService {
     /**
      * Create a new Entity Admin (gRPC version)
      * Callable by Super Admins via gRPC
-     * Note: Password handling should be done by Auth Service
+     * Note: This method also creates the EntityAdmin in Auth Service for authentication
      */
-    public User createEntityAdmin(String username, String hashedPassword, String email,
+    public User createEntityAdmin(String username, String originalPassword, String email,
                                 String firstName, String lastName, String mobileNumber,
                                 Long organizationId, Long createdByUserId) {
-        logger.info("Creating Entity Admin via gRPC: {} for organization: {}", username, organizationId);
+        logger.info("*** NEW GRPC METHOD *** Creating Entity Admin via gRPC: {} for organization: {}", username, organizationId);
 
-        // Create UserDto with pre-hashed password from Auth Service
-        UserDto userDto = new UserDto();
-        userDto.setUsername(username);
-        userDto.setPassword(hashedPassword); // Already hashed by Auth Service
-        userDto.setEmail(email);
-        userDto.setFirstName(firstName);
-        userDto.setLastName(lastName);
-        userDto.setMobileNumber(mobileNumber);
-        userDto.setUserType(UserType.ENTITY_ADMIN);
-        userDto.setOrganizationId(organizationId);
-        userDto.setIsActive(true);
+        try {
+            // Hash the password using Auth Service gRPC for consistency
+            logger.info("Hashing password via Auth Service gRPC for user: {}", username);
+            String hashedPassword = authServiceGrpcClient.hashPassword(originalPassword);
+            if (hashedPassword == null) {
+                logger.error("Failed to hash password via Auth Service gRPC for user: {}", username);
+                throw new RuntimeException("Password hashing failed");
+            }
+            logger.info("Password hashed successfully via Auth Service gRPC for user: {}", username);
 
-        // Create via existing method
-        UserDto createdUserDto = createEntityAdmin(userDto, createdByUserId);
+            // Create UserDto with hashed password
+            UserDto userDto = new UserDto();
+            userDto.setUsername(username);
+            userDto.setPassword(hashedPassword); // Hashed by Auth Service
+            userDto.setEmail(email);
+            userDto.setFirstName(firstName);
+            userDto.setLastName(lastName);
+            userDto.setMobileNumber(mobileNumber);
+            userDto.setUserType(UserType.ENTITY_ADMIN);
+            userDto.setOrganizationId(organizationId);
+            userDto.setIsActive(true);
 
-        // Return the entity
-        return userRepository.findById(createdUserDto.getId()).orElse(null);
+            // Create via existing method
+            logger.info("About to call createEntityAdmin method...");
+            UserDto createdUserDto = createEntityAdmin(userDto, createdByUserId);
+            logger.info("UserDto created with ID: {}", createdUserDto != null ? createdUserDto.getId() : "null");
+
+            if (createdUserDto == null) {
+                logger.error("createEntityAdmin returned null - this should not happen");
+                throw new RuntimeException("User creation failed - createEntityAdmin returned null");
+            }
+
+            User createdUser = userRepository.findById(createdUserDto.getId()).orElse(null);
+            logger.info("User entity retrieved: {}", createdUser != null ? "SUCCESS" : "FAILED");
+
+            if (createdUser != null) {
+                logger.info("User created successfully, now calling Auth Service for authentication setup");
+
+                // Also create the EntityAdmin in Auth Service for authentication
+                // Use the original password for Auth Service (it will hash it itself)
+                logger.info("Calling Auth Service gRPC client to create EntityAdmin for authentication");
+                boolean authServiceSuccess = authServiceGrpcClient.createEntityAdminForAuth(
+                        username, originalPassword, organizationId);
+
+                if (authServiceSuccess) {
+                    logger.info("Successfully created Entity Admin in Auth Service for user: {}", username);
+                } else {
+                    logger.warn("Failed to create Entity Admin in Auth Service for user: {}", username);
+                    // Note: We don't fail the entire operation since the user was created successfully
+                    // The EntityAdmin can be manually created in Auth Service later if needed
+                }
+            } else {
+                logger.error("User creation failed, skipping Auth Service call");
+            }
+
+            return createdUser;
+
+        } catch (Exception e) {
+            logger.error("Error creating Entity Admin: {}", username, e);
+            throw e;
+        }
     }
 
     /**
@@ -647,4 +694,6 @@ public class UserService {
         dto.setPassword(user.getPassword()); // Add the password for authentication
         return dto;
     }
+
+
 }

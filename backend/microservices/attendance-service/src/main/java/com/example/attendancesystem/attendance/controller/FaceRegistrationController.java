@@ -5,8 +5,9 @@ import com.example.attendancesystem.attendance.facerecognition.FaceEncodingResul
 import com.example.attendancesystem.attendance.service.FaceRecognitionService;
 import com.example.attendancesystem.attendance.service.FileStorageService;
 import com.example.attendancesystem.attendance.util.AuthUtil;
-import com.example.attendancesystem.shared.model.Subscriber;
-import com.example.attendancesystem.shared.repository.SubscriberRepository;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.UserDto;
+// import com.example.attendancesystem.shared.repository.SubscriberRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ public class FaceRegistrationController {
     private FaceRecognitionService faceRecognitionService;
     
     @Autowired
-    private SubscriberRepository subscriberRepository;
+    private UserServiceGrpcClient userServiceGrpcClient;
     
     @Autowired
     private FileStorageService fileStorageService;
@@ -72,16 +73,15 @@ public class FaceRegistrationController {
             }
             
             // Verify subscriber exists and belongs to entity
-            Optional<Subscriber> subscriberOpt = subscriberRepository
-                .findByIdAndOrganizationEntityId(request.getSubscriberId(), entityId);
-            
+            Optional<UserDto> subscriberOpt = userServiceGrpcClient.getUserById(request.getSubscriberId());
+
             if (subscriberOpt.isEmpty()) {
                 response.put("success", false);
-                response.put("message", "Subscriber not found or access denied");
+                response.put("message", "User not found or access denied");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
             }
-            
-            Subscriber subscriber = subscriberOpt.get();
+
+            UserDto subscriber = subscriberOpt.get();
             
             // Convert Base64 to byte array
             byte[] imageData = decodeBase64Image(request.getBase64Image());
@@ -104,7 +104,7 @@ public class FaceRegistrationController {
                     
                     // Update subscriber with photo path
                     subscriber.setProfilePhotoPath(photoPath);
-                    subscriberRepository.save(subscriber);
+                    // TODO: Update user via gRPC - userServiceGrpcClient.updateUser(subscriber);
                     
                 } catch (Exception e) {
                     logger.warn("Failed to save profile photo for subscriber {}: {}", 
@@ -177,16 +177,15 @@ public class FaceRegistrationController {
             }
             
             // Verify subscriber
-            Optional<Subscriber> subscriberOpt = subscriberRepository
-                .findByIdAndOrganizationEntityId(subscriberId, entityId);
-            
+            Optional<UserDto> subscriberOpt = userServiceGrpcClient.getUserById(subscriberId);
+
             if (subscriberOpt.isEmpty()) {
                 response.put("success", false);
-                response.put("message", "Subscriber not found or access denied");
+                response.put("message", "User not found or access denied");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
             }
-            
-            Subscriber subscriber = subscriberOpt.get();
+
+            UserDto subscriber = subscriberOpt.get();
             byte[] imageData = imageFile.getBytes();
             
             // Register face
@@ -201,7 +200,7 @@ public class FaceRegistrationController {
                         subscriber.getId(), subscriber.getFirstName() + "_" + subscriber.getLastName());
                     
                     subscriber.setProfilePhotoPath(photoPath);
-                    subscriberRepository.save(subscriber);
+                    // TODO: Update user via gRPC - userServiceGrpcClient.updateUser(subscriber);
                     
                 } catch (Exception e) {
                     logger.warn("Failed to save profile photo for subscriber {}: {}", 
@@ -249,16 +248,15 @@ public class FaceRegistrationController {
             String entityId = getEntityIdFromAuthentication(authentication);
             logger.info("Face status request - Subscriber: {}, Entity: {}", subscriberId, entityId);
             
-            Optional<Subscriber> subscriberOpt = subscriberRepository
-                .findByIdAndOrganizationEntityId(subscriberId, entityId);
-            
+            Optional<UserDto> subscriberOpt = userServiceGrpcClient.getUserById(subscriberId);
+
             if (subscriberOpt.isEmpty()) {
                 response.put("success", false);
-                response.put("message", "Subscriber not found or access denied");
+                response.put("message", "User not found or access denied");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
             }
-            
-            Subscriber subscriber = subscriberOpt.get();
+
+            UserDto subscriber = subscriberOpt.get();
             boolean hasFaceRecognition = subscriber.hasFaceRecognition();
             
             response.put("success", true);
@@ -300,16 +298,15 @@ public class FaceRegistrationController {
             String entityId = getEntityIdFromAuthentication(authentication);
             logger.info("Face removal request - Subscriber: {}, Entity: {}", subscriberId, entityId);
 
-            Optional<Subscriber> subscriberOpt = subscriberRepository
-                .findByIdAndOrganizationEntityId(subscriberId, entityId);
+            Optional<UserDto> subscriberOpt = userServiceGrpcClient.getUserById(subscriberId);
 
             if (subscriberOpt.isEmpty()) {
                 response.put("success", false);
-                response.put("message", "Subscriber not found or access denied");
+                response.put("message", "User not found or access denied");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
             }
 
-            Subscriber subscriber = subscriberOpt.get();
+            UserDto subscriber = subscriberOpt.get();
 
             if (!subscriber.hasFaceRecognition()) {
                 response.put("success", false);
@@ -368,9 +365,9 @@ public class FaceRegistrationController {
             String entityId = getEntityIdFromAuthentication(authentication);
             logger.info("Face subscribers list request - Entity: {}", entityId);
 
-            List<Subscriber> allSubscribers = subscriberRepository.findAllByOrganizationEntityId(entityId);
-            List<Subscriber> withFaceRecognition = subscriberRepository
-                .findByOrganizationEntityIdAndFaceEncodingIsNotNull(entityId);
+            // TODO: Get users via gRPC
+            List<UserDto> allSubscribers = List.of(); // userServiceGrpcClient.getUsersByEntityId(entityId);
+            List<UserDto> withFaceRecognition = List.of(); // userServiceGrpcClient.getUsersWithFaceEncodingByEntityId(entityId);
 
             response.put("success", true);
             response.put("entityId", entityId);

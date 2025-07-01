@@ -1,6 +1,6 @@
 package com.example.attendancesystem.attendance.dto;
 
-import com.example.attendancesystem.shared.model.CheckInMethod;
+import com.example.attendancesystem.attendance.model.CheckInMethod;
 
 public class CheckInRequestDto {
     private Long sessionId;

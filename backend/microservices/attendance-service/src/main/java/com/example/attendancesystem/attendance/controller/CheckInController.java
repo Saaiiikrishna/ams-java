@@ -1,9 +1,18 @@
 package com.example.attendancesystem.attendance.controller;
 
 import com.example.attendancesystem.attendance.dto.CheckInRequestDto;
-import com.example.attendancesystem.shared.model.*;
-import com.example.attendancesystem.shared.repository.*;
+import com.example.attendancesystem.attendance.model.*;
+import com.example.attendancesystem.attendance.repository.*;
 import com.example.attendancesystem.attendance.service.QrCodeService;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.UserDto;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.UserDto;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
+import com.example.attendancesystem.attendance.security.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,13 +39,16 @@ public class CheckInController {
     private AttendanceLogRepository attendanceLogRepository;
 
     @Autowired
-    private SubscriberRepository subscriberRepository;
+    private UserServiceGrpcClient userServiceGrpcClient;
 
     @Autowired
-    private OrganizationRepository organizationRepository;
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     @Autowired
     private QrCodeService qrCodeService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     /**
      * QR Code check-in
@@ -50,8 +62,8 @@ public class CheckInController {
 
             // Extract subscriber from JWT token (simplified for now)
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            Subscriber subscriber = subscriberRepository.findById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
             // Find session by QR code
             AttendanceSession session = findSessionByQrCode(request.getQrCode());
@@ -92,11 +104,13 @@ public class CheckInController {
             logger.info("Bluetooth check-in request received");
 
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            Subscriber subscriber = subscriberRepository.findById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
             // Find active session for the organization
-            AttendanceSession session = findActiveSessionForOrganization(subscriber.getOrganization());
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
+                    .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+            AttendanceSession session = findActiveSessionForOrganization(organization);
             if (session == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "No active session found"));
@@ -134,11 +148,13 @@ public class CheckInController {
             logger.info("WiFi check-in request received");
 
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            Subscriber subscriber = subscriberRepository.findById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
             // Find active session for the organization
-            AttendanceSession session = findActiveSessionForOrganization(subscriber.getOrganization());
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
+                    .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+            AttendanceSession session = findActiveSessionForOrganization(organization);
             if (session == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "No active session found"));
@@ -176,11 +192,13 @@ public class CheckInController {
             logger.info("Mobile NFC check-in request received");
 
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            Subscriber subscriber = subscriberRepository.findById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
             // Find active session for the organization
-            AttendanceSession session = findActiveSessionForOrganization(subscriber.getOrganization());
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
+                    .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+            AttendanceSession session = findActiveSessionForOrganization(organization);
             if (session == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "No active session found"));
@@ -226,18 +244,20 @@ public class CheckInController {
             } else if ("ENTITY_ADMIN".equals(userType)) {
                 // EntityAdmin can see sessions for their organization
                 Long organizationId = extractOrganizationIdFromToken(authHeader);
-                Organization organization = organizationRepository.findById(organizationId)
+                OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(organizationId)
                         .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
                 activeSessions = attendanceSessionRepository
-                        .findByOrganizationAndEndTimeIsNullAndStartTimeBefore(organization, LocalDateTime.now());
+                        .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(organization.getId(), LocalDateTime.now());
             } else {
                 // Member/Subscriber can see sessions for their organization
                 Long subscriberId = extractSubscriberIdFromToken(authHeader);
-                Subscriber subscriber = subscriberRepository.findById(subscriberId)
-                        .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+                UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                        .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                OrganizationDto subscriberOrg = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
+                        .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
                 activeSessions = attendanceSessionRepository
-                        .findByOrganizationAndEndTimeIsNullAndStartTimeBefore(
-                                subscriber.getOrganization(), LocalDateTime.now());
+                        .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(
+                                subscriberOrg.getId(), LocalDateTime.now());
             }
 
             return ResponseEntity.ok(Map.of(
@@ -255,12 +275,12 @@ public class CheckInController {
 
     // Helper methods
 
-    private ResponseEntity<?> processCheckIn(Subscriber subscriber, AttendanceSession session, 
+    private ResponseEntity<?> processCheckIn(UserDto subscriber, AttendanceSession session,
                                            CheckInMethod method, CheckInRequestDto request) {
         
         // Check if already checked in
         Optional<AttendanceLog> existingLog = attendanceLogRepository
-                .findByUserIdAndSession(subscriber.getId(), session);
+                .findByUserIdAndSessionId(subscriber.getId(), session.getId());
 
         if (existingLog.isPresent()) {
             AttendanceLog log = existingLog.get();
@@ -283,7 +303,7 @@ public class CheckInController {
         // New check-in
         AttendanceLog newLog = new AttendanceLog(
             subscriber.getId(),
-            subscriber.getFirstName() + " " + subscriber.getLastName(),
+            subscriber.getFullName(),
             subscriber.getMobileNumber(),
             session,
             LocalDateTime.now(),
@@ -311,9 +331,9 @@ public class CheckInController {
                 .orElse(null);
     }
 
-    private AttendanceSession findActiveSessionForOrganization(Organization organization) {
+    private AttendanceSession findActiveSessionForOrganization(OrganizationDto organization) {
         List<AttendanceSession> activeSessions = attendanceSessionRepository
-                .findByOrganizationAndEndTimeIsNullAndStartTimeBefore(organization, LocalDateTime.now());
+                .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(organization.getId(), LocalDateTime.now());
         
         return activeSessions.isEmpty() ? null : activeSessions.get(0);
     }
@@ -383,23 +403,46 @@ public class CheckInController {
     }
 
     private Long extractSubscriberIdFromToken(String authHeader) {
-        // Simplified token extraction - in real implementation, use JWT validation
-        // For now, return a dummy subscriber ID
-        return 1L;
+        try {
+            String token = jwtUtil.extractTokenFromHeader(authHeader);
+            if (token != null && jwtUtil.isValidToken(token)) {
+                return jwtUtil.extractSubscriberId(token);
+            }
+            logger.warn("Invalid or missing JWT token for subscriber ID extraction");
+            return null;
+        } catch (Exception e) {
+            logger.error("Error extracting subscriber ID from token: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String extractUserTypeFromToken(String authHeader) {
-        // Simplified token extraction - in real implementation, decode JWT and extract user type
-        // For now, return MEMBER as default for testing
-        // TODO: Implement proper JWT token parsing to extract tokenType claim
-        return "MEMBER";
+        try {
+            String token = jwtUtil.extractTokenFromHeader(authHeader);
+            if (token != null && jwtUtil.isValidToken(token)) {
+                String userType = jwtUtil.extractUserType(token);
+                return userType != null ? userType : "MEMBER"; // Default to MEMBER if not found
+            }
+            logger.warn("Invalid or missing JWT token for user type extraction");
+            return "MEMBER"; // Default fallback
+        } catch (Exception e) {
+            logger.error("Error extracting user type from token: {}", e.getMessage());
+            return "MEMBER"; // Default fallback
+        }
     }
 
     private Long extractOrganizationIdFromToken(String authHeader) {
-        // Simplified token extraction - in real implementation, decode JWT and extract organization ID
-        // For now, return a dummy organization ID
-        // TODO: Implement proper JWT token parsing to extract organizationId claim
-        return 1L;
+        try {
+            String token = jwtUtil.extractTokenFromHeader(authHeader);
+            if (token != null && jwtUtil.isValidToken(token)) {
+                return jwtUtil.extractOrganizationId(token);
+            }
+            logger.warn("Invalid or missing JWT token for organization ID extraction");
+            return null;
+        } catch (Exception e) {
+            logger.error("Error extracting organization ID from token: {}", e.getMessage());
+            return null;
+        }
     }
 
     private Map<String, Object> convertSessionToDto(AttendanceSession session) {

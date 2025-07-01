@@ -47,6 +47,13 @@ grpc:
   client:
     GLOBAL:
       negotiation-type: plaintext
+    # Inter-service communication
+    user-service:
+      host: ${USER_SERVICE_HOST:localhost}
+      port: ${USER_SERVICE_GRPC_PORT:9093}
+    organization-service:
+      host: ${ORGANIZATION_SERVICE_HOST:localhost}
+      port: ${ORGANIZATION_SERVICE_GRPC_PORT:9092}
 
 # Service Discovery Configuration
 service:

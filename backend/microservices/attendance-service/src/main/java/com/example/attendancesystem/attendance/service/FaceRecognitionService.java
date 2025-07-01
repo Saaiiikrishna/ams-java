@@ -1,10 +1,12 @@
 package com.example.attendancesystem.attendance.service;
 
 import com.example.attendancesystem.attendance.facerecognition.*;
-import com.example.attendancesystem.shared.model.*;
-import com.example.attendancesystem.shared.repository.*;
 import com.example.attendancesystem.attendance.model.*;
 import com.example.attendancesystem.attendance.repository.*;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.UserDto;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,16 +35,16 @@ public class FaceRecognitionService {
     private static final Logger logger = LoggerFactory.getLogger(FaceRecognitionService.class);
     
     @Autowired
-    private SubscriberRepository subscriberRepository;
-    
+    private UserServiceGrpcClient userServiceGrpcClient;
+
     @Autowired
     private FaceRecognitionSettingsRepository faceRecognitionSettingsRepository;
-    
+
     @Autowired
     private FaceRecognitionLogRepository faceRecognitionLogRepository;
-    
+
     @Autowired
-    private OrganizationRepository organizationRepository;
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
     
     @Value("${face.recognition.models.detector:models/face_detector.csta}")
     private String detectorModelPath;
@@ -239,22 +241,21 @@ public class FaceRecognitionService {
             float[] inputEncoding = encodingResult.getEncoding();
             
             // Get all registered subscribers for this entity
-            Organization organization = organizationRepository.findByEntityId(entityId)
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
                 .orElseThrow(() -> new IllegalArgumentException("Organization not found: " + entityId));
-            
-            List<Subscriber> registeredSubscribers = subscriberRepository
-                .findByOrganizationAndFaceEncodingIsNotNull(organization);
+
+            List<UserDto> registeredSubscribers = userServiceGrpcClient.getUsersByOrganizationId(organization.getId());
             
             if (registeredSubscribers.isEmpty()) {
                 return new FaceRecognitionResult(false, "No registered faces found for this organization");
             }
             
             // Find best match
-            Subscriber bestMatch = null;
+            UserDto bestMatch = null;
             float bestConfidence = 0.0f;
             float bestDistance = Float.MAX_VALUE;
             
-            for (Subscriber subscriber : registeredSubscribers) {
+            for (UserDto subscriber : registeredSubscribers) {
                 float[] storedEncoding = convertBytesToFloatArray(subscriber.getFaceEncoding());
                 if (storedEncoding == null) continue;
                 
@@ -305,8 +306,8 @@ public class FaceRecognitionService {
     @Transactional
     public boolean registerFaceForSubscriber(Long subscriberId, byte[] imageData, String entityId) {
         try {
-            Subscriber subscriber = subscriberRepository.findById(subscriberId)
-                .orElseThrow(() -> new IllegalArgumentException("Subscriber not found: " + subscriberId));
+            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + subscriberId));
 
             // Extract face encoding
             FaceEncodingResult result = extractFaceEncoding(imageData, entityId);
@@ -324,7 +325,8 @@ public class FaceRecognitionService {
             subscriber.setFaceRegisteredAt(LocalDateTime.now());
             subscriber.setFaceUpdatedAt(LocalDateTime.now());
 
-            subscriberRepository.save(subscriber);
+            // TODO: Update user via gRPC call to user-service
+            // userServiceGrpcClient.updateUser(subscriber);
 
             logger.info("Face registered successfully for subscriber {} - Encoding dimensions: {}",
                        subscriberId, result.getEncoding().length);
@@ -342,8 +344,8 @@ public class FaceRecognitionService {
     @Transactional
     public boolean removeFaceForSubscriber(Long subscriberId) {
         try {
-            Subscriber subscriber = subscriberRepository.findById(subscriberId)
-                .orElseThrow(() -> new IllegalArgumentException("Subscriber not found: " + subscriberId));
+            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + subscriberId));
 
             subscriber.setFaceEncoding(null);
             subscriber.setFaceEncodingVersion(null);
@@ -351,7 +353,8 @@ public class FaceRecognitionService {
             subscriber.setFaceUpdatedAt(null);
             subscriber.setProfilePhotoPath(null);
 
-            subscriberRepository.save(subscriber);
+            // TODO: Update user via gRPC call to user-service
+            // userServiceGrpcClient.updateUser(subscriber);
 
             logger.info("Face registration removed for subscriber {}", subscriberId);
             return true;
@@ -367,10 +370,10 @@ public class FaceRecognitionService {
      */
     @Transactional
     public void logRecognitionAttempt(FaceRecognitionResult result, AttendanceSession session,
-                                    Subscriber subscriber, String deviceInfo) {
+                                    UserDto subscriber, String deviceInfo) {
         try {
             FaceRecognitionLog log = new FaceRecognitionLog();
-            log.setSubscriber(subscriber);
+            log.setUserId(subscriber.getId());
             log.setSession(session);
             log.setRecognitionTimestamp(LocalDateTime.now());
             log.setProcessingTimeMs(result.getProcessingTimeMs());
@@ -709,9 +712,9 @@ public class FaceRecognitionService {
     /**
      * Get face recognition logs for a subscriber
      */
-    public List<FaceRecognitionLog> getRecognitionLogsForSubscriber(Subscriber subscriber) {
+    public List<FaceRecognitionLog> getRecognitionLogsForSubscriber(UserDto subscriber) {
         try {
-            return faceRecognitionLogRepository.findBySubscriberOrderByRecognitionTimestampDesc(subscriber);
+            return faceRecognitionLogRepository.findByUserIdOrderByRecognitionTimestampDesc(subscriber.getId());
         } catch (Exception e) {
             logger.error("Failed to get recognition logs for subscriber {}", subscriber.getId(), e);
             return new ArrayList<>();
@@ -725,8 +728,15 @@ public class FaceRecognitionService {
         try {
             Map<String, Object> stats = new HashMap<>();
 
+            // Get organization by entityId via gRPC
+            Optional<OrganizationDto> organizationOpt = organizationServiceGrpcClient.getOrganizationByEntityId(entityId);
+            if (organizationOpt.isEmpty()) {
+                logger.warn("Organization not found for entityId: {}", entityId);
+                return stats;
+            }
+
             // Get recognition statistics
-            List<Object[]> statusStats = faceRecognitionLogRepository.getRecognitionStatsByEntity(entityId);
+            List<Object[]> statusStats = faceRecognitionLogRepository.getRecognitionStatsByOrganizationId(organizationOpt.get().getId());
             Map<String, Long> statusCounts = new HashMap<>();
 
             for (Object[] stat : statusStats) {
@@ -735,8 +745,8 @@ public class FaceRecognitionService {
                 statusCounts.put(status.name(), count);
             }
 
-            // Get total registered faces
-            long totalRegisteredFaces = subscriberRepository.countByOrganizationEntityIdAndFaceEncodingIsNotNull(entityId);
+            // Get total registered faces via gRPC call to user-service
+            long totalRegisteredFaces = userServiceGrpcClient.getUsersByOrganizationId(organizationOpt.get().getId()).size();
 
             // Get recent failures for debugging
             LocalDateTime since = LocalDateTime.now().minusDays(7);

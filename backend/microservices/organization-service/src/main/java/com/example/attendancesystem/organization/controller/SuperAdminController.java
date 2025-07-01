@@ -175,20 +175,11 @@ public class SuperAdminController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
             }
 
-            // Hash password via Auth Service before creating user
-            String hashedPassword = hashPasswordViaAuthService(request.getPassword());
-            if (hashedPassword == null) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", "Failed to hash password");
-                errorResponse.put("errorCode", "PASSWORD_HASHING_FAILED");
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-            }
-
             // Create Entity Admin via User Service gRPC
+            // Send original password - User Service will handle hashing for its DB and Auth Service
             UserResponse userResponse = userServiceGrpcClient.createEntityAdmin(
                     request.getUsername(),
-                    hashedPassword, // Password is now properly hashed
+                    request.getPassword(), // Send original password
                     request.getEmail(),
                     request.getFirstName(),
                     request.getLastName(),

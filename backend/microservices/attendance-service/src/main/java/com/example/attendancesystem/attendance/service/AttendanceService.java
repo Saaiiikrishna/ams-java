@@ -1,10 +1,12 @@
 package com.example.attendancesystem.attendance.service;
 
-import com.example.attendancesystem.shared.model.AttendanceLog;
-import com.example.attendancesystem.shared.model.AttendanceSession;
-import com.example.attendancesystem.shared.model.CheckInMethod;
-import com.example.attendancesystem.shared.repository.AttendanceLogRepository;
-import com.example.attendancesystem.shared.repository.AttendanceSessionRepository;
+import com.example.attendancesystem.attendance.model.AttendanceLog;
+import com.example.attendancesystem.attendance.model.AttendanceSession;
+import com.example.attendancesystem.attendance.model.CheckInMethod;
+import com.example.attendancesystem.attendance.repository.AttendanceLogRepository;
+import com.example.attendancesystem.attendance.repository.AttendanceSessionRepository;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +33,9 @@ public class AttendanceService {
     @Autowired
     private AttendanceSessionRepository attendanceSessionRepository;
 
+    @Autowired
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
+
     // ========== CHECK-IN METHODS ==========
 
     /**
@@ -52,7 +57,7 @@ public class AttendanceService {
         }
 
         // Check if user already checked in for this session
-        Optional<AttendanceLog> existingLog = attendanceLogRepository.findByUserIdAndSession(userId, session);
+        Optional<AttendanceLog> existingLog = attendanceLogRepository.findByUserIdAndSessionId(userId, session.getId());
         
         if (existingLog.isPresent()) {
             AttendanceLog log = existingLog.get();
@@ -90,7 +95,7 @@ public class AttendanceService {
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
         // Find existing check-in log
-        Optional<AttendanceLog> existingLogOpt = attendanceLogRepository.findByUserIdAndSession(userId, session);
+        Optional<AttendanceLog> existingLogOpt = attendanceLogRepository.findByUserIdAndSessionId(userId, session.getId());
         
         if (!existingLogOpt.isPresent()) {
             logger.warn("Check-out failed - no check-in found: user={}, session={}", userId, sessionId);
@@ -132,6 +137,26 @@ public class AttendanceService {
     // ========== ATTENDANCE QUERIES ==========
 
     /**
+     * Find session by ID and entity ID (with gRPC validation)
+     */
+    public Optional<AttendanceSession> findSessionByIdAndEntityId(Long sessionId, String entityId) {
+        try {
+            // Get organization by entityId via gRPC
+            Optional<OrganizationDto> organizationOpt = organizationServiceGrpcClient.getOrganizationByEntityId(entityId);
+            if (organizationOpt.isEmpty()) {
+                logger.warn("Organization not found for entityId: {}", entityId);
+                return Optional.empty();
+            }
+
+            // Find session by ID and organizationId
+            return attendanceSessionRepository.findByIdAndOrganizationId(sessionId, organizationOpt.get().getId());
+        } catch (Exception e) {
+            logger.error("Error finding session by ID and entityId: sessionId={}, entityId={}", sessionId, entityId, e);
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Get attendance log for a user in a session
      */
     public Optional<AttendanceLog> getAttendanceLog(Long userId, Long sessionId) {
@@ -139,7 +164,7 @@ public class AttendanceService {
         if (session == null) {
             return Optional.empty();
         }
-        return attendanceLogRepository.findByUserIdAndSession(userId, session);
+        return attendanceLogRepository.findByUserIdAndSessionId(userId, session.getId());
     }
 
     /**
@@ -148,7 +173,7 @@ public class AttendanceService {
     public List<AttendanceLog> getSessionAttendance(Long sessionId) {
         AttendanceSession session = attendanceSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
-        return attendanceLogRepository.findBySession(session);
+        return attendanceLogRepository.findBySessionId(session.getId());
     }
 
     /**
@@ -194,7 +219,7 @@ public class AttendanceService {
         AttendanceSession session = attendanceSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         
-        List<AttendanceLog> logs = attendanceLogRepository.findBySession(session);
+        List<AttendanceLog> logs = attendanceLogRepository.findBySessionId(session.getId());
         
         long totalAttendees = logs.size();
         long checkedIn = logs.stream().mapToLong(log -> log.getCheckOutTime() == null ? 1 : 0).sum();

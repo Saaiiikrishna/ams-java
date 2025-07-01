@@ -2,12 +2,17 @@ package com.example.attendancesystem.attendance.controller;
 
 import com.example.attendancesystem.attendance.dto.AttendanceLogDto;
 import com.example.attendancesystem.attendance.dto.SubscriberDto;
-import com.example.attendancesystem.shared.model.*;
-import com.example.attendancesystem.shared.repository.AttendanceLogRepository;
-import com.example.attendancesystem.shared.repository.AttendanceSessionRepository;
-import com.example.attendancesystem.shared.repository.SubscriberRepository;
+import com.example.attendancesystem.attendance.model.*;
+import com.example.attendancesystem.attendance.repository.AttendanceLogRepository;
+import com.example.attendancesystem.attendance.repository.AttendanceSessionRepository;
+// TODO: Replace with gRPC calls to User Service
+// import com.example.attendancesystem.shared.repository.SubscriberRepository;
 // import com.example.attendancesystem.shared.security.CustomUserDetails; // TODO: Integrate with auth-service via gRPC
 import com.example.attendancesystem.attendance.service.ReportService;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.UserDto;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
 import com.example.attendancesystem.attendance.util.AuthUtil;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +44,10 @@ public class ReportController {
     private AttendanceSessionRepository attendanceSessionRepository;
 
     @Autowired
-    private SubscriberRepository subscriberRepository;
+    private UserServiceGrpcClient userServiceGrpcClient;
+
+    @Autowired
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     @Autowired
     private AttendanceLogRepository attendanceLogRepository;
@@ -47,30 +55,30 @@ public class ReportController {
     @Autowired
     private ReportService reportService;
 
-    private Organization getCurrentOrganization() {
+    private OrganizationDto getCurrentOrganization() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         // TODO: Replace with proper authentication integration via gRPC calls to auth-service
         String entityId = AuthUtil.getEntityId(authentication);
         // For now, return a default organization - this should be replaced with proper gRPC call
-        Organization org = new Organization();
-        org.setEntityId(entityId);
+        OrganizationDto org = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
         return org;
     }
 
     @GetMapping("/sessions/{sessionId}/absentees")
     public ResponseEntity<List<SubscriberDto>> getAbsenteesForSession(@PathVariable Long sessionId) {
-        Organization organization = getCurrentOrganization();
-        AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(sessionId, organization)
+        OrganizationDto organization = getCurrentOrganization();
+        AttendanceSession session = attendanceSessionRepository.findByIdAndOrganizationId(sessionId, organization.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Session not found with id: " + sessionId + " in your organization."));
 
-        List<Subscriber> allSubscribersInOrg = subscriberRepository.findAllByOrganization(organization);
-        List<AttendanceLog> logsForSession = attendanceLogRepository.findBySession(session);
-        Set<Subscriber> presentSubscribers = logsForSession.stream()
-                .map(AttendanceLog::getSubscriber)
+        List<UserDto> allSubscribersInOrg = userServiceGrpcClient.getUsersByOrganizationId(organization.getId());
+        List<AttendanceLog> logsForSession = attendanceLogRepository.findBySessionId(session.getId());
+        Set<Long> presentSubscriberIds = logsForSession.stream()
+                .map(AttendanceLog::getUserId)
                 .collect(Collectors.toSet());
 
         List<SubscriberDto> absentees = allSubscribersInOrg.stream()
-                .filter(subscriber -> !presentSubscribers.contains(subscriber))
+                .filter(subscriber -> !presentSubscriberIds.contains(subscriber.getId()))
                 .map(this::convertToSubscriberDto)
                 .collect(Collectors.toList());
 
@@ -83,9 +91,9 @@ public class ReportController {
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        Organization organization = getCurrentOrganization();
-        Subscriber subscriber = subscriberRepository.findByIdAndOrganization(subscriberId, organization)
-                .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + subscriberId + " in your organization."));
+        OrganizationDto organization = getCurrentOrganization();
+        UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + subscriberId));
 
         LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : LocalDate.now().minusYears(1).atStartOfDay();
         LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : LocalDateTime.now();
@@ -102,7 +110,7 @@ public class ReportController {
     @GetMapping("/sessions/{sessionId}/attendance-pdf")
     public ResponseEntity<?> downloadSessionAttendanceReport(@PathVariable Long sessionId) {
         try {
-            Organization organization = getCurrentOrganization();
+            OrganizationDto organization = getCurrentOrganization();
 
             byte[] pdfBytes = reportService.generateSessionAttendanceReport(sessionId, organization.getEntityId());
 
@@ -131,7 +139,7 @@ public class ReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
         try {
-            Organization organization = getCurrentOrganization();
+            OrganizationDto organization = getCurrentOrganization();
 
             byte[] pdfBytes = reportService.generateSubscriberActivityReport(
                 subscriberId, organization.getEntityId(), startDate, endDate);
@@ -152,15 +160,15 @@ public class ReportController {
     }
 
     // DTO Converters
-    private SubscriberDto convertToSubscriberDto(Subscriber subscriber) {
-        String nfcUid = subscriber.getNfcCard(); // getNfcCard() already returns String or null
+    private SubscriberDto convertToSubscriberDto(UserDto subscriber) {
+        String nfcUid = null; // NFC card info not available in UserDto - would need separate service call
         return new SubscriberDto(
                 subscriber.getId(),
                 subscriber.getFirstName(),
                 subscriber.getLastName(),
                 subscriber.getEmail(),
                 subscriber.getMobileNumber(),
-                subscriber.getOrganization().getId(),
+                subscriber.getOrganizationId(),
                 nfcUid
         );
     }
@@ -168,10 +176,10 @@ public class ReportController {
     private AttendanceLogDto convertToAttendanceLogDto(AttendanceLog log) {
         return new AttendanceLogDto(
                 log.getId(),
-                log.getSubscriber().getId(),
-                log.getSubscriber().getFirstName(),
-                log.getSubscriber().getLastName(),
-                log.getSubscriber().getEmail(),
+                log.getUserId(),
+                log.getUserName(),
+                "", // Last name - need to get from user service
+                "", // Email - need to get from user service
                 log.getSession().getId(),
                 log.getSession().getName(),
                 log.getCheckInTime(),

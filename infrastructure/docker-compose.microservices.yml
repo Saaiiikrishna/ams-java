@@ -180,7 +180,7 @@ services:
   attendance-service:
     build:
       context: ../backend/microservices/attendance-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.simple
     image: ams-attendance-service:latest
     container_name: ams-attendance-service
     restart: unless-stopped

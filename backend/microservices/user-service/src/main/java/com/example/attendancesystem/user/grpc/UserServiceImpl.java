@@ -61,7 +61,7 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
 
         } catch (Exception e) {
             logger.error("Error creating Entity Admin via gRPC: {}", request.getUsername(), e);
-            
+
             UserResponse response = UserResponse.newBuilder()
                     .setSuccess(false)
                     .setMessage("Failed to create Entity Admin: " + e.getMessage())

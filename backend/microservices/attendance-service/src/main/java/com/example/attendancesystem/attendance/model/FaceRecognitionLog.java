@@ -1,7 +1,8 @@
 package com.example.attendancesystem.attendance.model;
 
-import com.example.attendancesystem.shared.model.AttendanceSession;
-import com.example.attendancesystem.shared.model.Subscriber;
+import com.example.attendancesystem.attendance.model.AttendanceSession;
+// TODO: Replace with gRPC calls to User Service
+// import com.example.attendancesystem.shared.model.Subscriber;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,9 +19,8 @@ public class FaceRecognitionLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subscriber_id")
-    private Subscriber subscriber;
+    @Column(name = "subscriber_id")
+    private Long userId; // Reference to user from user-service
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id")
@@ -54,9 +54,9 @@ public class FaceRecognitionLog {
     // Constructors
     public FaceRecognitionLog() {}
 
-    public FaceRecognitionLog(Subscriber subscriber, AttendanceSession session, 
+    public FaceRecognitionLog(Long userId, AttendanceSession session,
                              RecognitionStatus status, BigDecimal confidenceScore) {
-        this.subscriber = subscriber;
+        this.userId = userId;
         this.session = session;
         this.recognitionStatus = status;
         this.confidenceScore = confidenceScore;
@@ -71,12 +71,12 @@ public class FaceRecognitionLog {
         this.id = id;
     }
 
-    public Subscriber getSubscriber() {
-        return subscriber;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setSubscriber(Subscriber subscriber) {
-        this.subscriber = subscriber;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public AttendanceSession getSession() {

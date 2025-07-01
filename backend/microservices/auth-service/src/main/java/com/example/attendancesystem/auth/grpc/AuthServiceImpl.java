@@ -12,6 +12,14 @@ import com.example.attendancesystem.auth.security.SuperAdminUserDetailsService;
 import com.example.attendancesystem.auth.service.RefreshTokenService;
 import com.example.attendancesystem.auth.service.SubscriberAuthService;
 import com.example.attendancesystem.auth.service.SuperAdminRefreshTokenService;
+import com.example.attendancesystem.auth.model.EntityAdmin;
+import com.example.attendancesystem.auth.model.Organization;
+import com.example.attendancesystem.auth.model.Role;
+import com.example.attendancesystem.auth.repository.EntityAdminRepository;
+import com.example.attendancesystem.auth.repository.OrganizationRepository;
+import com.example.attendancesystem.auth.repository.RoleRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import java.time.LocalDateTime;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
@@ -57,6 +65,18 @@ public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
 
     @Autowired
     private BlacklistedTokenRepository blacklistedTokenRepository;
+
+    @Autowired
+    private EntityAdminRepository entityAdminRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private OrganizationRepository organizationRepository;
 
     @Override
     public void authenticateEntityAdmin(EntityAdminLoginRequest request, StreamObserver<AuthResponse> responseObserver) {
@@ -560,6 +580,116 @@ public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
             responseObserver.onError(Status.INTERNAL
                     .withDescription("Token blacklisting failed: " + e.getMessage())
                     .asRuntimeException());
+        }
+    }
+
+    @Override
+    public void createEntityAdminForAuth(CreateEntityAdminForAuthRequest request, StreamObserver<CreateEntityAdminForAuthResponse> responseObserver) {
+        try {
+            logger.info("Creating Entity Admin for authentication: {} for organization: {}",
+                       request.getUsername(), request.getOrganizationId());
+
+            // Check if EntityAdmin already exists
+            if (entityAdminRepository.findByUsername(request.getUsername()).isPresent()) {
+                logger.warn("Entity Admin already exists: {}", request.getUsername());
+                CreateEntityAdminForAuthResponse response = CreateEntityAdminForAuthResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Entity Admin with username '" + request.getUsername() + "' already exists")
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Find or create organization entity in auth service
+            Organization organization = organizationRepository.findById(request.getOrganizationId())
+                    .orElseGet(() -> {
+                        // Create a minimal organization record for the relationship
+                        Organization newOrg = new Organization();
+                        newOrg.setId(request.getOrganizationId());
+                        newOrg.setName("Organization " + request.getOrganizationId()); // Placeholder name
+                        return organizationRepository.save(newOrg);
+                    });
+
+            // Get Entity Admin role
+            Role entityAdminRole = roleRepository.findByName("ENTITY_ADMIN")
+                    .orElseThrow(() -> new RuntimeException("Entity Admin role not found"));
+
+            // Create Entity Admin
+            EntityAdmin entityAdmin = new EntityAdmin();
+            entityAdmin.setUsername(request.getUsername());
+            entityAdmin.setPassword(passwordEncoder.encode(request.getPassword()));
+            entityAdmin.setOrganization(organization);
+            entityAdmin.setRole(entityAdminRole);
+            entityAdmin.setCreatedAt(LocalDateTime.now());
+
+            EntityAdmin savedEntityAdmin = entityAdminRepository.save(entityAdmin);
+
+            logger.info("Entity Admin created successfully in Auth Service: {} (ID: {})",
+                       savedEntityAdmin.getUsername(), savedEntityAdmin.getId());
+
+            CreateEntityAdminForAuthResponse response = CreateEntityAdminForAuthResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Entity Admin created successfully for authentication")
+                    .setEntityAdminId(savedEntityAdmin.getId())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            logger.error("Error creating Entity Admin for authentication: {}", request.getUsername(), e);
+            CreateEntityAdminForAuthResponse response = CreateEntityAdminForAuthResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Failed to create Entity Admin: " + e.getMessage())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void hashPassword(HashPasswordRequest request, StreamObserver<HashPasswordResponse> responseObserver) {
+        try {
+            logger.info("Hashing password via gRPC");
+
+            String originalPassword = request.getPassword();
+            if (originalPassword == null || originalPassword.trim().isEmpty()) {
+                HashPasswordResponse response = HashPasswordResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Password cannot be empty")
+                        .build();
+
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+                return;
+            }
+
+            // Hash the password using the same encoder used for authentication
+            String hashedPassword = passwordEncoder.encode(originalPassword);
+
+            HashPasswordResponse response = HashPasswordResponse.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Password hashed successfully")
+                    .setHashedPassword(hashedPassword)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+            logger.info("Password hashed successfully via gRPC");
+
+        } catch (Exception e) {
+            logger.error("Error hashing password via gRPC: {}", e.getMessage());
+
+            HashPasswordResponse response = HashPasswordResponse.newBuilder()
+                    .setSuccess(false)
+                    .setMessage("Failed to hash password: " + e.getMessage())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
         }
     }
 }

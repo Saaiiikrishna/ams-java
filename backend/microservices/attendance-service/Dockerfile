@@ -12,16 +12,16 @@ RUN apk add --no-cache bash
 
 # Copy service
 WORKDIR /app/attendance-service
-COPY attendance-service/pom.xml .
-COPY attendance-service/.mvn/ .mvn/
-COPY attendance-service/mvnw .
-COPY attendance-service/mvnw.cmd .
+COPY pom.xml .
+COPY .mvn/ .mvn/
+COPY mvnw .
+COPY mvnw.cmd .
 
 # Download dependencies
 RUN mvn dependency:go-offline -B
 
 # Copy source code
-COPY attendance-service/src/ src/
+COPY src/ src/
 
 # Build the application
 RUN mvn clean package -DskipTests -B

@@ -1,7 +1,11 @@
 package com.example.attendancesystem.attendance.service;
 
-import com.example.attendancesystem.shared.model.*;
-import com.example.attendancesystem.shared.repository.*;
+import com.example.attendancesystem.attendance.model.*;
+import com.example.attendancesystem.attendance.repository.*;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.UserDto;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -36,10 +40,10 @@ public class ReportService {
     private AttendanceLogRepository attendanceLogRepository;
 
     @Autowired
-    private SubscriberRepository subscriberRepository;
+    private UserServiceGrpcClient userServiceGrpcClient;
 
     @Autowired
-    private OrganizationRepository organizationRepository;
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     /**
      * Generate session attendance report with attendees and absentees
@@ -49,22 +53,22 @@ public class ReportService {
             logger.info("Generating session attendance report for session: {} in entity: {}", sessionId, entityId);
 
             // Get session and organization
-            Organization organization = organizationRepository.findByEntityId(entityId)
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
                     .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
 
-            AttendanceSession session = attendanceSessionRepository.findByIdAndOrganization(sessionId, organization)
+            AttendanceSession session = attendanceSessionRepository.findByIdAndOrganizationId(sessionId, organization.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Session not found"));
 
             // Get attendance logs and all subscribers
-            List<AttendanceLog> attendanceLogs = attendanceLogRepository.findBySession(session);
-            List<Subscriber> allSubscribers = subscriberRepository.findAllByOrganization(organization);
+            List<AttendanceLog> attendanceLogs = attendanceLogRepository.findBySessionId(session.getId());
+            List<UserDto> allSubscribers = userServiceGrpcClient.getUsersByOrganizationId(organization.getId());
 
             // Separate attendees and absentees
             Set<Long> attendeeIds = attendanceLogs.stream()
-                    .map(log -> log.getSubscriber().getId())
+                    .map(log -> log.getUserId())
                     .collect(Collectors.toSet());
 
-            List<Subscriber> absentees = allSubscribers.stream()
+            List<UserDto> absentees = allSubscribers.stream()
                     .filter(subscriber -> !attendeeIds.contains(subscriber.getId()))
                     .collect(Collectors.toList());
 
@@ -84,11 +88,11 @@ public class ReportService {
         try {
             logger.info("Generating subscriber activity report for subscriber: {} in entity: {}", subscriberId, entityId);
 
-            Organization organization = organizationRepository.findByEntityId(entityId)
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationByEntityId(entityId)
                     .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
 
-            Subscriber subscriber = subscriberRepository.findByIdAndOrganization(subscriberId, organization)
-                    .orElseThrow(() -> new IllegalArgumentException("Subscriber not found"));
+            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
             // Get attendance logs for the subscriber in the date range
             List<AttendanceLog> attendanceLogs = attendanceLogRepository
@@ -96,7 +100,7 @@ public class ReportService {
 
             // Get all sessions in the date range for this organization
             List<AttendanceSession> allSessions = attendanceSessionRepository
-                    .findByOrganizationAndStartTimeBetween(organization, startDate, endDate);
+                    .findByOrganizationIdAndStartTimeBetween(organization.getId(), startDate, endDate);
 
             // Find missed sessions
             Set<Long> attendedSessionIds = attendanceLogs.stream()
@@ -120,7 +124,7 @@ public class ReportService {
      * Create PDF for session attendance report
      */
     private byte[] createSessionReportPdf(AttendanceSession session, List<AttendanceLog> attendanceLogs,
-                                        List<Subscriber> absentees, Organization organization) throws Exception {
+                                        List<UserDto> absentees, OrganizationDto organization) throws Exception {
         
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(baos);
@@ -176,8 +180,8 @@ public class ReportService {
 
             for (AttendanceLog log : attendanceLogs) {
                 attendeesTable.addCell(new Cell().add(new Paragraph(
-                        log.getSubscriber().getFirstName() + " " + log.getSubscriber().getLastName())));
-                attendeesTable.addCell(new Cell().add(new Paragraph(log.getSubscriber().getMobileNumber())));
+                        log.getUserName())));
+                attendeesTable.addCell(new Cell().add(new Paragraph(log.getUserMobileNumber())));
                 attendeesTable.addCell(new Cell().add(new Paragraph(log.getCheckInTime().format(DATE_TIME_FORMATTER))));
                 attendeesTable.addCell(new Cell().add(new Paragraph(
                         log.getCheckOutTime() != null ? log.getCheckOutTime().format(DATE_TIME_FORMATTER) : "Not checked out")));
@@ -199,9 +203,9 @@ public class ReportService {
             absenteesTable.addHeaderCell(new Cell().add(new Paragraph("Mobile Number").setBold()));
             absenteesTable.addHeaderCell(new Cell().add(new Paragraph("Email").setBold()));
 
-            for (Subscriber absentee : absentees) {
+            for (UserDto absentee : absentees) {
                 absenteesTable.addCell(new Cell().add(new Paragraph(
-                        absentee.getFirstName() + " " + absentee.getLastName())));
+                        absentee.getFullName())));
                 absenteesTable.addCell(new Cell().add(new Paragraph(absentee.getMobileNumber())));
                 absenteesTable.addCell(new Cell().add(new Paragraph(
                         absentee.getEmail() != null ? absentee.getEmail() : "N/A")));
@@ -223,8 +227,8 @@ public class ReportService {
     /**
      * Create PDF for subscriber activity report
      */
-    private byte[] createSubscriberReportPdf(Subscriber subscriber, List<AttendanceLog> attendanceLogs,
-                                           List<AttendanceSession> missedSessions, Organization organization,
+    private byte[] createSubscriberReportPdf(UserDto subscriber, List<AttendanceLog> attendanceLogs,
+                                           List<AttendanceSession> missedSessions, OrganizationDto organization,
                                            LocalDateTime startDate, LocalDateTime endDate) throws Exception {
         
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -252,7 +256,7 @@ public class ReportService {
         Table subscriberTable = new Table(2);
         subscriberTable.setWidth(UnitValue.createPercentValue(100));
         subscriberTable.addCell(new Cell().add(new Paragraph("Name:").setBold()));
-        subscriberTable.addCell(new Cell().add(new Paragraph(subscriber.getFirstName() + " " + subscriber.getLastName())));
+        subscriberTable.addCell(new Cell().add(new Paragraph(subscriber.getFullName())));
         subscriberTable.addCell(new Cell().add(new Paragraph("Mobile Number:").setBold()));
         subscriberTable.addCell(new Cell().add(new Paragraph(subscriber.getMobileNumber())));
         subscriberTable.addCell(new Cell().add(new Paragraph("Email:").setBold()));

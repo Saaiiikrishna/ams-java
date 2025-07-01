@@ -1,6 +1,7 @@
 package com.example.attendancesystem.attendance.model;
 
-import com.example.attendancesystem.shared.model.Organization;
+// TODO: Replace with organizationId and gRPC calls to Organization Service
+// import com.example.attendancesystem.shared.model.Organization;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,9 +21,8 @@ public class FaceRecognitionSettings {
     @Column(name = "entity_id", nullable = false, unique = true, length = 8)
     private String entityId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "entity_id", referencedColumnName = "entityId", insertable = false, updatable = false)
-    private Organization organization;
+    // Organization reference replaced with organizationId for microservices architecture
+    // Use OrganizationServiceGrpcClient to get organization data when needed
 
     @Column(name = "confidence_threshold", nullable = false, precision = 5, scale = 4)
     private BigDecimal confidenceThreshold = new BigDecimal("0.8000");
@@ -72,13 +72,8 @@ public class FaceRecognitionSettings {
         this.entityId = entityId;
     }
 
-    public Organization getOrganization() {
-        return organization;
-    }
-
-    public void setOrganization(Organization organization) {
-        this.organization = organization;
-    }
+    // Organization methods removed - use OrganizationServiceGrpcClient instead
+    // public OrganizationDto getOrganization() { return organizationServiceGrpcClient.getOrganizationByEntityId(entityId); }
 
     public BigDecimal getConfidenceThreshold() {
         return confidenceThreshold;

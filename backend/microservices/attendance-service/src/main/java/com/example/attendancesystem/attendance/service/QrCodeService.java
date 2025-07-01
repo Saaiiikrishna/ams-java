@@ -1,6 +1,6 @@
 package com.example.attendancesystem.attendance.service;
 
-import com.example.attendancesystem.shared.model.AttendanceSession;
+import com.example.attendancesystem.attendance.model.AttendanceSession;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
@@ -9,7 +9,10 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -31,6 +34,9 @@ public class QrCodeService {
     private static final Logger logger = LoggerFactory.getLogger(QrCodeService.class);
     private static final String QR_SECRET = "AMS_QR_SECRET_2024"; // In production, use environment variable
 
+    @Autowired
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
+
     /**
      * Generate a secure QR code for a session
      */
@@ -39,9 +45,13 @@ public class QrCodeService {
             // Create a unique identifier for this session
             // Use a custom timestamp format without colons to avoid splitting issues
             String timestamp = session.getStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ss.SSSSSS"));
+            // Get organization data via gRPC
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(session.getOrganizationId())
+                    .orElseThrow(() -> new RuntimeException("Organization not found"));
+
             String sessionData = String.format("%d:%s:%s:%s",
                 session.getId(),
-                session.getOrganization().getEntityId(),
+                organization.getEntityId(),
                 timestamp,
                 UUID.randomUUID().toString().substring(0, 8)
             );
@@ -88,15 +98,19 @@ public class QrCodeService {
             String uuid = parts[3];
             String providedHash = parts[4];
 
+            // Get organization data via gRPC
+            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(session.getOrganizationId())
+                    .orElseThrow(() -> new RuntimeException("Organization not found"));
+
             logger.info("Parsed QR - SessionId: {}, EntityId: {}, Timestamp: {}, UUID: {}, Hash: {}",
                        sessionId, entityId, timestamp, uuid, providedHash);
-            logger.info("Session details - ID: {}, EntityId: {}", session.getId(), session.getOrganization().getEntityId());
+            logger.info("Session details - ID: {}, EntityId: {}", session.getId(), organization.getEntityId());
 
             // Verify session ID and entity ID match
             if (!sessionId.equals(session.getId()) ||
-                !entityId.equals(session.getOrganization().getEntityId())) {
+                !entityId.equals(organization.getEntityId())) {
                 logger.warn("QR code session/entity mismatch - QR SessionId: {}, Actual: {}, QR EntityId: {}, Actual: {}",
-                           sessionId, session.getId(), entityId, session.getOrganization().getEntityId());
+                           sessionId, session.getId(), entityId, organization.getEntityId());
                 return false;
             }
 

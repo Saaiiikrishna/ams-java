@@ -1,15 +1,15 @@
 package com.example.attendancesystem.attendance.grpc;
 
 import com.example.attendancesystem.grpc.attendance.*;
-import com.example.attendancesystem.shared.model.AttendanceLog;
-import com.example.attendancesystem.shared.model.AttendanceSession;
-import com.example.attendancesystem.shared.model.CheckInMethod;
-import com.example.attendancesystem.shared.model.Organization;
-import com.example.attendancesystem.shared.model.Subscriber;
-import com.example.attendancesystem.shared.repository.AttendanceLogRepository;
-import com.example.attendancesystem.shared.repository.AttendanceSessionRepository;
-import com.example.attendancesystem.shared.repository.OrganizationRepository;
-import com.example.attendancesystem.shared.repository.SubscriberRepository;
+import com.example.attendancesystem.attendance.model.AttendanceLog;
+import com.example.attendancesystem.attendance.model.AttendanceSession;
+import com.example.attendancesystem.attendance.model.CheckInMethod;
+import com.example.attendancesystem.attendance.repository.AttendanceLogRepository;
+import com.example.attendancesystem.attendance.repository.AttendanceSessionRepository;
+import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+import com.example.attendancesystem.attendance.dto.OrganizationDto;
+import com.example.attendancesystem.attendance.dto.UserDto;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
@@ -38,10 +38,10 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
     private AttendanceLogRepository attendanceLogRepository;
 
     @Autowired
-    private OrganizationRepository organizationRepository;
+    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     @Autowired
-    private SubscriberRepository subscriberRepository;
+    private UserServiceGrpcClient userServiceGrpcClient;
 
     @Override
     public void createAttendanceSession(CreateAttendanceSessionRequest request, StreamObserver<AttendanceSessionResponse> responseObserver) {
@@ -49,7 +49,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
             logger.info("Creating attendance session: {}", request.getName());
 
             // Check if organization exists
-            Optional<Organization> organizationOpt = organizationRepository.findById(request.getOrganizationId());
+            Optional<OrganizationDto> organizationOpt = organizationServiceGrpcClient.getOrganizationById(request.getOrganizationId());
             if (organizationOpt.isEmpty()) {
                 AttendanceSessionResponse response = AttendanceSessionResponse.newBuilder()
                         .setSuccess(false)
@@ -65,7 +65,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
             session.setDescription(request.getDescription());
             session.setStartTime(LocalDateTime.parse(request.getStartTime()));
             session.setEndTime(LocalDateTime.parse(request.getEndTime()));
-            session.setOrganization(organizationOpt.get());
+            session.setOrganizationId(organizationOpt.get().getId());
 
             // Generate QR code for the session
             String qrCodeData = "session_" + System.currentTimeMillis();
@@ -207,7 +207,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
     @Override
     public void listAttendanceSessions(ListAttendanceSessionsRequest request, StreamObserver<ListAttendanceSessionsResponse> responseObserver) {
         try {
-            Optional<Organization> organizationOpt = organizationRepository.findById(request.getOrganizationId());
+            Optional<OrganizationDto> organizationOpt = organizationServiceGrpcClient.getOrganizationById(request.getOrganizationId());
             if (organizationOpt.isEmpty()) {
                 ListAttendanceSessionsResponse response = ListAttendanceSessionsResponse.newBuilder()
                         .setSuccess(false)
@@ -223,11 +223,11 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
             Page<AttendanceSession> sessionPage;
 
             if (request.getSearch().isEmpty()) {
-                sessionPage = attendanceSessionRepository.findByOrganization(organizationOpt.get(), pageable);
+                sessionPage = attendanceSessionRepository.findByOrganizationId(organizationOpt.get().getId(), pageable);
             } else {
                 // Search by session name
-                sessionPage = attendanceSessionRepository.findByOrganizationAndNameContainingIgnoreCase(
-                        organizationOpt.get(), request.getSearch(), pageable);
+                sessionPage = attendanceSessionRepository.findByOrganizationIdAndNameContainingIgnoreCase(
+                        organizationOpt.get().getId(), request.getSearch(), pageable);
             }
 
             List<com.example.attendancesystem.grpc.attendance.AttendanceSession> grpcSessions = sessionPage.getContent()
@@ -259,11 +259,11 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
     public void checkIn(CheckInRequest request, StreamObserver<CheckInResponse> responseObserver) {
         try {
             // Validate subscriber
-            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            Optional<UserDto> subscriberOpt = userServiceGrpcClient.getUserById(request.getSubscriberId());
             if (subscriberOpt.isEmpty()) {
                 CheckInResponse response = CheckInResponse.newBuilder()
                         .setSuccess(false)
-                        .setMessage("Subscriber not found")
+                        .setMessage("User not found")
                         .build();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
@@ -284,7 +284,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
 
             // Check if already checked in
             AttendanceLog existingLog = attendanceLogRepository
-                    .findByUserIdAndSessionAndCheckOutTimeIsNull(subscriberOpt.get().getId(), sessionOpt.get());
+                    .findByUserIdAndSessionIdAndCheckOutTimeIsNull(subscriberOpt.get().getId(), sessionOpt.get().getId());
             if (existingLog != null) {
                 CheckInResponse response = CheckInResponse.newBuilder()
                         .setSuccess(false)
@@ -296,10 +296,10 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
             }
 
             // Create attendance log
-            Subscriber subscriber = subscriberOpt.get();
+            UserDto subscriber = subscriberOpt.get();
             AttendanceLog attendanceLog = new AttendanceLog(
                 subscriber.getId(),
-                subscriber.getFirstName() + " " + subscriber.getLastName(),
+                subscriber.getFullName(),
                 subscriber.getMobileNumber(),
                 sessionOpt.get(),
                 LocalDateTime.now(),
@@ -331,7 +331,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
 
     private com.example.attendancesystem.grpc.attendance.AttendanceSession convertToGrpcAttendanceSession(AttendanceSession session) {
         // Count total attendees
-        List<AttendanceLog> logs = attendanceLogRepository.findBySession(session);
+        List<AttendanceLog> logs = attendanceLogRepository.findBySessionId(session.getId());
         int totalAttendees = logs.size();
 
         return com.example.attendancesystem.grpc.attendance.AttendanceSession.newBuilder()
@@ -340,7 +340,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
                 .setDescription(session.getDescription() != null ? session.getDescription() : "")
                 .setStartTime(session.getStartTime() != null ? session.getStartTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "")
                 .setEndTime(session.getEndTime() != null ? session.getEndTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "")
-                .setOrganizationId(session.getOrganization().getId())
+                .setOrganizationId(session.getOrganizationId())
                 .setActive(session.isActive())
                 .setCreatedAt("") // Not available in current model
                 .setUpdatedAt("") // Not available in current model
@@ -352,7 +352,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
     private com.example.attendancesystem.grpc.attendance.AttendanceLog convertToGrpcAttendanceLog(AttendanceLog log) {
         return com.example.attendancesystem.grpc.attendance.AttendanceLog.newBuilder()
                 .setId(log.getId())
-                .setSubscriberId(log.getSubscriber().getId())
+                .setSubscriberId(log.getUserId())
                 .setSessionId(log.getSession().getId())
                 .setCheckInTime(log.getCheckInTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .setCheckOutTime(log.getCheckOutTime() != null ? 
@@ -369,11 +369,11 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
     public void checkOut(CheckOutRequest request, StreamObserver<CheckOutResponse> responseObserver) {
         try {
             // Validate subscriber
-            Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+            Optional<UserDto> subscriberOpt = userServiceGrpcClient.getUserById(request.getSubscriberId());
             if (subscriberOpt.isEmpty()) {
                 CheckOutResponse response = CheckOutResponse.newBuilder()
                         .setSuccess(false)
-                        .setMessage("Subscriber not found")
+                        .setMessage("User not found")
                         .build();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
@@ -394,7 +394,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
 
             // Find existing check-in log
             AttendanceLog existingLog = attendanceLogRepository
-                    .findByUserIdAndSessionAndCheckOutTimeIsNull(subscriberOpt.get().getId(), sessionOpt.get());
+                    .findByUserIdAndSessionIdAndCheckOutTimeIsNull(subscriberOpt.get().getId(), sessionOpt.get().getId());
             if (existingLog == null) {
                 CheckOutResponse response = CheckOutResponse.newBuilder()
                         .setSuccess(false)
@@ -434,7 +434,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
     @Override
     public void getAttendanceLogs(GetAttendanceLogsRequest request, StreamObserver<ListAttendanceLogsResponse> responseObserver) {
         try {
-            Optional<Organization> organizationOpt = organizationRepository.findById(request.getOrganizationId());
+            Optional<OrganizationDto> organizationOpt = organizationServiceGrpcClient.getOrganizationById(request.getOrganizationId());
             if (organizationOpt.isEmpty()) {
                 ListAttendanceLogsResponse response = ListAttendanceLogsResponse.newBuilder()
                         .setSuccess(false)
@@ -450,12 +450,12 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
             if (request.getSessionId() > 0) {
                 Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(request.getSessionId());
                 if (sessionOpt.isPresent()) {
-                    logs = attendanceLogRepository.findBySession(sessionOpt.get());
+                    logs = attendanceLogRepository.findBySessionId(sessionOpt.get().getId());
                 } else {
                     logs = List.of();
                 }
             } else if (request.getSubscriberId() > 0) {
-                Optional<Subscriber> subscriberOpt = subscriberRepository.findById(request.getSubscriberId());
+                Optional<UserDto> subscriberOpt = userServiceGrpcClient.getUserById(request.getSubscriberId());
                 if (subscriberOpt.isPresent()) {
                     logs = attendanceLogRepository.findByUserId(subscriberOpt.get().getId());
                 } else {
@@ -463,7 +463,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
                 }
             } else {
                 // Get all logs for organization (simplified - in real implementation would use pagination)
-                logs = attendanceLogRepository.findBySessionOrganization(organizationOpt.get());
+                logs = attendanceLogRepository.findBySessionOrganizationId(organizationOpt.get().getId());
             }
 
             List<com.example.attendancesystem.grpc.attendance.AttendanceLog> grpcLogs = logs.stream()
@@ -582,7 +582,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
     @Override
     public void getActiveSession(GetActiveSessionRequest request, StreamObserver<AttendanceSessionResponse> responseObserver) {
         try {
-            Optional<Organization> organizationOpt = organizationRepository.findById(request.getOrganizationId());
+            Optional<OrganizationDto> organizationOpt = organizationServiceGrpcClient.getOrganizationById(request.getOrganizationId());
             if (organizationOpt.isEmpty()) {
                 AttendanceSessionResponse response = AttendanceSessionResponse.newBuilder()
                         .setSuccess(false)
@@ -594,7 +594,7 @@ public class AttendanceServiceImpl extends AttendanceServiceGrpc.AttendanceServi
             }
 
             // Find active session for organization
-            AttendanceSession activeSession = attendanceSessionRepository.findActiveSessionByOrganization(organizationOpt.get());
+            AttendanceSession activeSession = attendanceSessionRepository.findActiveSessionByOrganizationId(organizationOpt.get().getId());
 
             if (activeSession == null) {
                 AttendanceSessionResponse response = AttendanceSessionResponse.newBuilder()

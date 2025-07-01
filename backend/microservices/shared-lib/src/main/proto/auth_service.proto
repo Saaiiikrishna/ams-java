@@ -26,6 +26,12 @@ service AuthService {
   // Token Validation
   rpc ValidateToken(TokenValidationRequest) returns (TokenValidationResponse);
   rpc BlacklistToken(BlacklistTokenRequest) returns (BlacklistTokenResponse);
+
+  // Entity Admin Management
+  rpc CreateEntityAdminForAuth(CreateEntityAdminForAuthRequest) returns (CreateEntityAdminForAuthResponse);
+
+  // Password Management
+  rpc HashPassword(HashPasswordRequest) returns (HashPasswordResponse);
 }
 
 // Request Messages
@@ -107,4 +113,27 @@ message ErrorDetails {
   string code = 1;
   string message = 2;
   repeated string details = 3;
+}
+
+// Entity Admin Management Messages
+message CreateEntityAdminForAuthRequest {
+  string username = 1;
+  string password = 2;
+  int64 organization_id = 3;
+}
+
+message CreateEntityAdminForAuthResponse {
+  bool success = 1;
+  string message = 2;
+  int64 entity_admin_id = 3;
+}
+
+message HashPasswordRequest {
+  string password = 1;
+}
+
+message HashPasswordResponse {
+  bool success = 1;
+  string message = 2;
+  string hashed_password = 3;
 }

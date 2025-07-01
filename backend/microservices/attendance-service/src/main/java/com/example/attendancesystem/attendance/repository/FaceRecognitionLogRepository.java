@@ -1,8 +1,9 @@
 package com.example.attendancesystem.attendance.repository;
 
 import com.example.attendancesystem.attendance.model.FaceRecognitionLog;
-import com.example.attendancesystem.shared.model.Subscriber;
-import com.example.attendancesystem.shared.model.AttendanceSession;
+// TODO: Replace with gRPC calls to User Service
+// import com.example.attendancesystem.shared.model.Subscriber;
+import com.example.attendancesystem.attendance.model.AttendanceSession;
 import com.example.attendancesystem.attendance.model.FaceRecognitionLog.RecognitionStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,9 +22,9 @@ import java.util.List;
 public interface FaceRecognitionLogRepository extends JpaRepository<FaceRecognitionLog, Long> {
     
     /**
-     * Find logs by subscriber
+     * Find logs by user ID
      */
-    List<FaceRecognitionLog> findBySubscriberOrderByRecognitionTimestampDesc(Subscriber subscriber);
+    List<FaceRecognitionLog> findByUserIdOrderByRecognitionTimestampDesc(Long userId);
     
     /**
      * Find logs by session
@@ -43,12 +44,12 @@ public interface FaceRecognitionLogRepository extends JpaRepository<FaceRecognit
                                            @Param("endDate") LocalDateTime endDate);
     
     /**
-     * Find logs by subscriber and date range
+     * Find logs by user ID and date range
      */
-    @Query("SELECT frl FROM FaceRecognitionLog frl WHERE frl.subscriber = :subscriber AND frl.recognitionTimestamp BETWEEN :startDate AND :endDate ORDER BY frl.recognitionTimestamp DESC")
-    List<FaceRecognitionLog> findBySubscriberAndDateRange(@Param("subscriber") Subscriber subscriber,
-                                                         @Param("startDate") LocalDateTime startDate,
-                                                         @Param("endDate") LocalDateTime endDate);
+    @Query("SELECT frl FROM FaceRecognitionLog frl WHERE frl.userId = :userId AND frl.recognitionTimestamp BETWEEN :startDate AND :endDate ORDER BY frl.recognitionTimestamp DESC")
+    List<FaceRecognitionLog> findByUserIdAndDateRange(@Param("userId") Long userId,
+                                                      @Param("startDate") LocalDateTime startDate,
+                                                      @Param("endDate") LocalDateTime endDate);
     
     /**
      * Find logs by session and status
@@ -67,22 +68,22 @@ public interface FaceRecognitionLogRepository extends JpaRepository<FaceRecognit
     Page<FaceRecognitionLog> findAllByOrderByRecognitionTimestampDesc(Pageable pageable);
     
     /**
-     * Find logs by entity (through session relationship)
+     * Find logs by organization ID (microservices approach)
      */
-    @Query("SELECT frl FROM FaceRecognitionLog frl JOIN frl.session s JOIN s.organization o WHERE o.entityId = :entityId ORDER BY frl.recognitionTimestamp DESC")
-    List<FaceRecognitionLog> findByEntityId(@Param("entityId") String entityId);
-    
+    @Query("SELECT frl FROM FaceRecognitionLog frl JOIN frl.session s WHERE s.organizationId = :organizationId ORDER BY frl.recognitionTimestamp DESC")
+    List<FaceRecognitionLog> findByOrganizationId(@Param("organizationId") Long organizationId);
+
     /**
-     * Find logs by entity with pagination
+     * Find logs by organization ID with pagination
      */
-    @Query("SELECT frl FROM FaceRecognitionLog frl JOIN frl.session s JOIN s.organization o WHERE o.entityId = :entityId ORDER BY frl.recognitionTimestamp DESC")
-    Page<FaceRecognitionLog> findByEntityId(@Param("entityId") String entityId, Pageable pageable);
-    
+    @Query("SELECT frl FROM FaceRecognitionLog frl JOIN frl.session s WHERE s.organizationId = :organizationId ORDER BY frl.recognitionTimestamp DESC")
+    Page<FaceRecognitionLog> findByOrganizationId(@Param("organizationId") Long organizationId, Pageable pageable);
+
     /**
-     * Get recognition statistics for an entity
+     * Get recognition statistics for an organization
      */
-    @Query("SELECT frl.recognitionStatus, COUNT(frl) FROM FaceRecognitionLog frl JOIN frl.session s JOIN s.organization o WHERE o.entityId = :entityId GROUP BY frl.recognitionStatus")
-    List<Object[]> getRecognitionStatsByEntity(@Param("entityId") String entityId);
+    @Query("SELECT frl.recognitionStatus, COUNT(frl) FROM FaceRecognitionLog frl JOIN frl.session s WHERE s.organizationId = :organizationId GROUP BY frl.recognitionStatus")
+    List<Object[]> getRecognitionStatsByOrganizationId(@Param("organizationId") Long organizationId);
     
     /**
      * Find failed recognition attempts for debugging

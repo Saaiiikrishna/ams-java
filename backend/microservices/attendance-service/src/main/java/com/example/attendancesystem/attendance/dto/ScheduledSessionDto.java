@@ -1,6 +1,6 @@
 package com.example.attendancesystem.attendance.dto;
 
-import com.example.attendancesystem.shared.model.CheckInMethod;
+import com.example.attendancesystem.attendance.model.CheckInMethod;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.DayOfWeek;
