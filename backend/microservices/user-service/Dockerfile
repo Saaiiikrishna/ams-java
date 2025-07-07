@@ -1,25 +1,4 @@
-# Multi-stage Dockerfile for user-service
-# Stage 1: Build stage with full JDK
-FROM maven:3.9.6-eclipse-temurin-21 AS builder
-
-# Install necessary build tools for protobuf compilation
-RUN apt-get update && apt-get install -y \
-    protobuf-compiler \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /app
-
-# Copy pom.xml first for dependency caching
-COPY pom.xml .
-
-# Copy source code
-COPY src/ src/
-
-# Build the application (shared-lib should be in local Maven repo)
-RUN mvn clean package -DskipTests -B
-
-# Stage 2: Runtime stage
+# Simple Dockerfile for user-service using pre-built JAR
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
 # Install necessary packages
@@ -35,8 +14,8 @@ RUN addgroup -g 1001 -S appgroup && adduser -u 1001 -S appuser -G appgroup
 # Set working directory
 WORKDIR /app
 
-# Copy the built JAR from builder stage
-COPY --from=builder /app/target/user-service-*.jar app.jar
+# Copy the pre-built JAR file
+COPY target/user-service-*.jar app.jar
 
 # Create logs directory
 RUN mkdir -p logs && chown -R appuser:appgroup /app

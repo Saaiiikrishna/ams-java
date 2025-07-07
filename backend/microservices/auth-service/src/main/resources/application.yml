@@ -5,7 +5,7 @@ spring:
   
   # Database Configuration
   datasource:
-    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/attendance_db}
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://ams-postgres-microservices:5432/attendance_db}
     username: ${JDBC_DATABASE_USERNAME:postgres}
     password: ${JDBC_DATABASE_PASSWORD:0000}
     driver-class-name: org.postgresql.Driver
@@ -66,13 +66,13 @@ grpc:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:auth_service_secret_key_2024_very_secure}
+  secret: ${JWT_SECRET:r3Orv57Tzaglnq8x0YfsRYjmVXHMB4rl9xmY92VbGfSsscQ/jWYAX8IpwIA7ukZPla+lL3msCVbg04u8kyVROw==}
   access-token-expiration: 3600000  # 1 hour in milliseconds
   refresh-token-expiration: 604800000  # 7 days in milliseconds
 
   # Subscriber JWT Configuration
   subscriber:
-    secret: ${JWT_SUBSCRIBER_SECRET:subscriberSecretKey123456789012345678901234567890}
+    secret: ${JWT_SUBSCRIBER_SECRET:oJYwEwtBLnDa/xxk4cEatqGBEBOUlnRwW7HhV61AJGVnajTb1BMlbhr1vrRvxd+xbsKtgRXKrlMpNsdHaunIWw==}
     expiration: ${JWT_SUBSCRIBER_EXPIRATION:86400}  # 24 hours
     refresh:
       expiration: ${JWT_SUBSCRIBER_REFRESH_EXPIRATION:604800}  # 7 days

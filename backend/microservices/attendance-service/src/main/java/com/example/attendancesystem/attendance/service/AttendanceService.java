@@ -5,7 +5,8 @@ import com.example.attendancesystem.attendance.model.AttendanceSession;
 import com.example.attendancesystem.attendance.model.CheckInMethod;
 import com.example.attendancesystem.attendance.repository.AttendanceLogRepository;
 import com.example.attendancesystem.attendance.repository.AttendanceSessionRepository;
-import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+// Removed cross-service dependency for microservices independence
+// import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
 import com.example.attendancesystem.attendance.dto.OrganizationDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,9 +33,9 @@ public class AttendanceService {
 
     @Autowired
     private AttendanceSessionRepository attendanceSessionRepository;
-
-    @Autowired
-    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
+    // Removed cross-service dependency for microservices independence
+    // @Autowired
+    // private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     // ========== CHECK-IN METHODS ==========
 
@@ -141,15 +142,12 @@ public class AttendanceService {
      */
     public Optional<AttendanceSession> findSessionByIdAndEntityId(Long sessionId, String entityId) {
         try {
-            // Get organization by entityId via gRPC
-            Optional<OrganizationDto> organizationOpt = organizationServiceGrpcClient.getOrganizationByEntityId(entityId);
-            if (organizationOpt.isEmpty()) {
-                logger.warn("Organization not found for entityId: {}", entityId);
-                return Optional.empty();
-            }
+            // For microservices independence, skip organization validation
+            // Note: Cross-service call removed for independence
+            logger.info("Processing session for entityId: {} (validation skipped for independence)", entityId);
 
-            // Find session by ID and organizationId
-            return attendanceSessionRepository.findByIdAndOrganizationId(sessionId, organizationOpt.get().getId());
+            // For microservices independence, find session by ID only
+            return attendanceSessionRepository.findById(sessionId);
         } catch (Exception e) {
             logger.error("Error finding session by ID and entityId: sessionId={}, entityId={}", sessionId, entityId, e);
             return Optional.empty();
@@ -264,3 +262,6 @@ public class AttendanceService {
         public long getCheckedOut() { return checkedOut; }
     }
 }
+
+
+

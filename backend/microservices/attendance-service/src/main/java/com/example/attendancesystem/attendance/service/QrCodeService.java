@@ -11,7 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+// Removed cross-service dependency for microservices independence
+// import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
 import com.example.attendancesystem.attendance.dto.OrganizationDto;
 
 import javax.imageio.ImageIO;
@@ -34,8 +35,9 @@ public class QrCodeService {
     private static final Logger logger = LoggerFactory.getLogger(QrCodeService.class);
     private static final String QR_SECRET = "AMS_QR_SECRET_2024"; // In production, use environment variable
 
-    @Autowired
-    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
+    // Removed cross-service dependency for microservices independence
+    // @Autowired
+    // private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     /**
      * Generate a secure QR code for a session
@@ -45,13 +47,13 @@ public class QrCodeService {
             // Create a unique identifier for this session
             // Use a custom timestamp format without colons to avoid splitting issues
             String timestamp = session.getStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ss.SSSSSS"));
-            // Get organization data via gRPC
-            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(session.getOrganizationId())
-                    .orElseThrow(() -> new RuntimeException("Organization not found"));
+            // Use organization ID directly for microservices independence
+            // OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(session.getOrganizationId())
+            //         .orElseThrow(() -> new RuntimeException("Organization not found"));
 
             String sessionData = String.format("%d:%s:%s:%s",
                 session.getId(),
-                organization.getEntityId(),
+                "ORG" + session.getOrganizationId(), // Use organizationId as entity identifier
                 timestamp,
                 UUID.randomUUID().toString().substring(0, 8)
             );
@@ -98,19 +100,20 @@ public class QrCodeService {
             String uuid = parts[3];
             String providedHash = parts[4];
 
-            // Get organization data via gRPC
-            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(session.getOrganizationId())
-                    .orElseThrow(() -> new RuntimeException("Organization not found"));
+            // Use organization ID directly for microservices independence
+            // OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(session.getOrganizationId())
+            //         .orElseThrow(() -> new RuntimeException("Organization not found"));
 
             logger.info("Parsed QR - SessionId: {}, EntityId: {}, Timestamp: {}, UUID: {}, Hash: {}",
                        sessionId, entityId, timestamp, uuid, providedHash);
-            logger.info("Session details - ID: {}, EntityId: {}", session.getId(), organization.getEntityId());
+            logger.info("Session details - ID: {}, OrganizationId: {}", session.getId(), session.getOrganizationId());
 
-            // Verify session ID and entity ID match
+            // Verify session ID and entity ID match (using organizationId for independence)
+            String expectedEntityId = "ORG" + session.getOrganizationId();
             if (!sessionId.equals(session.getId()) ||
-                !entityId.equals(organization.getEntityId())) {
-                logger.warn("QR code session/entity mismatch - QR SessionId: {}, Actual: {}, QR EntityId: {}, Actual: {}",
-                           sessionId, session.getId(), entityId, organization.getEntityId());
+                !entityId.equals(expectedEntityId)) {
+                logger.warn("QR code session/entity mismatch - QR SessionId: {}, Actual: {}, QR EntityId: {}, Expected: {}",
+                           sessionId, session.getId(), entityId, expectedEntityId);
                 return false;
             }
 

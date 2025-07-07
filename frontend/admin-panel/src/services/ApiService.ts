@@ -150,7 +150,7 @@ ApiService.interceptors.response.use(
         try {
           // Use a separate, clean Axios instance for the refresh token request to avoid circular interceptors
           const refreshAxiosInstance = axios.create({ baseURL: API_BASE_URL });
-          const refreshResponse = await refreshAxiosInstance.post('/super/auth/refresh-token', { refreshToken });
+          const refreshResponse = await refreshAxiosInstance.post('/api/auth/super/refresh-token', { refreshToken });
 
           const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshResponse.data;
           AuthService.storeTokens(newAccessToken, newRefreshToken); // Store new tokens

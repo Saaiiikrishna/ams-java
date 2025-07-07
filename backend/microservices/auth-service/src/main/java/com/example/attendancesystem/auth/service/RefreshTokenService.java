@@ -3,6 +3,8 @@ package com.example.attendancesystem.auth.service;
 
 import com.example.attendancesystem.auth.model.RefreshToken;
 import com.example.attendancesystem.auth.repository.RefreshTokenRepository;
+import com.example.attendancesystem.auth.repository.EntityAdminRepository;
+import com.example.attendancesystem.auth.model.EntityAdmin;
 import com.example.attendancesystem.auth.security.JwtUtil;
 import com.example.attendancesystem.auth.security.SuperAdminJwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,9 @@ public class RefreshTokenService {
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private EntityAdminRepository entityAdminRepository;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -49,8 +54,25 @@ public class RefreshTokenService {
             }
         }
 
-        RefreshToken refreshToken = new RefreshToken(tokenString, username, expiryDate);
-        return refreshTokenRepository.save(refreshToken);
+        // Get Entity Admin ID for the refresh token
+        Long adminId = null;
+        try {
+            Optional<EntityAdmin> entityAdmin = entityAdminRepository.findByUsername(username);
+            if (entityAdmin.isPresent()) {
+                adminId = entityAdmin.get().getId();
+            }
+        } catch (Exception e) {
+            // If Entity Admin not found, this might be a Super Admin token
+            // Super Admin tokens use a different table, so we can skip this
+        }
+
+        // Only create refresh token if we have a valid admin ID
+        if (adminId != null) {
+            RefreshToken refreshToken = new RefreshToken(tokenString, username, adminId, expiryDate);
+            return refreshTokenRepository.save(refreshToken);
+        } else {
+            throw new RuntimeException("Cannot create refresh token: Entity Admin not found for username: " + username);
+        }
     }
 
     public Optional<RefreshToken> findByToken(String token) {

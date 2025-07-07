@@ -2,7 +2,8 @@ package com.example.attendancesystem.attendance.service;
 
 import com.example.attendancesystem.attendance.model.FaceRecognitionSettings;
 import com.example.attendancesystem.attendance.repository.FaceRecognitionSettingsRepository;
-import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+// Removed cross-service dependency for microservices independence
+// import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
 import com.example.attendancesystem.attendance.dto.UserDto;
 // TODO: Replace with gRPC calls to User Service
 // import com.example.attendancesystem.shared.repository.SubscriberRepository;
@@ -29,9 +30,9 @@ public class FaceRecognitionSettingsService {
     
     @Autowired
     private FaceRecognitionSettingsRepository settingsRepository;
-    
-    @Autowired
-    private UserServiceGrpcClient userServiceGrpcClient;
+    // Removed cross-service dependency for microservices independence
+    // @Autowired
+    // private UserServiceGrpcClient userServiceGrpcClient;
     
     @Autowired
     private FaceRecognitionService faceRecognitionService;
@@ -588,3 +589,4 @@ public class FaceRecognitionSettingsService {
         return "Poor - Significant optimization recommended";
     }
 }
+

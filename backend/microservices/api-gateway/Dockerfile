@@ -24,12 +24,10 @@ COPY target/*.jar app.jar
 RUN mkdir -p logs && chown -R appuser:appgroup /app
 
 # Health check script
-COPY --chown=appuser:appgroup <<EOF /app/healthcheck.sh
-#!/bin/sh
-curl -f http://localhost:8080/actuator/health || exit 1
-EOF
-
-RUN chmod +x /app/healthcheck.sh
+RUN echo '#!/bin/sh' > /app/healthcheck.sh && \
+    echo 'curl -f http://localhost:8080/actuator/health || exit 1' >> /app/healthcheck.sh && \
+    chmod +x /app/healthcheck.sh && \
+    chown appuser:appgroup /app/healthcheck.sh
 
 # Switch to non-root user
 USER appuser

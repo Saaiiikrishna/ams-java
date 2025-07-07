@@ -5,9 +5,9 @@ spring:
   
   # Database Configuration
   datasource:
-    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/attendance_db}
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://ams-postgres-microservices:5432/attendance_db}
     username: ${JDBC_DATABASE_USERNAME:postgres}
-    password: ${JDBC_DATABASE_PASSWORD:attendance_secure_2024}
+    password: ${JDBC_DATABASE_PASSWORD:0000}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20

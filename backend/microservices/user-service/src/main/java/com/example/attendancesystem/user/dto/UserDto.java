@@ -38,7 +38,6 @@ public class UserDto {
     @Size(max = 15, message = "Mobile number must not exceed 15 characters")
     private String mobileNumber;
 
-    @NotNull(message = "User type is required")
     private UserType userType;
 
     private Long organizationId;

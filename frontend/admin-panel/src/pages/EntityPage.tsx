@@ -110,8 +110,8 @@ const EntityPage: React.FC = () => {
     setError(null);
     try {
       const [entitiesResponse, entitiesWithoutAdminResponse] = await Promise.all([
-        ApiService.get<Organization[]>('/super/entities'),
-        ApiService.get<Organization[]>('/super/entities/without-admin')
+        ApiService.get<Organization[]>('/api/organization/super/organizations'),
+        ApiService.get<Organization[]>('/api/organization/super/organizations/without-admin')
       ]);
 
       setEntities(entitiesResponse.data || []);
@@ -171,7 +171,7 @@ const EntityPage: React.FC = () => {
     };
 
     try {
-      const response = await ApiService.post('/super/entities', newEntityData);
+      const response = await ApiService.post('/api/organization/super/organizations', newEntityData);
       setSuccessMessage(`Entity '${response.data.name}' created successfully!`);
 
       // Show dialog to ask if user wants to assign admin immediately
@@ -207,7 +207,8 @@ const EntityPage: React.FC = () => {
     setSuccessMessage(null);
 
     try {
-      await ApiService.post(`/super/entities/${selectedEntityForAdmin.entityId}/assign-admin`, {
+      await ApiService.post(`/api/auth/super/entity-admins`, {
+        organizationId: selectedEntityForAdmin.id,
         username: adminUsername,
         password: adminPassword,
       });
@@ -272,7 +273,7 @@ const EntityPage: React.FC = () => {
     };
 
     try {
-      const response = await ApiService.put(`/super/entities/${editingEntity.entityId}`, updatedEntityData);
+      const response = await ApiService.put(`/api/organization/super/organizations/${editingEntity.id}`, updatedEntityData);
       setSuccessMessage(`Entity '${response.data.name}' updated successfully!`);
       setShowEditDialog(false);
       setEditingEntity(null);
@@ -306,7 +307,7 @@ const EntityPage: React.FC = () => {
 
     // Fetch deletion preview
     try {
-      const response = await ApiService.get(`/super/organizations/${entity.id}/deletion-preview`);
+      const response = await ApiService.get(`/api/organization/super/organizations/${entity.id}/deletion-preview`);
       setDeletionPreview(response.data);
       setShowForceDelete(true); // Always show force delete option for super admin
     } catch (err: any) {
@@ -329,7 +330,7 @@ const EntityPage: React.FC = () => {
     try {
       const endpoint = force
         ? `/super/organizations/${deletingEntity.id}/force-delete`
-        : `/super/entities/${deletingEntity.entityId}`;
+        : `/api/organization/super/organizations/${deletingEntity.id}`;
 
       const response = await ApiService.delete(endpoint);
 

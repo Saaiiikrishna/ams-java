@@ -1,0 +1,112 @@
+# Docker Compose for Frontend Applications
+# Admin Panel and Entity Dashboard with API Gateway integration
+
+version: '3.8'
+
+networks:
+  ams-microservices-network:
+    external: true
+
+services:
+  # Admin Panel (React)
+  admin-panel:
+    build:
+      context: ../frontend/admin-panel
+    image: ams-admin-panel:latest
+    container_name: ams-admin-panel
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8080
+      REACT_APP_API_GATEWAY_URL: http://localhost:8080
+      REACT_APP_ENVIRONMENT: docker
+      REACT_APP_AUTH_SERVICE_URL: http://localhost:8080/auth
+      REACT_APP_ORGANIZATION_SERVICE_URL: http://localhost:8080/organization
+      REACT_APP_USER_SERVICE_URL: http://localhost:8080/user
+      REACT_APP_ATTENDANCE_SERVICE_URL: http://localhost:8080/attendance
+    ports:
+      - "3001:80"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Entity Dashboard (React)
+  entity-dashboard:
+    build:
+      context: ../frontend/entity-dashboard
+    image: ams-entity-dashboard:latest
+    container_name: ams-entity-dashboard
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8080
+      REACT_APP_API_GATEWAY_URL: http://localhost:8080
+      REACT_APP_ENVIRONMENT: docker
+      REACT_APP_AUTH_SERVICE_URL: http://localhost:8080/auth
+      REACT_APP_ORGANIZATION_SERVICE_URL: http://localhost:8080/organization
+      REACT_APP_USER_SERVICE_URL: http://localhost:8080/user
+      REACT_APP_ATTENDANCE_SERVICE_URL: http://localhost:8080/attendance
+    ports:
+      - "3002:80"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Public Menu (React) - Optional
+  public-menu:
+    build:
+      context: ../frontend/public-menu
+    image: ams-public-menu:latest
+    container_name: ams-public-menu
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8080
+      REACT_APP_API_GATEWAY_URL: http://localhost:8080
+      REACT_APP_ENVIRONMENT: docker
+      REACT_APP_MENU_SERVICE_URL: http://localhost:8080/menu
+      REACT_APP_ORDER_SERVICE_URL: http://localhost:8080/order
+    ports:
+      - "3003:80"
+    networks:
+      - ams-microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    profiles:
+      - public-menu
+      - all-frontend

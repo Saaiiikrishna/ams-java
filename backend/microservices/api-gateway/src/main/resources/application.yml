@@ -1,4 +1,9 @@
 # API Gateway Configuration
+
+# JWT Configuration
+jwt:
+  secret: mySecretKey
+
 spring:
   application:
     name: api-gateway
@@ -23,6 +28,54 @@ spring:
             - Path=/api/auth/super/**
           filters:
             - RewritePath=/api/auth/super/(?<segment>.*), /auth/super/auth/$\{segment}
+
+        # SuperAdmin Routes - Organization Service (Entities)
+        - id: super-organization-service-entities
+          uri: http://ams-organization-service:8082
+          predicates:
+            - Path=/api/super/entities
+          filters:
+            - RewritePath=/api/super/entities, /organization/super/entities
+
+        # SuperAdmin Routes - Organization Service (System Metrics)
+        - id: super-organization-service-metrics
+          uri: http://ams-organization-service:8082
+          predicates:
+            - Path=/api/super/system-metrics
+          filters:
+            - RewritePath=/api/super/system-metrics, /organization/super/system-metrics
+
+        # SuperAdmin Routes - User Service (Entity Admins)
+        - id: super-user-service-entity-admins
+          uri: http://ams-user-service:8083
+          predicates:
+            - Path=/api/super/entity-admins
+          filters:
+            - RewritePath=/api/super/entity-admins, /user/api/users/entity-admins
+
+        # SuperAdmin Routes - User Service (Super Admins)
+        - id: super-user-service-super-admins
+          uri: http://ams-user-service:8083
+          predicates:
+            - Path=/api/super/super-admins
+          filters:
+            - RewritePath=/api/super/super-admins, /user/api/users/super-admins
+
+        # SuperAdmin Routes - Placeholder for NFC Cards (temporary)
+        - id: super-placeholder-nfc-cards
+          uri: http://ams-organization-service:8082
+          predicates:
+            - Path=/api/super/nfc-cards
+          filters:
+            - RewritePath=/api/super/nfc-cards, /organization/super/placeholder/nfc-cards
+
+        # SuperAdmin Routes - Placeholder for Recent Activity (temporary)
+        - id: super-placeholder-recent-activity
+          uri: http://ams-organization-service:8082
+          predicates:
+            - Path=/api/super/recent-activity
+          filters:
+            - RewritePath=/api/super/recent-activity, /organization/super/placeholder/recent-activity
 
         # Auth Service Routes - Subscriber Auth
         - id: auth-service-subscriber
@@ -57,13 +110,22 @@ spring:
             - StripPrefix=1
             - RewritePath=/organization/(?<segment>.*), /organization/$\{segment}
 
-        # Subscriber Service Routes
+        # User Service Routes
+        - id: user-service
+          uri: http://ams-user-service:8083
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /user/api/users/$\{segment}
+
+        # Subscriber Service Routes (Legacy - points to User Service)
         - id: subscriber-service
-          uri: http://ams-subscriber-service:8083/subscriber
+          uri: http://ams-user-service:8083
           predicates:
             - Path=/api/subscriber/**
           filters:
-            - StripPrefix=2
+            - StripPrefix=1
+            - RewritePath=/subscriber/(?<segment>.*), /subscriber/$\{segment}
 
         # Attendance Service Routes
         - id: attendance-service
@@ -98,19 +160,7 @@ spring:
           filters:
             - StripPrefix=2
       
-      # Global CORS Configuration
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: false
+
       
       # Default filters
       default-filters:
@@ -166,7 +216,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,gateway
+        include: health,info,metrics,prometheus
+  health:
+    zipkin:
+      enabled: false
   endpoint:
     health:
       show-details: when-authorized
@@ -182,6 +235,8 @@ management:
   zipkin:
     tracing:
       endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+      connect-timeout: 1s
+      read-timeout: 10s
 
 # Logging Configuration
 logging:
@@ -204,3 +259,6 @@ app:
   name: "API Gateway"
   version: "1.0.0"
   description: "API Gateway for Microservices"
+  mdns:
+    enabled: true
+    hostname: restaurant.local

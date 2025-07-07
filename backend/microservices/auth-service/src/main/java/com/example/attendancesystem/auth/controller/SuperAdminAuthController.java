@@ -1,9 +1,9 @@
 package com.example.attendancesystem.auth.controller;
 
-import com.example.attendancesystem.shared.dto.LoginRequest;
-import com.example.attendancesystem.shared.dto.LoginResponse;
-import com.example.attendancesystem.shared.dto.NewAccessTokenResponse;
-import com.example.attendancesystem.shared.dto.RefreshTokenRequest;
+import com.example.attendancesystem.auth.dto.LoginRequest;
+import com.example.attendancesystem.auth.dto.LoginResponse;
+import com.example.attendancesystem.auth.dto.NewAccessTokenResponse;
+import com.example.attendancesystem.auth.dto.RefreshTokenRequest;
 import com.example.attendancesystem.auth.model.EntityAdmin;
 import com.example.attendancesystem.auth.model.RefreshToken;
 import com.example.attendancesystem.auth.model.SuperAdminRefreshToken;
@@ -31,12 +31,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/super/auth")
+@CrossOrigin(origins = "*")
 public class SuperAdminAuthController {
 
     @Autowired
@@ -103,6 +106,7 @@ public class SuperAdminAuthController {
     }
 
     @PostMapping("/refresh-token")
+    @Transactional
     public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
         String requestRefreshToken = request.getRefreshToken();
 

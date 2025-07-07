@@ -1,9 +1,9 @@
 package com.example.attendancesystem.auth.controller;
 
-import com.example.attendancesystem.shared.dto.SubscriberLoginDto;
-import com.example.attendancesystem.shared.dto.LoginResponse;
-import com.example.attendancesystem.shared.dto.RefreshTokenRequest;
-import com.example.attendancesystem.shared.dto.NewAccessTokenResponse;
+import com.example.attendancesystem.auth.dto.SubscriberLoginDto;
+import com.example.attendancesystem.auth.dto.LoginResponse;
+import com.example.attendancesystem.auth.dto.RefreshTokenRequest;
+import com.example.attendancesystem.auth.dto.NewAccessTokenResponse;
 import com.example.attendancesystem.auth.dto.ErrorResponse;
 import com.example.attendancesystem.auth.dto.SuccessResponse;
 import com.example.attendancesystem.auth.service.SubscriberAuthService;

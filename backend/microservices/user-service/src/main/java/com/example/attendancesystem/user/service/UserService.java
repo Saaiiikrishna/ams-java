@@ -8,7 +8,7 @@ import com.example.attendancesystem.user.model.UserPermission;
 import com.example.attendancesystem.user.model.UserType;
 import com.example.attendancesystem.user.repository.UserPermissionRepository;
 import com.example.attendancesystem.user.repository.UserRepository;
-import com.example.attendancesystem.user.grpc.client.AuthServiceGrpcClient;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +41,7 @@ public class UserService {
     private UserPermissionRepository userPermissionRepository;
 
     @Autowired
-    private AuthServiceGrpcClient authServiceGrpcClient;
+    private PasswordEncoder passwordEncoder;
 
 
 
@@ -90,14 +90,10 @@ public class UserService {
         logger.info("*** NEW GRPC METHOD *** Creating Entity Admin via gRPC: {} for organization: {}", username, organizationId);
 
         try {
-            // Hash the password using Auth Service gRPC for consistency
-            logger.info("Hashing password via Auth Service gRPC for user: {}", username);
-            String hashedPassword = authServiceGrpcClient.hashPassword(originalPassword);
-            if (hashedPassword == null) {
-                logger.error("Failed to hash password via Auth Service gRPC for user: {}", username);
-                throw new RuntimeException("Password hashing failed");
-            }
-            logger.info("Password hashed successfully via Auth Service gRPC for user: {}", username);
+            // Hash the password using local password encoder
+            logger.info("Hashing password locally for user: {}", username);
+            String hashedPassword = passwordEncoder.encode(originalPassword);
+            logger.info("Password hashed successfully for user: {}", username);
 
             // Create UserDto with hashed password
             UserDto userDto = new UserDto();
@@ -125,23 +121,11 @@ public class UserService {
             logger.info("User entity retrieved: {}", createdUser != null ? "SUCCESS" : "FAILED");
 
             if (createdUser != null) {
-                logger.info("User created successfully, now calling Auth Service for authentication setup");
-
-                // Also create the EntityAdmin in Auth Service for authentication
-                // Use the original password for Auth Service (it will hash it itself)
-                logger.info("Calling Auth Service gRPC client to create EntityAdmin for authentication");
-                boolean authServiceSuccess = authServiceGrpcClient.createEntityAdminForAuth(
-                        username, originalPassword, organizationId);
-
-                if (authServiceSuccess) {
-                    logger.info("Successfully created Entity Admin in Auth Service for user: {}", username);
-                } else {
-                    logger.warn("Failed to create Entity Admin in Auth Service for user: {}", username);
-                    // Note: We don't fail the entire operation since the user was created successfully
-                    // The EntityAdmin can be manually created in Auth Service later if needed
-                }
+                logger.info("Entity Admin user created successfully: {}", username);
+                // Note: Auth Service will handle its own EntityAdmin creation independently
+                // via gRPC calls when needed for authentication
             } else {
-                logger.error("User creation failed, skipping Auth Service call");
+                logger.error("User creation failed for Entity Admin: {}", username);
             }
 
             return createdUser;

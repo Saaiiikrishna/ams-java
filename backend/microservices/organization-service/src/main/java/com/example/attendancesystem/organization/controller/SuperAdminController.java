@@ -1,12 +1,12 @@
 package com.example.attendancesystem.organization.controller;
 
 import com.example.attendancesystem.organization.dto.CreateEntityAdminRequest;
-import com.example.attendancesystem.organization.grpc.client.UserServiceGrpcClient;
+// Removed UserServiceGrpcClient import for microservices independence
 import com.example.attendancesystem.organization.model.Organization;
 import com.example.attendancesystem.organization.repository.OrganizationRepository;
 import com.example.attendancesystem.organization.repository.OrganizationPermissionRepository;
 import com.example.attendancesystem.organization.service.EntityIdService;
-import com.example.attendancesystem.grpc.user.UserResponse;
+// Removed UserResponse import for microservices independence
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,8 +44,7 @@ public class SuperAdminController {
     @Autowired
     private OrganizationPermissionRepository organizationPermissionRepository;
 
-    @Autowired
-    private UserServiceGrpcClient userServiceGrpcClient;
+    // Removed UserServiceGrpcClient dependency for microservices independence
 
     @Autowired
     private EntityIdService entityIdService;
@@ -175,45 +175,24 @@ public class SuperAdminController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
             }
 
-            // Create Entity Admin via User Service gRPC
-            // Send original password - User Service will handle hashing for its DB and Auth Service
-            UserResponse userResponse = userServiceGrpcClient.createEntityAdmin(
-                    request.getUsername(),
-                    request.getPassword(), // Send original password
-                    request.getEmail(),
-                    request.getFirstName(),
-                    request.getLastName(),
-                    request.getMobileNumber(),
-                    request.getOrganizationId(),
-                    currentUserId
-            );
+            // Note: In microservices architecture, Entity Admin creation should be handled
+            // by the User Service independently via its own endpoints.
+            // Organization Service focuses on organization management only.
+            logger.info("Entity Admin creation request received for organization: {}", request.getOrganizationId());
+            logger.info("Note: Entity Admin should be created via User Service endpoints independently");
 
-            if (!userResponse.getSuccess()) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", userResponse.getMessage());
-                errorResponse.put("errorCode", "USER_CREATION_FAILED");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-            }
-
-            // Prepare success response
+            // Prepare response - Organization Service only validates organization
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Entity Admin created successfully");
-            response.put("entityAdmin", Map.of(
-                    "id", userResponse.getUser().getId(),
-                    "username", userResponse.getUser().getUsername(),
-                    "email", userResponse.getUser().getEmail(),
-                    "firstName", userResponse.getUser().getFirstName(),
-                    "lastName", userResponse.getUser().getLastName(),
-                    "mobileNumber", userResponse.getUser().getMobileNumber(),
+            response.put("message", "Organization validated successfully. Please create Entity Admin via User Service.");
+            response.put("organizationInfo", Map.of(
                     "organizationId", request.getOrganizationId(),
                     "organizationName", organization.getName(),
                     "entityId", organization.getEntityId(),
-                    "createdAt", LocalDateTime.now().toString()
+                    "note", "Entity Admin creation should be done via User Service endpoints"
             ));
 
-            logger.info("Successfully created Entity Admin: {} for organization: {} (Entity ID: {})",
+            logger.info("Organization validation successful for Entity Admin request: {} for organization: {} (Entity ID: {})",
                        request.getUsername(), organization.getName(), organization.getEntityId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -292,6 +271,44 @@ public class SuperAdminController {
             logger.error("Failed to fetch system metrics: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to fetch system metrics"));
+        }
+    }
+
+    /**
+     * Placeholder endpoint for NFC cards statistics
+     * TODO: Implement proper NFC cards service integration
+     */
+    @GetMapping("/placeholder/nfc-cards")
+    public ResponseEntity<?> getNfcCardsPlaceholder() {
+        try {
+            Map<String, Object> nfcStats = new HashMap<>();
+            nfcStats.put("count", 0);
+            nfcStats.put("totalCards", 0);
+            nfcStats.put("assignedCards", 0);
+            nfcStats.put("unassignedCards", 0);
+            nfcStats.put("message", "NFC Cards service not yet implemented in microservices");
+
+            return ResponseEntity.ok(nfcStats);
+        } catch (Exception e) {
+            logger.error("Failed to fetch NFC cards placeholder: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch NFC cards data", "count", 0));
+        }
+    }
+
+    /**
+     * Placeholder endpoint for recent activity
+     * TODO: Implement proper activity logging service
+     */
+    @GetMapping("/placeholder/recent-activity")
+    public ResponseEntity<?> getRecentActivityPlaceholder() {
+        try {
+            // Return empty activity list for now
+            return ResponseEntity.ok(new ArrayList<>());
+        } catch (Exception e) {
+            logger.error("Failed to fetch recent activity placeholder: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ArrayList<>());
         }
     }
 

@@ -1,9 +1,13 @@
 package com.example.attendancesystem.auth.service;
 
-import com.example.attendancesystem.shared.dto.SubscriberLoginDto;
-import com.example.attendancesystem.shared.dto.LoginResponse;
-import com.example.attendancesystem.shared.dto.NewAccessTokenResponse;
+import com.example.attendancesystem.auth.dto.SubscriberLoginDto;
+import com.example.attendancesystem.auth.dto.LoginResponse;
+import com.example.attendancesystem.auth.dto.NewAccessTokenResponse;
 import com.example.attendancesystem.auth.security.SubscriberJwtUtil;
+import com.example.attendancesystem.auth.model.Subscriber;
+import com.example.attendancesystem.auth.model.Organization;
+import com.example.attendancesystem.auth.repository.SubscriberRepository;
+import com.example.attendancesystem.auth.repository.OrganizationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +28,12 @@ public class SubscriberAuthService {
 
     @Autowired
     private SubscriberJwtUtil subscriberJwtUtil;
+
+    @Autowired
+    private SubscriberRepository subscriberRepository;
+
+    @Autowired
+    private OrganizationRepository organizationRepository;
 
     // In-memory token blacklist for logout functionality
     private final Map<String, Long> blacklistedTokens = new ConcurrentHashMap<>();

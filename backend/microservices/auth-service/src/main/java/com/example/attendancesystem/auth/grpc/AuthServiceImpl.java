@@ -1,8 +1,8 @@
 package com.example.attendancesystem.auth.grpc;
 
 import com.example.attendancesystem.grpc.auth.*;
-import com.example.attendancesystem.shared.dto.LoginRequest;
-import com.example.attendancesystem.shared.dto.SubscriberLoginDto;
+import com.example.attendancesystem.auth.dto.LoginRequest;
+import com.example.attendancesystem.auth.dto.SubscriberLoginDto;
 import com.example.attendancesystem.auth.model.BlacklistedToken;
 import com.example.attendancesystem.auth.repository.BlacklistedTokenRepository;
 import com.example.attendancesystem.auth.security.CustomUserDetailsService;

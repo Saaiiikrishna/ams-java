@@ -1,9 +1,9 @@
 package com.example.attendancesystem.auth.controller;
 
-import com.example.attendancesystem.shared.dto.LoginRequest;
-import com.example.attendancesystem.shared.dto.LoginResponse;
-import com.example.attendancesystem.shared.dto.NewAccessTokenResponse;
-import com.example.attendancesystem.shared.dto.RefreshTokenRequest;
+import com.example.attendancesystem.auth.dto.LoginRequest;
+import com.example.attendancesystem.auth.dto.LoginResponse;
+import com.example.attendancesystem.auth.dto.NewAccessTokenResponse;
+import com.example.attendancesystem.auth.dto.RefreshTokenRequest;
 import com.example.attendancesystem.auth.model.EntityAdmin; // Added (assuming this is the user model from RefreshToken)
 import com.example.attendancesystem.auth.model.RefreshToken; // Added
 import com.example.attendancesystem.auth.security.JwtUtil;

@@ -1,7 +1,7 @@
 package com.example.attendancesystem.auth.controller;
 
-import com.example.attendancesystem.shared.dto.LoginRequest;
-import com.example.attendancesystem.shared.dto.RefreshTokenRequest;
+import com.example.attendancesystem.auth.dto.LoginRequest;
+import com.example.attendancesystem.auth.dto.RefreshTokenRequest;
 import com.example.attendancesystem.auth.service.AuthenticationService;
 import com.example.attendancesystem.auth.service.RefreshTokenService;
 import com.example.attendancesystem.auth.security.JwtUtil;

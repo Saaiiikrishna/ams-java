@@ -132,6 +132,10 @@ public class ScheduledSession {
         this.active = active;
     }
 
+    public boolean isActive() {
+        return active != null && active;
+    }
+
     // Utility methods
     public boolean isActiveForDay(DayOfWeek dayOfWeek) {
         return active && daysOfWeek != null && daysOfWeek.contains(dayOfWeek);

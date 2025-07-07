@@ -19,6 +19,7 @@ public class ScheduledSessionDto {
     private Set<DayOfWeek> daysOfWeek;
     private Set<CheckInMethod> allowedCheckInMethods;
     private Boolean active;
+    private Long organizationId; // For microservices independence
     private String organizationEntityId; // For response context
 
     // Constructors
@@ -107,5 +108,13 @@ public class ScheduledSessionDto {
 
     public void setOrganizationEntityId(String organizationEntityId) {
         this.organizationEntityId = organizationEntityId;
+    }
+
+    public Long getOrganizationId() {
+        return organizationId;
+    }
+
+    public void setOrganizationId(Long organizationId) {
+        this.organizationId = organizationId;
     }
 }

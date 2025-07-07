@@ -1,7 +1,7 @@
 package com.example.attendancesystem.auth.service;
 
-import com.example.attendancesystem.shared.dto.LoginRequest;
-import com.example.attendancesystem.shared.dto.LoginResponse;
+import com.example.attendancesystem.auth.dto.LoginRequest;
+import com.example.attendancesystem.auth.dto.LoginResponse;
 import com.example.attendancesystem.auth.security.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

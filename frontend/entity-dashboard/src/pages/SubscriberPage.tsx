@@ -112,7 +112,7 @@ const SubscriberPage: React.FC = () => {
   const checkPermission = async () => {
     setPermissionLoading(true);
     try {
-      const response = await ApiService.get('/api/entity/permissions/check/MEMBER_MANAGEMENT');
+      const response = await ApiService.get('/api/auth/permissions/check/MEMBER_MANAGEMENT');
       setHasPermission(response.data.hasPermission);
     } catch (err: any) {
       console.error('Failed to check permission:', err);
@@ -127,7 +127,7 @@ const SubscriberPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await ApiService.get<Member[]>('/api/subscribers');
+      const response = await ApiService.get<Member[]>('/api/subscriber/subscribers');
       setMembers(response.data || []);
     } catch (err: any) {
       console.error("Failed to fetch members:", err);
@@ -158,10 +158,10 @@ const SubscriberPage: React.FC = () => {
 
     try {
       if (isEditing && editingId) {
-        const response = await ApiService.put<Member>(`/api/subscribers/${editingId}`, memberData);
+        const response = await ApiService.put<Member>(`/api/subscriber/subscribers/${editingId}`, memberData);
         setSuccessMessage(`Member '${response.data.firstName}' updated successfully!`);
       } else {
-        const response = await ApiService.post<Member>('/api/subscribers', memberData);
+        const response = await ApiService.post<Member>('/api/subscriber/subscribers', memberData);
         setSuccessMessage(`Member '${response.data.firstName}' created successfully!`);
       }
       resetForm();
@@ -201,7 +201,7 @@ const SubscriberPage: React.FC = () => {
     setError(null);
     setSuccessMessage(null);
     try {
-      await ApiService.delete(`/api/subscribers/${id}`);
+      await ApiService.delete(`/api/subscriber/subscribers/${id}`);
       setSuccessMessage('Member deleted successfully!');
       fetchMembers(); // Refresh list
       setConfirmationOpen(false);

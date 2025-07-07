@@ -1,6 +1,7 @@
 package com.example.attendancesystem.user.controller;
 
 import com.example.attendancesystem.user.dto.UserDto;
+import com.example.attendancesystem.user.dto.CreateUserRequest;
 import com.example.attendancesystem.user.model.Permission;
 import com.example.attendancesystem.user.model.UserType;
 import com.example.attendancesystem.user.service.UserService;
@@ -40,12 +41,34 @@ public class UserController {
      * Create Super Admin (Only Super Admins can create other Super Admins)
      */
     @PostMapping("/super-admin")
-    public ResponseEntity<?> createSuperAdmin(@Valid @RequestBody UserDto userDto,
+    public ResponseEntity<?> createSuperAdmin(@RequestBody CreateUserRequest request,
                                               @RequestHeader("X-User-ID") Long currentUserId) {
         try {
-            logger.info("Creating Super Admin: {} by user: {}", userDto.getUsername(), currentUserId);
-            
-            userDto.setUserType(UserType.SUPER_ADMIN);
+            logger.info("Creating Super Admin: {} by user: {}", request.getUsername(), currentUserId);
+
+            // Manual validation for required fields
+            if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "success", false,
+                    "message", "Username is required"
+                ));
+            }
+            if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "success", false,
+                    "message", "Password is required"
+                ));
+            }
+
+            // Create UserDto from request
+            UserDto userDto = new UserDto();
+            userDto.setUsername(request.getUsername());
+            userDto.setPassword(request.getPassword());
+            userDto.setEmail(request.getEmail());
+            userDto.setFirstName(request.getFirstName());
+            userDto.setLastName(request.getLastName());
+            userDto.setUserType(UserType.SUPER_ADMIN); // Set this programmatically
+
             UserDto createdUser = userService.createSuperAdmin(userDto, currentUserId);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
@@ -89,13 +112,35 @@ public class UserController {
      * Create Entity Admin (Super Admins can create Entity Admins)
      */
     @PostMapping("/entity-admin")
-    public ResponseEntity<?> createEntityAdmin(@Valid @RequestBody UserDto userDto,
+    public ResponseEntity<?> createEntityAdmin(@RequestBody UserDto userDto,
                                                @RequestHeader("X-User-ID") Long currentUserId) {
         try {
-            logger.info("Creating Entity Admin: {} for organization: {} by user: {}", 
+            logger.info("Creating Entity Admin: {} for organization: {} by user: {}",
                        userDto.getUsername(), userDto.getOrganizationId(), currentUserId);
-            
+
+            // Set user type before validation
             userDto.setUserType(UserType.ENTITY_ADMIN);
+
+            // Manual validation for required fields
+            if (userDto.getUsername() == null || userDto.getUsername().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "success", false,
+                    "message", "Username is required"
+                ));
+            }
+            if (userDto.getPassword() == null || userDto.getPassword().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "success", false,
+                    "message", "Password is required"
+                ));
+            }
+            if (userDto.getOrganizationId() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "success", false,
+                    "message", "Organization ID is required for Entity Admin"
+                ));
+            }
+
             UserDto createdUser = userService.createEntityAdmin(userDto, currentUserId);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
@@ -141,13 +186,29 @@ public class UserController {
      * Create Member (Entity Admins can create Members in their organization)
      */
     @PostMapping("/member")
-    public ResponseEntity<?> createMember(@Valid @RequestBody UserDto userDto,
+    public ResponseEntity<?> createMember(@RequestBody UserDto userDto,
                                           @RequestHeader("X-User-ID") Long currentUserId) {
         try {
-            logger.info("Creating Member: {} for organization: {} by user: {}", 
+            logger.info("Creating Member: {} for organization: {} by user: {}",
                        userDto.getMobileNumber(), userDto.getOrganizationId(), currentUserId);
-            
+
+            // Set user type before validation
             userDto.setUserType(UserType.MEMBER);
+
+            // Manual validation for required fields
+            if (userDto.getMobileNumber() == null || userDto.getMobileNumber().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "success", false,
+                    "message", "Mobile number is required for Member"
+                ));
+            }
+            if (userDto.getOrganizationId() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "success", false,
+                    "message", "Organization ID is required for Member"
+                ));
+            }
+
             UserDto createdUser = userService.createMember(userDto, currentUserId);
             
             return ResponseEntity.ok(Map.of(

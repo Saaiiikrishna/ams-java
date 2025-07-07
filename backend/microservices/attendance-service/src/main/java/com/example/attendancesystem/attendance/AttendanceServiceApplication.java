@@ -15,12 +15,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaAuditing
 @EnableScheduling
 @EntityScan(basePackages = {
-    "com.example.attendancesystem.attendance.model",
-    "com.example.attendancesystem.shared.model"
+    "com.example.attendancesystem.attendance.model"
 })
 @EnableJpaRepositories(basePackages = {
-    "com.example.attendancesystem.attendance.repository",
-    "com.example.attendancesystem.shared.repository"
+    "com.example.attendancesystem.attendance.repository"
 })
 public class AttendanceServiceApplication {
 

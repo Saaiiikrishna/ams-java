@@ -66,7 +66,7 @@ const EntityAdminsPage: React.FC = () => {
     setError(null);
     try {
       // Use the actual entity admins endpoint
-      const response = await ApiService.get('/super/entity-admins');
+      const response = await ApiService.get('/api/auth/super/entity-admins');
       const adminsList: EntityAdmin[] = (response.data || []).map((admin: any) => ({
         id: admin.id,
         username: admin.username,
@@ -121,7 +121,7 @@ const EntityAdminsPage: React.FC = () => {
 
   const performRemoveAdmin = async (adminId: number, username: string) => {
     try {
-      await ApiService.delete(`/super/entity-admins/${adminId}`);
+      await ApiService.delete(`/api/auth/super/entity-admins/${adminId}`);
       setSuccessMessage(`Entity Admin '${username}' removed successfully!`);
       fetchEntityAdmins(); // Refresh the list
       setConfirmationOpen(false);

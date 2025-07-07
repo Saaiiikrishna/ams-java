@@ -56,7 +56,7 @@ public class SuperAdminRefreshTokenService {
     }
 
     public Optional<SuperAdminRefreshToken> findByToken(String token) {
-        return refreshTokenRepository.findByToken(token);
+        return refreshTokenRepository.findByTokenWithUser(token);
     }
 
     public boolean verifyExpiration(SuperAdminRefreshToken token) {

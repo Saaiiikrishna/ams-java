@@ -4,14 +4,11 @@ import com.example.attendancesystem.attendance.dto.CheckInRequestDto;
 import com.example.attendancesystem.attendance.model.*;
 import com.example.attendancesystem.attendance.repository.*;
 import com.example.attendancesystem.attendance.service.QrCodeService;
-import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
-import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
-import com.example.attendancesystem.attendance.dto.UserDto;
-import com.example.attendancesystem.attendance.dto.OrganizationDto;
-import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
-import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
-import com.example.attendancesystem.attendance.dto.UserDto;
-import com.example.attendancesystem.attendance.dto.OrganizationDto;
+// Removed cross-service dependencies for microservices independence
+// import com.example.attendancesystem.attendance.client.UserServiceGrpcClient;
+// import com.example.attendancesystem.attendance.client.OrganizationServiceGrpcClient;
+// import com.example.attendancesystem.attendance.dto.UserDto;
+// import com.example.attendancesystem.attendance.dto.OrganizationDto;
 import com.example.attendancesystem.attendance.security.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +35,12 @@ public class CheckInController {
     @Autowired
     private AttendanceLogRepository attendanceLogRepository;
 
-    @Autowired
-    private UserServiceGrpcClient userServiceGrpcClient;
+    // Removed cross-service dependencies for microservices independence
+    // @Autowired
+    // private UserServiceGrpcClient userServiceGrpcClient;
 
-    @Autowired
-    private OrganizationServiceGrpcClient organizationServiceGrpcClient;
+    // @Autowired
+    // private OrganizationServiceGrpcClient organizationServiceGrpcClient;
 
     @Autowired
     private QrCodeService qrCodeService;
@@ -62,8 +60,10 @@ public class CheckInController {
 
             // Extract subscriber from JWT token (simplified for now)
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            // For microservices independence, use subscriberId directly without cross-service validation
+            if (subscriberId == null) {
+                throw new IllegalArgumentException("User ID not found in token");
+            }
 
             // Find session by QR code
             AttendanceSession session = findSessionByQrCode(request.getQrCode());
@@ -84,7 +84,7 @@ public class CheckInController {
                         .body(Map.of("error", "QR check-in not allowed for this session"));
             }
 
-            return processCheckIn(subscriber, session, CheckInMethod.QR, request);
+            return processCheckIn(subscriberId, session, CheckInMethod.QR, request);
 
         } catch (Exception e) {
             logger.error("QR check-in failed: {}", e.getMessage(), e);
@@ -104,13 +104,17 @@ public class CheckInController {
             logger.info("Bluetooth check-in request received");
 
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            // For microservices independence, use subscriberId directly
+            if (subscriberId == null) {
+                throw new IllegalArgumentException("User ID not found in token");
+            }
 
-            // Find active session for the organization
-            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
-            AttendanceSession session = findActiveSessionForOrganization(organization);
+            // Extract organization ID from token or use a default approach
+            Long organizationId = extractOrganizationIdFromToken(authHeader);
+            if (organizationId == null) {
+                throw new IllegalArgumentException("Organization ID not found in token");
+            }
+            AttendanceSession session = findActiveSessionForOrganizationId(organizationId);
             if (session == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "No active session found"));
@@ -128,7 +132,7 @@ public class CheckInController {
                         .body(Map.of("error", "Not in proximity of Bluetooth beacon"));
             }
 
-            return processCheckIn(subscriber, session, CheckInMethod.BLUETOOTH, request);
+            return processCheckIn(subscriberId, session, CheckInMethod.BLUETOOTH, request);
 
         } catch (Exception e) {
             logger.error("Bluetooth check-in failed: {}", e.getMessage(), e);
@@ -148,13 +152,17 @@ public class CheckInController {
             logger.info("WiFi check-in request received");
 
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            // For microservices independence, use subscriberId directly
+            if (subscriberId == null) {
+                throw new IllegalArgumentException("User ID not found in token");
+            }
 
-            // Find active session for the organization
-            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
-            AttendanceSession session = findActiveSessionForOrganization(organization);
+            // Extract organization ID from token
+            Long organizationId = extractOrganizationIdFromToken(authHeader);
+            if (organizationId == null) {
+                throw new IllegalArgumentException("Organization ID not found in token");
+            }
+            AttendanceSession session = findActiveSessionForOrganizationId(organizationId);
             if (session == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "No active session found"));
@@ -172,7 +180,7 @@ public class CheckInController {
                         .body(Map.of("error", "Not connected to authorized WiFi network"));
             }
 
-            return processCheckIn(subscriber, session, CheckInMethod.WIFI, request);
+            return processCheckIn(subscriberId, session, CheckInMethod.WIFI, request);
 
         } catch (Exception e) {
             logger.error("WiFi check-in failed: {}", e.getMessage(), e);
@@ -192,13 +200,17 @@ public class CheckInController {
             logger.info("Mobile NFC check-in request received");
 
             Long subscriberId = extractSubscriberIdFromToken(authHeader);
-            UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            // For microservices independence, use subscriberId directly
+            if (subscriberId == null) {
+                throw new IllegalArgumentException("User ID not found in token");
+            }
 
-            // Find active session for the organization
-            OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
-            AttendanceSession session = findActiveSessionForOrganization(organization);
+            // Extract organization ID from token
+            Long organizationId = extractOrganizationIdFromToken(authHeader);
+            if (organizationId == null) {
+                throw new IllegalArgumentException("Organization ID not found in token");
+            }
+            AttendanceSession session = findActiveSessionForOrganizationId(organizationId);
             if (session == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "No active session found"));
@@ -216,7 +228,7 @@ public class CheckInController {
                         .body(Map.of("error", "Invalid NFC data"));
             }
 
-            return processCheckIn(subscriber, session, CheckInMethod.MOBILE_NFC, request);
+            return processCheckIn(subscriberId, session, CheckInMethod.MOBILE_NFC, request);
 
         } catch (Exception e) {
             logger.error("Mobile NFC check-in failed: {}", e.getMessage(), e);
@@ -244,20 +256,24 @@ public class CheckInController {
             } else if ("ENTITY_ADMIN".equals(userType)) {
                 // EntityAdmin can see sessions for their organization
                 Long organizationId = extractOrganizationIdFromToken(authHeader);
-                OrganizationDto organization = organizationServiceGrpcClient.getOrganizationById(organizationId)
-                        .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+                if (organizationId == null) {
+                    throw new IllegalArgumentException("Organization ID not found in token");
+                }
                 activeSessions = attendanceSessionRepository
-                        .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(organization.getId(), LocalDateTime.now());
+                        .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(organizationId, LocalDateTime.now());
             } else {
                 // Member/Subscriber can see sessions for their organization
                 Long subscriberId = extractSubscriberIdFromToken(authHeader);
-                UserDto subscriber = userServiceGrpcClient.getUserById(subscriberId)
-                        .orElseThrow(() -> new IllegalArgumentException("User not found"));
-                OrganizationDto subscriberOrg = organizationServiceGrpcClient.getOrganizationById(subscriber.getOrganizationId())
-                        .orElseThrow(() -> new IllegalArgumentException("Organization not found"));
+                if (subscriberId == null) {
+                    throw new IllegalArgumentException("User ID not found in token");
+                }
+                // Extract organization ID from token for members
+                Long organizationId = extractOrganizationIdFromToken(authHeader);
+                if (organizationId == null) {
+                    throw new IllegalArgumentException("Organization ID not found in token");
+                }
                 activeSessions = attendanceSessionRepository
-                        .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(
-                                subscriberOrg.getId(), LocalDateTime.now());
+                        .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(organizationId, LocalDateTime.now());
             }
 
             return ResponseEntity.ok(Map.of(
@@ -275,12 +291,12 @@ public class CheckInController {
 
     // Helper methods
 
-    private ResponseEntity<?> processCheckIn(UserDto subscriber, AttendanceSession session,
+    private ResponseEntity<?> processCheckIn(Long subscriberId, AttendanceSession session,
                                            CheckInMethod method, CheckInRequestDto request) {
-        
+
         // Check if already checked in
         Optional<AttendanceLog> existingLog = attendanceLogRepository
-                .findByUserIdAndSessionId(subscriber.getId(), session.getId());
+                .findByUserIdAndSessionId(subscriberId, session.getId());
 
         if (existingLog.isPresent()) {
             AttendanceLog log = existingLog.get();
@@ -300,11 +316,11 @@ public class CheckInController {
             }
         }
 
-        // New check-in
+        // New check-in - simplified for microservices independence
         AttendanceLog newLog = new AttendanceLog(
-            subscriber.getId(),
-            subscriber.getFullName(),
-            subscriber.getMobileNumber(),
+            subscriberId,
+            "User-" + subscriberId, // Simplified name for independence
+            "N/A", // Mobile number not available for independence
             session,
             LocalDateTime.now(),
             method
@@ -331,10 +347,11 @@ public class CheckInController {
                 .orElse(null);
     }
 
-    private AttendanceSession findActiveSessionForOrganization(OrganizationDto organization) {
+    // Updated for microservices independence - uses organizationId directly
+    private AttendanceSession findActiveSessionForOrganizationId(Long organizationId) {
         List<AttendanceSession> activeSessions = attendanceSessionRepository
-                .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(organization.getId(), LocalDateTime.now());
-        
+                .findByOrganizationIdAndEndTimeIsNullAndStartTimeBefore(organizationId, LocalDateTime.now());
+
         return activeSessions.isEmpty() ? null : activeSessions.get(0);
     }
 
@@ -455,3 +472,4 @@ public class CheckInController {
         );
     }
 }
+

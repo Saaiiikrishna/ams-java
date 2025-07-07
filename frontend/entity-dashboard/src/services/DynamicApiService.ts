@@ -21,7 +21,7 @@ class DynamicApiService {
   // Configuration
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   private readonly DISCOVERY_TIMEOUT = 3000; // 3 seconds per server test
-  private readonly HEALTH_ENDPOINT = '/api/health';
+  private readonly HEALTH_ENDPOINT = '/actuator/health';
   private readonly STORAGE_KEY = 'entity_dashboard_server_url';
 
   private constructor() {

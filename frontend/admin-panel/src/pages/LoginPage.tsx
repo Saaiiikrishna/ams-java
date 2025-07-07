@@ -42,7 +42,7 @@ const LoginPage: React.FC = () => {
     console.log('🔐 Attempting login with:', { username, password: '***' });
 
     try {
-      const response = await ApiService.post('/super/auth/login', {
+      const response = await ApiService.post('/api/auth/super/login', {
         username,
         password,
       });

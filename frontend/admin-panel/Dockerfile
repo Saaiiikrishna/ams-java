@@ -4,6 +4,9 @@
 # Stage 1: Build stage
 FROM node:18-alpine AS builder
 
+# Accept build argument for API base URL
+ARG REACT_APP_API_BASE_URL=http://localhost:8080
+
 # Set working directory
 WORKDIR /app
 
@@ -15,6 +18,9 @@ RUN npm ci --legacy-peer-deps --silent
 
 # Copy source code
 COPY . .
+
+# Set environment variable for build
+ENV REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
 
 # Build the application
 RUN npm run build
